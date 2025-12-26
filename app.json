@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Sabalist",
+    "slug": "sabalist",
+    "version": "1.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/branding/sabalist-icon-safe.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/branding/sabalist-logo-full.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#E50914"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sabalist.app",
+      "icon": "./assets/branding/sabalist-icon-safe.png",
+      "googleServicesFile": "./ios/GoogleService-Info.plist"
+    },
+    "android": {
+      "package": "com.sabalist.app",
+      "icon": "./assets/branding/sabalist-icon-safe.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/branding/sabalist-icon-safe.png",
+        "backgroundColor": "#E50914"
+      },
+      "googleServicesFile": "./android/app/google-services.json"
+    },
+    "plugins": [
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth"
+    ],
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/branding/sabalist-icon-safe.png"
+    }
+  }
+}
+

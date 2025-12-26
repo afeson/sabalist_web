@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Force Sign Out - Sabalist</title>
+    <script type="module">
+        // Firebase configuration
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js';
+        import { getAuth, signOut } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyApAyrJk0Qi9zg8_AaD5r6A084WeLVHNsU",
+            authDomain: "sabalist.firebaseapp.com",
+            projectId: "sabalist",
+            storageBucket: "sabalist.firebasestorage.app",
+            messagingSenderId: "231273918004",
+            appId: "1:231273918004:web:45b857450cc02a2c356461"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        window.forceSignOut = async function() {
+            try {
+                console.log('🚪 Forcing sign out...');
+                await signOut(auth);
+                localStorage.clear();
+                sessionStorage.clear();
+                console.log('✅ Signed out successfully!');
+                document.getElementById('status').innerHTML = '✅ Signed out! <br><br> <a href="http://localhost:19006">Go back to app</a>';
+            } catch (error) {
+                console.error('❌ Error:', error);
+                document.getElementById('status').innerHTML = '❌ Error: ' + error.message;
+            }
+        };
+
+        // Auto sign out on page load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                window.forceSignOut();
+            }, 500);
+        });
+    </script>
+    <style>
+        body {
+            font-family: system-ui;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            text-align: center;
+        }
+        button {
+            background: #EF4444;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        button:hover {
+            background: #DC2626;
+        }
+        #status {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            background: #F3F4F6;
+        }
+        a {
+            color: #FF5A7A;
+            text-decoration: none;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚪 Force Sign Out</h1>
+    <p>This page will sign you out of Sabalist.</p>
+    <button onclick="window.forceSignOut()">Sign Out Now</button>
+    <div id="status">Signing out...</div>
+</body>
+</html>
+

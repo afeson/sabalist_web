@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "231273918004",
+    "project_id": "sabalist",
+    "storage_bucket": "sabalist.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:231273918004:android:0020dcc14b7f52e3356461",
+        "android_client_info": {
+          "package_name": "com.sabalist.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBTy0WJrU9YCCBzlseDjpbhu9RGYvyQ7sk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

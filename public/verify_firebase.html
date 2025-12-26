@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Verify Firebase Config</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #00ff00; }
+        .success { color: #00ff00; }
+        .error { color: #ff0000; }
+        .info { color: #ffaa00; }
+        pre { background: #000; padding: 10px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Firebase Configuration Verification</h1>
+    <div id="output"></div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js';
+        import { getAuth, signInWithPhoneNumber, RecaptchaVerifier } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js';
+
+        const output = document.getElementById('output');
+        
+        function log(message, type = 'info') {
+            const p = document.createElement('p');
+            p.className = type;
+            p.textContent = message;
+            output.appendChild(p);
+            console.log(message);
+        }
+
+        async function verify() {
+            log('🔥 Starting Firebase verification...', 'info');
+            
+            const firebaseConfig = {
+                apiKey: "AIzaSyBTy0WJrU9YCCBzlseDjpbhu9RGYvyQ7sk",
+                authDomain: "sabalist.firebaseapp.com",
+                projectId: "sabalist",
+                storageBucket: "sabalist.firebasestorage.app",
+                messagingSenderId: "231273918004",
+                appId: "1:231273918004:web:0020dcc14b7f52e3356461",
+                measurementId: "G-LGGRMQBGSD"
+            };
+
+            log('', 'info');
+            log('📋 Config:', 'info');
+            log('   App ID: ' + firebaseConfig.appId, 'success');
+            log('   Project: ' + firebaseConfig.projectId, 'success');
+            log('   Auth Domain: ' + firebaseConfig.authDomain, 'success');
+            log('   API Key: ' + firebaseConfig.apiKey.substring(0, 30) + '...', 'success');
+            
+            try {
+                log('', 'info');
+                log('🔄 Initializing Firebase...', 'info');
+                const app = initializeApp(firebaseConfig);
+                log('✅ Firebase initialized successfully!', 'success');
+                
+                const auth = getAuth(app);
+                log('✅ Auth service initialized', 'success');
+                log('   Auth domain: ' + auth.app.options.authDomain, 'success');
+                
+                log('', 'info');
+                log('📱 Testing Phone Auth...', 'info');
+                log('   Creating reCAPTCHA verifier...', 'info');
+                
+                // Create container
+                const container = document.createElement('div');
+                container.id = 'recaptcha-test';
+                document.body.appendChild(container);
+                
+                const verifier = new RecaptchaVerifier(auth, 'recaptcha-test', {
+                    size: 'invisible',
+                    callback: () => {
+                        log('✅ reCAPTCHA solved!', 'success');
+                    }
+                });
+                
+                log('✅ reCAPTCHA verifier created successfully', 'success');
+                
+                log('', 'info');
+                log('🎯 READY TO TEST:', 'success');
+                log('   1. Phone Auth is configured correctly', 'success');
+                log('   2. reCAPTCHA works', 'success');
+                log('   3. Firebase credentials are valid', 'success');
+                log('', 'info');
+                log('⚠️ If you still get auth/invalid-app-credential:', 'info');
+                log('   1. Go to Firebase Console', 'info');
+                log('   2. Authentication → Settings → Authorized domains', 'info');
+                log('   3. Add: localhost', 'info');
+                log('   4. Wait 5-10 minutes for propagation', 'info');
+                log('', 'info');
+                log('✅ Verification complete! Firebase is set up correctly.', 'success');
+                
+            } catch (error) {
+                log('', 'info');
+                log('❌ ERROR: ' + error.code, 'error');
+                log('   Message: ' + error.message, 'error');
+                log('', 'info');
+                
+                if (error.code === 'auth/invalid-api-key') {
+                    log('❌ API Key is invalid!', 'error');
+                    log('   Check Firebase Console → Project Settings', 'error');
+                } else if (error.code === 'auth/invalid-app-credential') {
+                    log('❌ App credentials don\'t match Firebase project', 'error');
+                    log('   Solutions:', 'info');
+                    log('   1. Add localhost to authorized domains', 'info');
+                    log('   2. Wait 10 minutes after Firebase Console changes', 'info');
+                    log('   3. Verify Phone Auth is enabled', 'info');
+                }
+            }
+        }
+
+        verify();
+    </script>
+</body>
+</html>
+

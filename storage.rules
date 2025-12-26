@@ -1,0 +1,50 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isImageFile() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    function isValidSize() {
+      // Max 10MB per image (POWER SELLER)
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+    
+    // Power Seller: Organized by listingId
+    match /listings/{listingId}/{imageId} {
+      // Anyone can read listing images
+      allow read: if true;
+      
+      // Only authenticated users can upload images
+      // Must be image file and under 10MB
+      allow create: if isSignedIn() 
+                    && isImageFile() 
+                    && isValidSize();
+      
+      // Only authenticated users can delete
+      // TODO: Ideally check if user owns the listing
+      allow delete: if isSignedIn();
+    }
+    
+    // Legacy flat structure (backward compatibility)
+    match /listings/{imageId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isImageFile() && isValidSize();
+      allow delete: if isSignedIn();
+    }
+    
+    // Deny all other paths by default
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+
