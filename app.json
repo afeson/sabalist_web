@@ -2,6 +2,7 @@
   "expo": {
     "name": "Sabalist",
     "slug": "sabalist",
+    "owner": "afrson",
     "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/branding/sabalist-icon-safe.png",
