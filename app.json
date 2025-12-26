@@ -37,6 +37,11 @@
     "web": {
       "bundler": "metro",
       "favicon": "./assets/branding/sabalist-icon-safe.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "031b7005-9574-45d4-b3a2-9af6a026fcd7"
+      }
     }
   }
 }
