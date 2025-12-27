@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   View,
   Text,
@@ -12,13 +11,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { auth } from '../lib/firebase';
-import { signOut } from 'firebase/auth';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { Card } from '../components/ui';
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
-  const user = auth.currentUser;
+  const user = auth().currentUser;
   
   console.log('📱 ProfileScreen rendered');
   console.log('👤 Current user:', user ? user.phoneNumber : 'No user');
@@ -35,7 +33,7 @@ export default function ProfileScreen() {
           onPress: async () => {
             try {
               console.log('🚪 Signing out user...');
-              await signOut(auth);
+              await auth().signOut();
               console.log('✅ User signed out successfully!');
               Alert.alert('✅ Signed Out', 'You have been signed out successfully');
             } catch (error) {
