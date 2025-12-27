@@ -1,20 +1,4 @@
-import { 
-  addDoc, 
-  collection, 
-  getDocs,
-  getDoc,
-  doc,
-  updateDoc,
-  deleteDoc,
-  limit, 
-  orderBy, 
-  query, 
-  serverTimestamp, 
-  where,
-  increment
-} from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import { db, storage } from "../lib/firebase";
+import { firestore, storage } from "../lib/firebase";
 
 /**
  * Create a new listing in Firestore (POWER SELLER VERSION)
@@ -25,7 +9,7 @@ import { db, storage } from "../lib/firebase";
 export async function createListing(listingData, imageUris = []) {
   try {
     // Create listing document first to get listingId
-    const listingRef = await addDoc(collection(db, "listings"), {
+    const listingRef = await firestore().collection("listings").add({
       title: listingData.title,
       description: listingData.description || "",
       price: parseFloat(listingData.price) || 0,
@@ -38,8 +22,8 @@ export async function createListing(listingData, imageUris = []) {
       coverImage: "", // Will be set to first image
       status: "active",
       views: 0,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
+      createdAt: firestore.FieldValue.serverTimestamp(),
+      updatedAt: firestore.FieldValue.serverTimestamp()
     });
 
     const listingId = listingRef.id;
@@ -60,10 +44,10 @@ export async function createListing(listingData, imageUris = []) {
       console.log(`✅ Uploaded ${imageUrls.length} images`);
 
       // Update listing with image URLs
-      await updateDoc(doc(db, "listings", listingId), {
+      await firestore().collection("listings").doc(listingId).update({
         images: imageUrls,
         coverImage: imageUrls[0] || "", // First image is cover
-        updatedAt: serverTimestamp()
+        updatedAt: firestore.FieldValue.serverTimestamp()
       });
       
       console.log(`✅ Images linked to listing: ${listingId}`);
@@ -87,13 +71,13 @@ async function uploadImage(uri, path) {
     // Convert URI to blob for web
     const response = await fetch(uri);
     const blob = await response.blob();
-    
+
     // Upload to Firebase Storage with full path
-    const storageRef = ref(storage, path);
-    await uploadBytes(storageRef, blob);
-    
+    const storageRef = storage().ref(path);
+    await storageRef.put(blob);
+
     // Get download URL
-    const downloadURL = await getDownloadURL(storageRef);
+    const downloadURL = await storageRef.getDownloadURL();
     console.log(`✅ Uploaded: ${path}`);
     return downloadURL;
   } catch (error) {
@@ -109,19 +93,23 @@ async function uploadImage(uri, path) {
  */
 export async function fetchListings({ category = null, maxResults = 50 } = {}) {
   try {
-    const constraints = [
-      where("status", "==", "active"),
-      orderBy("createdAt", "desc"),
-      limit(maxResults)
-    ];
+    let query = firestore()
+      .collection("listings")
+      .where("status", "==", "active")
+      .orderBy("createdAt", "desc")
+      .limit(maxResults);
 
     if (category && category !== "All") {
-      constraints.unshift(where("category", "==", category));
+      query = firestore()
+        .collection("listings")
+        .where("category", "==", category)
+        .where("status", "==", "active")
+        .orderBy("createdAt", "desc")
+        .limit(maxResults);
     }
 
-    const q = query(collection(db, "listings"), ...constraints);
-    const snapshot = await getDocs(q);
-    
+    const snapshot = await query.get();
+
     const listings = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
@@ -185,13 +173,12 @@ export async function searchListings(searchText = "", category = null, minPrice 
  */
 export async function getListing(listingId) {
   try {
-    const docRef = doc(db, "listings", listingId);
-    const docSnap = await getDoc(docRef);
-    
-    if (!docSnap.exists()) {
+    const docSnap = await firestore().collection("listings").doc(listingId).get();
+
+    if (!docSnap.exists) {
       throw new Error("Listing not found");
     }
-    
+
     return {
       id: docSnap.id,
       ...docSnap.data()
@@ -209,19 +196,18 @@ export async function getListing(listingId) {
  */
 export async function getUserListings(userId) {
   try {
-    const q = query(
-      collection(db, "listings"),
-      where("userId", "==", userId),
-      orderBy("createdAt", "desc"),
-      limit(100)
-    );
-    
-    const snapshot = await getDocs(q);
+    const snapshot = await firestore()
+      .collection("listings")
+      .where("userId", "==", userId)
+      .orderBy("createdAt", "desc")
+      .limit(100)
+      .get();
+
     const listings = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
-    
+
     console.log(`✅ Fetched ${listings.length} listings for user ${userId}`);
     return listings;
   } catch (error) {
@@ -255,17 +241,16 @@ export async function updateListing(listingId, updateData, newImageUris = [], ex
     
     // Combine existing and new images (in order)
     const allImages = [...existingImages, ...newImageUrls];
-    
+
     // Prepare update data
-    const docRef = doc(db, "listings", listingId);
     const updates = {
       ...updateData,
       images: allImages,
       coverImage: allImages[0] || "", // First image is always cover
-      updatedAt: serverTimestamp()
+      updatedAt: firestore.FieldValue.serverTimestamp()
     };
-    
-    await updateDoc(docRef, updates);
+
+    await firestore().collection("listings").doc(listingId).update(updates);
     console.log(`✅ Listing updated: ${listingId} with ${allImages.length} images`);
   } catch (error) {
     console.error("❌ Error updating listing:", error);
@@ -280,11 +265,10 @@ export async function updateListing(listingId, updateData, newImageUris = [], ex
  */
 export async function markListingAsSold(listingId) {
   try {
-    const docRef = doc(db, "listings", listingId);
-    await updateDoc(docRef, {
+    await firestore().collection("listings").doc(listingId).update({
       status: 'sold',
-      soldAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
+      soldAt: firestore.FieldValue.serverTimestamp(),
+      updatedAt: firestore.FieldValue.serverTimestamp()
     });
     console.log(`✅ Listing marked as sold: ${listingId}`);
   } catch (error) {
@@ -300,11 +284,10 @@ export async function markListingAsSold(listingId) {
  */
 export async function reactivateListing(listingId) {
   try {
-    const docRef = doc(db, "listings", listingId);
-    await updateDoc(docRef, {
+    await firestore().collection("listings").doc(listingId).update({
       status: 'active',
       soldAt: null,
-      updatedAt: serverTimestamp()
+      updatedAt: firestore.FieldValue.serverTimestamp()
     });
     console.log(`✅ Listing reactivated: ${listingId}`);
   } catch (error) {
@@ -320,10 +303,9 @@ export async function reactivateListing(listingId) {
  */
 export async function incrementListingViews(listingId) {
   try {
-    const docRef = doc(db, "listings", listingId);
-    await updateDoc(docRef, {
-      views: increment(1),
-      lastViewedAt: serverTimestamp()
+    await firestore().collection("listings").doc(listingId).update({
+      views: firestore.FieldValue.increment(1),
+      lastViewedAt: firestore.FieldValue.serverTimestamp()
     });
     console.log(`👁️ View counted for listing: ${listingId}`);
   } catch (error) {
@@ -343,15 +325,15 @@ export async function deleteListing(listingId) {
     const listing = await getListing(listingId);
     if (listing.images && listing.images.length > 0) {
       console.log(`🗑️ Deleting ${listing.images.length} images from storage...`);
-      
+
       for (const imageUrl of listing.images) {
         try {
           // Extract path from URL
           const urlPath = imageUrl.split('/o/')[1]?.split('?')[0];
           if (urlPath) {
             const decodedPath = decodeURIComponent(urlPath);
-            const imageRef = ref(storage, decodedPath);
-            await deleteObject(imageRef);
+            const imageRef = storage().ref(decodedPath);
+            await imageRef.delete();
             console.log(`✅ Deleted image: ${decodedPath}`);
           }
         } catch (err) {
@@ -360,11 +342,10 @@ export async function deleteListing(listingId) {
         }
       }
     }
-    
+
     // Delete the document
-    const docRef = doc(db, "listings", listingId);
-    await deleteDoc(docRef);
-    
+    await firestore().collection("listings").doc(listingId).delete();
+
     console.log(`✅ Listing deleted: ${listingId}`);
   } catch (error) {
     console.error("❌ Error deleting listing:", error);
