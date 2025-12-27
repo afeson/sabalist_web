@@ -28,7 +28,7 @@
         "foregroundImage": "./assets/branding/sabalist-icon-safe.png",
         "backgroundColor": "#E50914"
       },
-      "googleServicesFile": "./android/app/google-services.json"
+      "googleServicesFile": "./google-services.json"
     },
     "plugins": [
       "@react-native-firebase/app",
