@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cross-env EXPO_PLATFORM=web expo export:web",
+  "buildCommand": "npm run build:web",
   "outputDirectory": "web-build",
   "framework": null,
   "installCommand": "npm install",
