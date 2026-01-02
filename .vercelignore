@@ -1,0 +1,14 @@
+# Ignore build output
+web-build/
+
+# Ignore native directories
+android/
+ios/
+
+# Ignore documentation
+*.md
+!README.md
+
+# Ignore development files
+.env.local
+.env.development
