@@ -7,7 +7,7 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:231273918004:android:0020dcc14b7f52e3356461",
+        "mobilesdk_app_id": "1:231273918004:android:f10454eeb078a052356461",
         "android_client_info": {
           "package_name": "com.sabalist.app"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBTy0WJrU9YCCBzlseDjpbhu9RGYvyQ7sk"
+          "current_key": "AIzaSyDkQ3xGhs_m-_v71El6NYnWzXFuiUf6UVM"
         }
       ],
       "services": {

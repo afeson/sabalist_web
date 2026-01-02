@@ -4,49 +4,42 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
-  Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { auth } from '../lib/firebase';
+import { useAuth } from '../contexts/AuthContext';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { Card } from '../components/ui';
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
   const { t } = useTranslation();
-  const user = auth().currentUser;
-  
-  console.log('📱 ProfileScreen rendered');
-  console.log('👤 Current user:', user ? user.phoneNumber : 'No user');
+  const { user, logout } = useAuth();
 
-  const handleSignOut = () => {
-    Alert.alert(
-      t('auth.signOut'),
-      t('profile.confirmSignOut'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('auth.signOut'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              console.log('🚪 Signing out user...');
-              await auth().signOut();
-              console.log('✅ User signed out successfully!');
-              Alert.alert('✅ Signed Out', 'You have been signed out successfully');
-            } catch (error) {
-              console.error('❌ Sign out error:', error);
-              Alert.alert(
-                t('common.error'), 
-                t('profile.signOutFailed') + '\n\n' + error.message
-              );
-            }
-          },
-        },
-      ]
-    );
+  console.log('📱 ProfileScreen rendered');
+  console.log('👤 Current user:', user ? (user.phoneNumber || user.email) : 'No user');
+
+  const handleSignOut = async () => {
+    // On web, use window.confirm since Alert.alert doesn't work
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(t('profile.confirmSignOut'));
+      if (!confirmed) {
+        console.log('PROFILE: Sign out cancelled');
+        return;
+      }
+    }
+
+    try {
+      console.log('PROFILE: Logout initiated');
+      await logout();
+      console.log('PROFILE: Logout completed - AuthContext will handle redirect');
+    } catch (error) {
+      console.error('PROFILE: Logout error', error);
+      if (Platform.OS === 'web') {
+        window.alert(t('profile.signOutFailed') + '\n\n' + error.message);
+      }
+    }
   };
 
   const MenuItem = ({ icon, title, subtitle, onPress, color = COLORS.textDark }) => {
@@ -78,9 +71,9 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.card} />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{t('profile.title')}</Text>
@@ -108,7 +101,10 @@ export default function ProfileScreen() {
               icon="person-outline"
               title={t('profile.editProfile')}
               subtitle={t('profile.editProfileDesc')}
-              onPress={() => Alert.alert(t('common.comingSoon'), t('profile.editProfileSoon'))}
+              onPress={() => {
+                console.log('✅ Navigating to EditProfile');
+                navigation.navigate('EditProfile');
+              }}
               color={COLORS.primary}
             />
             <View style={styles.menuDivider} />
@@ -116,7 +112,10 @@ export default function ProfileScreen() {
               icon="notifications-outline"
               title={t('profile.notifications')}
               subtitle={t('profile.notificationsDesc')}
-              onPress={() => Alert.alert(t('common.comingSoon'), t('profile.notificationsSoon'))}
+              onPress={() => {
+                console.log('✅ Navigating to Notifications');
+                navigation.navigate('Notifications');
+              }}
               color={COLORS.secondary}
             />
           </Card>
@@ -130,7 +129,10 @@ export default function ProfileScreen() {
               icon="help-circle-outline"
               title={t('profile.help')}
               subtitle={t('profile.helpDesc')}
-              onPress={() => Alert.alert(t('profile.help'), t('profile.helpContact'))}
+              onPress={() => {
+                console.log('✅ Navigating to HelpSupport');
+                navigation.navigate('HelpSupport');
+              }}
               color={COLORS.info}
             />
             <View style={styles.menuDivider} />
@@ -138,7 +140,10 @@ export default function ProfileScreen() {
               icon="document-text-outline"
               title={t('profile.termsPrivacy')}
               subtitle={t('profile.termsDesc')}
-              onPress={() => Alert.alert(t('profile.termsPrivacy'), t('profile.termsMessage'))}
+              onPress={() => {
+                console.log('✅ Navigating to TermsPrivacy');
+                navigation.navigate('TermsPrivacy');
+              }}
               color={COLORS.accent}
             />
             <View style={styles.menuDivider} />
@@ -146,7 +151,10 @@ export default function ProfileScreen() {
               icon="information-circle-outline"
               title={t('profile.about')}
               subtitle={t('profile.version')}
-              onPress={() => Alert.alert(t('profile.about'), t('profile.aboutMessage'))}
+              onPress={() => {
+                console.log('✅ Navigating to About');
+                navigation.navigate('About');
+              }}
               color={COLORS.textMuted}
             />
           </Card>
@@ -167,7 +175,7 @@ export default function ProfileScreen() {
 
         <View style={{ height: 100 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

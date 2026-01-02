@@ -10,11 +10,23 @@ import {
   SafeAreaView,
   StatusBar,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
-import { fetchListings, searchListings } from '../services/listings';
+
+// Platform-aware listings imports
+let fetchListings, searchListings;
+if (Platform.OS === 'web') {
+  const listingsWeb = require('../services/listings.web');
+  fetchListings = listingsWeb.fetchListings;
+  searchListings = listingsWeb.searchListings;
+} else {
+  const listingsNative = require('../services/listings');
+  fetchListings = listingsNative.fetchListings;
+  searchListings = listingsNative.searchListings;
+}
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { SearchBar, CategoryPill, ListingCard, IconButton } from '../components/ui';
 import LanguageSwitcher from '../components/LanguageSwitcher';
@@ -22,6 +34,7 @@ import LanguageSwitcher from '../components/LanguageSwitcher';
 const CATEGORIES = ['All', 'Electronics', 'Vehicles', 'Real Estate', 'Fashion', 'Services'];
 
 export default function HomeScreen() {
+  console.log('🔥 HOMESCREEN.JS IS RENDERING 🔥');
   const navigation = useNavigation();
   const { t } = useTranslation();
   const [listings, setListings] = useState([]);

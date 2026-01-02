@@ -1,6 +1,7 @@
 {
   "appName": "Sabalist",
   "tagline": "Nunua na Uza Afrika Nzima",
+  "loadingApp": "Loading Sabalist...",
   "common": {
     "loading": "Inapakia...",
     "error": "Kosa",
@@ -17,7 +18,9 @@
     "filter": "Chuja",
     "apply": "Tumia",
     "close": "Funga",
-    "comingSoon": "Inakuja Hivi Karibuni"
+    "comingSoon": "Inakuja Hivi Karibuni",
+    "areYouSure": "Are you sure?",
+    "incomplete": "Incomplete"
   },
   "auth": {
     "phoneOTP": "Nambari ya Simu",
@@ -32,9 +35,22 @@
     "signOut": "Toka",
     "authRequired": "Uthibitisho Unahitajika",
     "pleaseSignIn": "Tafadhali ingia ili kuendelea",
+    "pleaseSignInToCreate": "Please sign in to create listings",
     "welcome": "Karibu!",
+    "welcomeUser": "✅ Welcome!",
+    "signedInAs": "Signed in as {{user}}",
     "signInMessage": "Ingia kwa nambari yako ya simu kuanza kununua na kuuza",
-    "enterCode": "Ingiza nambari ya uthibitisho uliyotumwa kwa simu yako"
+    "enterCode": "Ingiza nambari ya uthibitisho uliyotumwa kwa simu yako",
+    "smsSent": "✅ SMS Sent!",
+    "codeSentTo": "Verification code sent to {{phone}}",
+    "checkMessages": "Check your messages and enter the 6-digit code.",
+    "signInError": "Sign-in Error",
+    "signInFailed": "Sign-in Failed",
+    "googleNotAvailable": "Not Available",
+    "googleNotAvailableMessage": "Google Sign-In is currently only available on web. Please use phone sign-in on mobile.",
+    "googleSignInFailed": "Google Sign-In Failed",
+    "checkEmail": "✅ Check your email!",
+    "magicLinkSent": "We sent a login link to {{email}}\n\nClick the link in your email to sign in."
   },
   "features": {
     "secure": "Salama",
@@ -43,6 +59,12 @@
     "fastDesc": "Nunua na uuze mara moja",
     "community": "Jamii",
     "communityDesc": "Soko la kuaminika"
+  },
+  "home": {
+    "heroTitle": "Gundua Kitu\nCha Kipekee",
+    "heroSubtitle": "Tazama matangazo elfu kutoka kwa wauzaji kote Afrika",
+    "noListings": "Hakuna matangazo bado",
+    "beFirst": "Kuwa wa kwanza kutangaza!"
   },
   "marketplace": {
     "title": "Soko",
@@ -60,9 +82,80 @@
     "all": "Yote",
     "electronics": "Elektroniki",
     "vehicles": "Magari",
-    "realEstate": "Mali Isiyohamishika",
+    "furniture": "Samani",
+    "homeAppliances": "Vifaa vya Nyumbani",
+    "constructionEquipment": "Vifaa vya Ujenzi",
+    "artCollectibles": "Sanaa na Makusanyo",
     "fashion": "Mitindo",
-    "services": "Huduma"
+    "services": "Huduma",
+    "jobs": "Ajira",
+    "realEstate": "Mali Isiyohamishika"
+  },
+  "subCategories": {
+    "selectCategory": "Chagua Kategoria",
+    "browseBy": "Vinjari {{category}} kwa kategoria",
+    "mobilePhones": "Simu za Mkononi",
+    "laptopsComputers": "Kompyuta na Laptop",
+    "tablets": "Kompyuta za Mkono",
+    "tvs": "Televisheni",
+    "audioSpeakers": "Sauti na Spika",
+    "cameras": "Kamera",
+    "gamingConsoles": "Vifaa vya Michezo",
+    "accessories": "Vifaa Vya Ziada",
+    "cars": "Magari",
+    "motorcycles": "Pikipiki",
+    "trucks": "Malori",
+    "buses": "Mabasi",
+    "bicycles": "Baiskeli",
+    "spareParts": "Vipuri vya Magari",
+    "sofasChairs": "Sofa na Viti",
+    "bedsMattresses": "Vitanda na Godoro",
+    "tablesDesks": "Meza na Dawati",
+    "wardrobes": "Kabati za Nguo",
+    "officeFurniture": "Samani za Ofisi",
+    "refrigerators": "Friji",
+    "washingMachines": "Mashine za Kufulia",
+    "microwaves": "Microwave",
+    "airConditioners": "Vipozeshaji",
+    "cookersOvens": "Jiko na Oven",
+    "cementMixers": "Vichanganyaji Saruji",
+    "generators": "Jenereta",
+    "excavators": "Viombaji",
+    "drillingMachines": "Mashine za Kuchimba",
+    "powerTools": "Zana za Umeme",
+    "buildingMaterials": "Vifaa vya Ujenzi",
+    "paintings": "Michoro",
+    "sculptures": "Sanamu",
+    "handmadeArt": "Sanaa ya Mikono",
+    "antiques": "Vitu vya Kale",
+    "crafts": "Ufundi",
+    "mensClothing": "Nguo za Wanaume",
+    "womensClothing": "Nguo za Wanawake",
+    "shoes": "Viatu",
+    "bags": "Mifuko",
+    "watchesJewelry": "Saa na Mapambo",
+    "cleaning": "Usafi",
+    "electrical": "Umeme",
+    "plumbing": "Mabomba",
+    "carRepair": "Ukarabati wa Magari",
+    "graphicDesign": "Muundo wa Picha",
+    "tutoring": "Mafunzo",
+    "fullTime": "Muda Wote",
+    "partTime": "Nusu Muda",
+    "freelance": "Huru",
+    "internships": "Mafunzo ya Kazi",
+    "remote": "Mbali",
+    "housesSale": "Nyumba za Kuuza",
+    "housesRent": "Nyumba za Kupanga",
+    "apartments": "Vyumba",
+    "land": "Ardhi",
+    "commercialProperty": "Mali ya Biashara"
+  },
+  "tabs": {
+    "home": "Nyumbani",
+    "favorites": "Vipendwa",
+    "myListings": "Matangazo Yangu",
+    "profile": "Wasifu"
   },
   "listing": {
     "postItem": "+ Tangaza",
@@ -115,7 +208,14 @@
     "maxImagesExceeded": "Matangazo ya {{category}} yanaweza kuwa na picha {{max}} tu",
     "imageTooLarge": "Picha Kubwa Sana",
     "imageExceeds10MB": "Picha moja au zaidi zinazidi 10MB na zitarukwa.",
-    "maximumReached": "Kikomo Kimefikiwa"
+    "maximumReached": "Kikomo Kimefikiwa",
+    "fillAllFields": "Please fill all required fields",
+    "invalidFormat": "Invalid Format",
+    "phoneFormatHint": "Phone number must start with country code (e.g., +1 for US, +254 for Kenya)",
+    "invalidEmail": "Invalid Email",
+    "enterValidEmail": "Please enter a valid email address",
+    "videoAlreadyAdded": "Video Already Added",
+    "oneVideoOnly": "Only one video per listing is allowed. Please remove the existing video to add a new one."
   },
   "alerts": {
     "success": "Mafanikio! 🎉",
@@ -131,7 +231,10 @@
     "reportSubmitted": "Asante",
     "reportSubmittedMessage": "Ripoti imewasilishwa kwa mafanikio. Tutaangalia hivi karibuni.",
     "noContactInfo": "Hakuna Maelezo ya Mawasiliano",
-    "sellerNoPhone": "Muuzaji hakutoa nambari ya simu"
+    "sellerNoPhone": "Muuzaji hakutoa nambari ya simu",
+    "failedToDelete": "Failed to delete",
+    "failedToUpdate": "Failed to update",
+    "info": "Info"
   },
   "myListings": {
     "title": "Matangazo Yangu",
@@ -213,7 +316,12 @@
     "failedToDeleteListing": "Imeshindwa kufuta tangazo: {{message}}",
     "failedToLoadListing": "Imeshindwa kupakia tangazo",
     "permissionRequired": "Ruhusa Inahitajika",
-    "cameraPermission": "Ruhusa ya kamera inahitajika kupiga picha"
+    "cameraPermission": "Ruhusa ya kamera inahitajika kupiga picha",
+    "failedToPickVideo": "Failed to pick video",
+    "videoTooLarge": "Video Too Large",
+    "videoSizeExceeded": "Video size is {{size}}MB. Maximum allowed is 30MB.",
+    "invalidVideoFormat": "Invalid Format",
+    "videoFormatNotSupported": "Only MP4 and MOV video formats are supported."
   }
 }
 

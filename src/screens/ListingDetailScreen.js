@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,29 +8,55 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Linking,
   Dimensions,
-  Share,
+  Platform,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { auth, db } from '../lib/firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { getListing, deleteListing, markListingAsSold, reactivateListing, incrementListingViews } from '../services/listings';
+import { useTranslation } from 'react-i18next';
+import { PREMIUM_COLORS, PREMIUM_SPACING, PREMIUM_RADIUS, PREMIUM_SHADOWS } from '../theme/premiumTheme';
+import AppHeader from '../components/AppHeader';
+
+// Platform-aware Firebase imports
+let auth, getListing, deleteListing, markListingAsSold, reactivateListing, incrementListingViews;
+if (Platform.OS === 'web') {
+  const firebaseWeb = require('../lib/firebase.web');
+  const listingsWeb = require('../services/listings.web');
+  auth = firebaseWeb.auth;
+  getListing = listingsWeb.getListingById;
+  deleteListing = listingsWeb.deleteListing;
+  markListingAsSold = listingsWeb.markListingAsSold;
+  reactivateListing = listingsWeb.reactivateListing;
+  incrementListingViews = listingsWeb.incrementListingViews;
+} else {
+  const firebaseNative = require('../lib/firebase');
+  const listingsNative = require('../services/listings');
+  auth = firebaseNative.auth;
+  getListing = listingsNative.getListing;
+  deleteListing = listingsNative.deleteListing;
+  markListingAsSold = listingsNative.markListingAsSold;
+  reactivateListing = listingsNative.reactivateListing;
+  incrementListingViews = listingsNative.incrementListingViews;
+}
 
 const { width } = Dimensions.get('window');
 
 export default function ListingDetailScreen({ route, navigation }) {
+  const { t } = useTranslation();
   const { listingId } = route.params;
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [deleting, setDeleting] = useState(false);
+  const [imageViewerVisible, setImageViewerVisible] = useState(false);
+  const [viewerImageIndex, setViewerImageIndex] = useState(0);
+
+  const currentUser = Platform.OS === 'web' ? auth.currentUser : auth().currentUser;
+  const isOwner = listing && currentUser && listing.userId === currentUser.uid;
 
   useEffect(() => {
     loadListing();
   }, [listingId]);
 
-  // Increment view count (but not for owner)
   useEffect(() => {
     if (listing && !isOwner) {
       incrementListingViews(listingId);
@@ -44,7 +70,7 @@ export default function ListingDetailScreen({ route, navigation }) {
       setListing(data);
     } catch (error) {
       console.error('Error loading listing:', error);
-      Alert.alert('Error', 'Failed to load listing');
+      Alert.alert(t('common.error'), t('errors.failedToLoadListing'));
       navigation.goBack();
     } finally {
       setLoading(false);
@@ -53,22 +79,19 @@ export default function ListingDetailScreen({ route, navigation }) {
 
   const handleDelete = () => {
     Alert.alert(
-      'Delete Listing',
-      'Are you sure you want to delete this listing? This action cannot be undone.',
+      t('alerts.deleteListing'),
+      t('common.areYouSure'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
-            setDeleting(true);
             try {
               await deleteListing(listingId);
-              Alert.alert('Success', 'Listing deleted successfully');
               navigation.goBack();
             } catch (error) {
-              setDeleting(false);
-              Alert.alert('Error', 'Failed to delete listing: ' + error.message);
+              Alert.alert(t('common.error'), t('alerts.failedToDelete'));
             }
           },
         },
@@ -77,189 +100,54 @@ export default function ListingDetailScreen({ route, navigation }) {
   };
 
   const handleMarkAsSold = async () => {
-    const isSold = listing.status === 'sold';
-    
-    Alert.alert(
-      isSold ? 'Reactivate Listing' : 'Mark as Sold',
-      isSold 
-        ? 'Do you want to reactivate this listing and make it visible in the marketplace again?'
-        : 'Mark this item as sold? It will be hidden from the marketplace but remain in "My Listings".',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: isSold ? 'Reactivate' : 'Mark as Sold',
-          onPress: async () => {
-            try {
-              if (isSold) {
-                await reactivateListing(listingId);
-                loadListing(); // Refresh
-                Alert.alert(
-                  '✅ Reactivated!',
-                  'Your listing is now active and visible in the marketplace again.',
-                  [{ text: 'OK' }]
-                );
-              } else {
-                await markListingAsSold(listingId);
-                loadListing(); // Refresh
-                Alert.alert(
-                  '✅ Marked as Sold!',
-                  'Your listing is now hidden from the marketplace but still visible in "My Listings".',
-                  [{ text: 'OK' }]
-                );
-              }
-            } catch (error) {
-              Alert.alert('Error', 'Failed to update listing: ' + error.message);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleEdit = () => {
-    navigation.navigate('EditListing', { listingId, listing });
-  };
-
-  const handleReport = () => {
-    if (!auth.currentUser) {
-      Alert.alert('Sign In Required', 'Please sign in to report listings');
-      return;
-    }
-
-    Alert.alert(
-      'Report Listing',
-      'Why are you reporting this listing?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Spam',
-          onPress: () => submitReport('spam')
-        },
-        {
-          text: 'Fraud/Scam',
-          onPress: () => submitReport('fraud')
-        },
-        {
-          text: 'Inappropriate Content',
-          onPress: () => submitReport('inappropriate')
-        },
-        {
-          text: 'Duplicate Listing',
-          onPress: () => submitReport('duplicate')
-        },
-      ]
-    );
-  };
-
-  const submitReport = async (reason) => {
     try {
-      await addDoc(collection(db, 'reports'), {
-        listingId,
-        listingTitle: listing.title,
-        reportedBy: auth.currentUser.uid,
-        sellerUserId: listing.userId,
-        reason,
-        status: 'pending',
-        createdAt: serverTimestamp()
-      });
-      Alert.alert('Thank You', 'Report submitted successfully. We\'ll review it shortly.');
+      if (listing.status === 'sold') {
+        await reactivateListing(listingId);
+      } else {
+        await markListingAsSold(listingId);
+      }
+      loadListing();
     } catch (error) {
-      console.error('Error submitting report:', error);
-      Alert.alert('Error', 'Failed to submit report. Please try again.');
-    }
-  };
-
-  const handleShare = async () => {
-    try {
-      const shareMessage = `🛍️ ${listing.title}\n\n💰 ${formatPrice(listing.price, listing.currency)}\n📍 ${listing.location}\n📞 ${listing.phoneNumber}\n\n${listing.description}\n\n🌍 View on Sabalist`;
-      
-      await Share.share({
-        message: shareMessage,
-        title: `${listing.title} - Sabalist`,
-      });
-    } catch (error) {
-      console.log('Share error:', error);
+      Alert.alert(t('common.error'), t('alerts.failedToUpdate'));
     }
   };
 
   const handleContact = () => {
-    if (!listing.phoneNumber) {
-      Alert.alert('No Contact Info', 'Seller has not provided a phone number');
-      return;
+    if (listing.phoneNumber) {
+      Alert.alert(t('contact.title'), listing.phoneNumber);
+    } else {
+      Alert.alert(t('alerts.info'), t('alerts.noContactInfo'));
     }
-
-    Alert.alert(
-      'Contact Seller',
-      `Phone: ${listing.phoneNumber}\n\nHow would you like to contact the seller?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: '📞 Call',
-          onPress: () => {
-            const phoneUrl = `tel:${listing.phoneNumber}`;
-            Linking.openURL(phoneUrl).catch(() => {
-              Alert.alert('Error', 'Unable to open phone dialer');
-            });
-          },
-        },
-        {
-          text: '💬 WhatsApp',
-          onPress: () => {
-            // Format phone number for WhatsApp (remove spaces, dashes, etc)
-            const cleanNumber = listing.phoneNumber.replace(/[^0-9+]/g, '');
-            const message = `Hi! I'm interested in your listing: ${listing.title}\n\nPrice: ${formatPrice(listing.price, listing.currency)}\nLocation: ${listing.location}`;
-            const whatsappUrl = `whatsapp://send?phone=${cleanNumber}&text=${encodeURIComponent(message)}`;
-            
-            Linking.canOpenURL(whatsappUrl).then(supported => {
-              if (supported) {
-                Linking.openURL(whatsappUrl);
-              } else {
-                // Fallback to web WhatsApp
-                const webUrl = `https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}`;
-                Linking.openURL(webUrl);
-              }
-            }).catch(() => {
-              Alert.alert('Error', 'Unable to open WhatsApp. Please make sure it is installed.');
-            });
-          },
-        },
-        {
-          text: 'Copy Number',
-          onPress: () => Alert.alert('Copied', `${listing.phoneNumber} copied to clipboard`),
-        },
-      ]
-    );
   };
 
   const formatPrice = (price, currency = 'USD') => {
-    if (!price) return 'Price on request';
+    if (!price || price === 0) return 'Price on call';
     return `${currency} ${Number(price).toLocaleString()}`;
   };
 
   const formatDate = (timestamp) => {
-    if (!timestamp) return '';
+    if (!timestamp) return 'Recently';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    const now = new Date();
+    const diff = now - date;
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return `${days} days ago`;
+    return date.toLocaleDateString();
   };
-
-  const isOwner = listing && auth.currentUser && listing.userId === auth.currentUser.uid;
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#E11D48" />
-        <Text style={styles.loadingText}>Loading listing...</Text>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={PREMIUM_COLORS.accent} />
       </View>
     );
   }
 
   if (!listing) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={styles.loadingContainer}>
         <Text style={styles.errorText}>Listing not found</Text>
       </View>
     );
@@ -270,25 +158,18 @@ export default function ListingDetailScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      <AppHeader navigation={navigation} />
+
+      {/* Action Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
+          <Ionicons name="arrow-back" size={24} color={PREMIUM_COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Listing Details</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity onPress={handleShare} style={styles.iconButton}>
-            <Ionicons name="share-outline" size={24} color="#1F2937" />
-          </TouchableOpacity>
           {isOwner && (
-            <>
-              <TouchableOpacity onPress={handleEdit} style={styles.iconButton}>
-                <Ionicons name="create-outline" size={24} color="#1F2937" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleDelete} style={styles.iconButton} disabled={deleting}>
-                <Ionicons name="trash-outline" size={24} color="#EF4444" />
-              </TouchableOpacity>
-            </>
+            <TouchableOpacity onPress={handleDelete} style={styles.headerButton}>
+              <Ionicons name="trash-outline" size={22} color={PREMIUM_COLORS.accent} />
+            </TouchableOpacity>
           )}
         </View>
       </View>
@@ -308,7 +189,17 @@ export default function ListingDetailScreen({ route, navigation }) {
               scrollEventThrottle={16}
             >
               {images.map((uri, index) => (
-                <Image key={index} source={{ uri }} style={styles.image} />
+                <TouchableOpacity
+                  key={index}
+                  activeOpacity={0.9}
+                  style={styles.imageContainer}
+                  onPress={() => {
+                    setViewerImageIndex(index);
+                    setImageViewerVisible(true);
+                  }}
+                >
+                  <Image source={{ uri }} style={styles.image} />
+                </TouchableOpacity>
               ))}
             </ScrollView>
             {images.length > 1 && (
@@ -327,106 +218,117 @@ export default function ListingDetailScreen({ route, navigation }) {
           </View>
         ) : (
           <View style={styles.noImageContainer}>
-            <Ionicons name="image-outline" size={64} color="#D1D5DB" />
-            <Text style={styles.noImageText}>No images available</Text>
+            <Ionicons name="image-outline" size={64} color={PREMIUM_COLORS.muted} />
           </View>
         )}
 
         {/* Content */}
         <View style={styles.content}>
-          {/* Price */}
-          <Text style={styles.price}>{formatPrice(listing.price, listing.currency)}</Text>
+          {/* Main Card */}
+          <View style={styles.mainCard}>
+            <Text style={styles.price}>{formatPrice(listing.price, listing.currency)}</Text>
+            <Text style={styles.title}>{listing.title}</Text>
 
-          {/* Title */}
-          <Text style={styles.title}>{listing.title}</Text>
-
-          {/* Meta Info */}
-          <View style={styles.metaContainer}>
             <View style={styles.metaRow}>
-              <Ionicons name="pricetag-outline" size={18} color="#6B7280" />
-              <Text style={styles.metaText}>{listing.category || 'General'}</Text>
-            </View>
-            <View style={styles.metaRow}>
-              <Ionicons name="location-outline" size={18} color="#6B7280" />
-              <Text style={styles.metaText}>{listing.location || 'Location not specified'}</Text>
-            </View>
-            <View style={styles.metaRow}>
-              <Ionicons name="calendar-outline" size={18} color="#6B7280" />
-              <Text style={styles.metaText}>
-                Posted {formatDate(listing.createdAt)}
-              </Text>
-            </View>
-            {listing.views > 0 && (
-              <View style={styles.metaRow}>
-                <Ionicons name="eye-outline" size={18} color="#6B7280" />
-                <Text style={styles.metaText}>
-                  {listing.views} {listing.views === 1 ? 'view' : 'views'}
-                </Text>
+              <View style={styles.metaItem}>
+                <Ionicons name="pricetag" size={16} color={PREMIUM_COLORS.accent} />
+                <Text style={styles.metaText}>{listing.category || 'General'}</Text>
               </View>
-            )}
+              <View style={styles.metaItem}>
+                <Ionicons name="location" size={16} color={PREMIUM_COLORS.accent} />
+                <Text style={styles.metaText}>{listing.location || 'N/A'}</Text>
+              </View>
+            </View>
+            <View style={styles.metaRow}>
+              <View style={styles.metaItem}>
+                <Ionicons name="calendar" size={16} color={PREMIUM_COLORS.muted} />
+                <Text style={styles.metaText}>{formatDate(listing.createdAt)}</Text>
+              </View>
+              {listing.views > 0 && (
+                <View style={styles.metaItem}>
+                  <Ionicons name="eye" size={16} color={PREMIUM_COLORS.muted} />
+                  <Text style={styles.metaText}>{listing.views} views</Text>
+                </View>
+              )}
+            </View>
           </View>
 
           {/* Description */}
           {listing.description ? (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Description</Text>
-              <Text style={styles.description}>{listing.description}</Text>
+            <View style={styles.descCard}>
+              <Text style={styles.cardTitle}>Description</Text>
+              <Text style={styles.descText}>{listing.description}</Text>
             </View>
           ) : null}
 
-          {/* Sold Badge */}
-          {listing.status === 'sold' && (
-            <View style={styles.soldBanner}>
-              <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
-              <Text style={styles.soldBannerText}>SOLD</Text>
-            </View>
-          )}
-
-          {/* Contact Button (if not owner and not sold) */}
+          {/* Contact Button */}
           {!isOwner && listing.status !== 'sold' && (
             <TouchableOpacity style={styles.contactButton} onPress={handleContact}>
-              <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
+              <Ionicons name="chatbubble-ellipses" size={20} color="#FFFFFF" />
               <Text style={styles.contactButtonText}>Contact Seller</Text>
             </TouchableOpacity>
           )}
 
-          {/* Mark as Sold Button (if owner) */}
+          {/* Owner Actions */}
           {isOwner && (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
-                styles.soldButton,
+                styles.ownerButton,
                 listing.status === 'sold' && styles.reactivateButton
-              ]} 
+              ]}
               onPress={handleMarkAsSold}
             >
-              <Ionicons 
-                name={listing.status === 'sold' ? "refresh-outline" : "checkmark-circle-outline"} 
-                size={20} 
-                color="#FFFFFF" 
+              <Ionicons
+                name={listing.status === 'sold' ? "refresh-outline" : "checkmark-circle-outline"}
+                size={20}
+                color="#FFFFFF"
               />
-              <Text style={styles.soldButtonText}>
-                {listing.status === 'sold' ? 'Reactivate Listing' : 'Mark as Sold'}
+              <Text style={styles.ownerButtonText}>
+                {listing.status === 'sold' ? 'Reactivate' : 'Mark as Sold'}
               </Text>
             </TouchableOpacity>
           )}
 
-          {/* Owner Badge */}
-          {isOwner && (
-            <View style={styles.ownerBadge}>
-              <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-              <Text style={styles.ownerBadgeText}>This is your listing</Text>
+          {listing.status === 'sold' && (
+            <View style={styles.soldBanner}>
+              <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+              <Text style={styles.soldBannerText}>SOLD</Text>
             </View>
-          )}
-
-          {/* Report Button (if not owner) */}
-          {!isOwner && (
-            <TouchableOpacity style={styles.reportButton} onPress={handleReport}>
-              <Ionicons name="flag-outline" size={16} color="#DC2626" />
-              <Text style={styles.reportButtonText}>Report this listing</Text>
-            </TouchableOpacity>
           )}
         </View>
       </ScrollView>
+
+      {/* Image Viewer */}
+      <Modal
+        visible={imageViewerVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setImageViewerVisible(false)}
+      >
+        <View style={styles.imageViewer}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setImageViewerVisible(false)}
+          >
+            <Ionicons name="close" size={32} color="#FFFFFF" />
+          </TouchableOpacity>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            contentOffset={{ x: viewerImageIndex * width, y: 0 }}
+          >
+            {images.map((uri, index) => (
+              <Image
+                key={index}
+                source={{ uri }}
+                style={styles.fullImage}
+                resizeMode="contain"
+              />
+            ))}
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -434,46 +336,46 @@ export default function ListingDetailScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: PREMIUM_COLORS.bg,
   },
-  centerContainer: {
+  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FAFAFA',
+    backgroundColor: PREMIUM_COLORS.bg,
+  },
+  errorText: {
+    fontSize: 16,
+    color: PREMIUM_COLORS.accent,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    paddingHorizontal: PREMIUM_SPACING.base,
+    paddingVertical: PREMIUM_SPACING.md,
+    backgroundColor: PREMIUM_COLORS.card,
+    ...PREMIUM_SHADOWS.card,
   },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1F2937',
-    flex: 1,
-    marginLeft: 12,
+  headerButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerActions: {
     flexDirection: 'row',
-    gap: 8,
-  },
-  iconButton: {
-    padding: 8,
+    gap: PREMIUM_SPACING.sm,
   },
   scrollView: {
     flex: 1,
   },
   imageSection: {
     position: 'relative',
+  },
+  imageContainer: {
+    width: width,
+    height: 300,
   },
   image: {
     width: width,
@@ -482,7 +384,7 @@ const styles = StyleSheet.create({
   },
   pagination: {
     position: 'absolute',
-    bottom: 16,
+    bottom: PREMIUM_SPACING.base,
     left: 0,
     right: 0,
     flexDirection: 'row',
@@ -497,93 +399,99 @@ const styles = StyleSheet.create({
   },
   paginationDotActive: {
     backgroundColor: '#FFFFFF',
+    width: 24,
   },
   noImageContainer: {
     height: 250,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-  },
-  noImageText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#9CA3AF',
+    backgroundColor: '#F3F4F6',
   },
   content: {
-    padding: 20,
+    padding: PREMIUM_SPACING.lg,
+  },
+  mainCard: {
+    backgroundColor: PREMIUM_COLORS.card,
+    borderRadius: PREMIUM_RADIUS.lg,
+    padding: PREMIUM_SPACING.lg,
+    marginBottom: PREMIUM_SPACING.base,
+    ...PREMIUM_SHADOWS.card,
   },
   price: {
     fontSize: 32,
-    fontWeight: '800',
-    color: '#E11D48',
-    marginBottom: 8,
+    fontWeight: '900',
+    color: PREMIUM_COLORS.accent,
+    marginBottom: PREMIUM_SPACING.sm,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 16,
-    lineHeight: 32,
-  },
-  metaContainer: {
-    gap: 12,
-    marginBottom: 24,
+    color: PREMIUM_COLORS.text,
+    marginBottom: PREMIUM_SPACING.base,
+    lineHeight: 30,
   },
   metaRow: {
     flexDirection: 'row',
+    gap: PREMIUM_SPACING.base,
+    marginBottom: PREMIUM_SPACING.sm,
+  },
+  metaItem: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   metaText: {
-    fontSize: 15,
-    color: '#6B7280',
-    fontWeight: '500',
+    fontSize: 14,
+    color: PREMIUM_COLORS.muted,
   },
-  section: {
-    marginBottom: 24,
+  descCard: {
+    backgroundColor: PREMIUM_COLORS.card,
+    borderRadius: PREMIUM_RADIUS.lg,
+    padding: PREMIUM_SPACING.lg,
+    marginBottom: PREMIUM_SPACING.base,
+    ...PREMIUM_SHADOWS.card,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 8,
-  },
-  description: {
+  cardTitle: {
     fontSize: 16,
-    color: '#4B5563',
+    fontWeight: '700',
+    color: PREMIUM_COLORS.text,
+    marginBottom: PREMIUM_SPACING.sm,
+  },
+  descText: {
+    fontSize: 15,
+    color: PREMIUM_COLORS.muted,
     lineHeight: 24,
   },
   contactButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#E11D48',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    marginTop: 8,
-    gap: 8,
+    backgroundColor: PREMIUM_COLORS.accent,
+    paddingVertical: PREMIUM_SPACING.base,
+    borderRadius: PREMIUM_RADIUS.lg,
+    gap: PREMIUM_SPACING.sm,
+    marginTop: PREMIUM_SPACING.base,
+    ...PREMIUM_SHADOWS.button,
   },
   contactButtonText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  soldButton: {
+  ownerButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F59E0B',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    marginTop: 8,
-    gap: 8,
+    paddingVertical: PREMIUM_SPACING.base,
+    borderRadius: PREMIUM_RADIUS.lg,
+    gap: PREMIUM_SPACING.sm,
+    marginTop: PREMIUM_SPACING.base,
   },
   reactivateButton: {
     backgroundColor: '#10B981',
   },
-  soldButtonText: {
+  ownerButtonText: {
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
@@ -593,60 +501,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#DC2626',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    marginBottom: 16,
-    gap: 8,
+    paddingVertical: PREMIUM_SPACING.md,
+    borderRadius: PREMIUM_RADIUS.lg,
+    gap: PREMIUM_SPACING.sm,
+    marginTop: PREMIUM_SPACING.base,
   },
   soldBannerText: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '800',
     color: '#FFFFFF',
+    letterSpacing: 2,
   },
-  ownerBadge: {
-    flexDirection: 'row',
+  imageViewer: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#D1FAE5',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginTop: 8,
-    gap: 8,
   },
-  ownerBadgeText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#065F46',
-  },
-  reportButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-    borderRadius: 8,
-    backgroundColor: '#FEF2F2',
-    gap: 6,
-  },
-  reportButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#DC2626',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  errorText: {
-    fontSize: 18,
-    color: '#EF4444',
+  fullImage: {
+    width: width,
+    height: '100%',
   },
 });
-
-

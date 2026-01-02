@@ -1,6 +1,7 @@
 {
   "appName": "Sabalist",
   "tagline": "Buy & Sell across Africa",
+  "loadingApp": "Loading Sabalist...",
   "common": {
     "loading": "Loading...",
     "error": "Error",
@@ -31,9 +32,22 @@
     "signOut": "Sign Out",
     "authRequired": "Authentication Required",
     "pleaseSignIn": "Please sign in to continue",
+    "pleaseSignInToCreate": "Please sign in to create listings",
     "welcome": "Welcome!",
+    "welcomeUser": "✅ Welcome!",
+    "signedInAs": "Signed in as {{user}}",
     "signInMessage": "Sign in with your phone number to start buying and selling",
-    "enterCode": "Enter the verification code sent to your phone"
+    "enterCode": "Enter the verification code sent to your phone",
+    "smsSent": "✅ SMS Sent!",
+    "codeSentTo": "Verification code sent to {{phone}}",
+    "checkMessages": "Check your messages and enter the 6-digit code.",
+    "signInError": "Sign-in Error",
+    "signInFailed": "Sign-in Failed",
+    "googleNotAvailable": "Not Available",
+    "googleNotAvailableMessage": "Google Sign-In is currently only available on web. Please use phone sign-in on mobile.",
+    "googleSignInFailed": "Google Sign-In Failed",
+    "checkEmail": "✅ Check your email!",
+    "magicLinkSent": "We sent a login link to {{email}}\n\nClick the link in your email to sign in."
   },
   "features": {
     "secure": "Secure",
@@ -42,6 +56,12 @@
     "fastDesc": "Buy & sell instantly",
     "community": "Community",
     "communityDesc": "Trusted marketplace"
+  },
+  "home": {
+    "heroTitle": "Discover Something\nExtraordinary",
+    "heroSubtitle": "Browse thousands of listings from sellers across Africa",
+    "noListings": "No listings yet",
+    "beFirst": "Be the first to post!"
   },
   "marketplace": {
     "title": "Marketplace",
@@ -59,9 +79,80 @@
     "all": "All",
     "electronics": "Electronics",
     "vehicles": "Vehicles",
-    "realEstate": "Real Estate",
+    "furniture": "Furniture",
+    "homeAppliances": "Home Appliances",
+    "constructionEquipment": "Construction Equipment",
+    "artCollectibles": "Art & Collectibles",
     "fashion": "Fashion",
-    "services": "Services"
+    "services": "Services",
+    "jobs": "Jobs",
+    "realEstate": "Real Estate"
+  },
+  "subCategories": {
+    "selectCategory": "Select a Category",
+    "browseBy": "Browse {{category}} by category",
+    "mobilePhones": "Mobile Phones",
+    "laptopsComputers": "Laptops & Computers",
+    "tablets": "Tablets",
+    "tvs": "TVs",
+    "audioSpeakers": "Audio & Speakers",
+    "cameras": "Cameras",
+    "gamingConsoles": "Gaming Consoles",
+    "accessories": "Accessories",
+    "cars": "Cars",
+    "motorcycles": "Motorcycles",
+    "trucks": "Trucks",
+    "buses": "Buses",
+    "bicycles": "Bicycles",
+    "spareParts": "Spare Parts",
+    "sofasChairs": "Sofas & Chairs",
+    "bedsMattresses": "Beds & Mattresses",
+    "tablesDesks": "Tables & Desks",
+    "wardrobes": "Wardrobes",
+    "officeFurniture": "Office Furniture",
+    "refrigerators": "Refrigerators",
+    "washingMachines": "Washing Machines",
+    "microwaves": "Microwaves",
+    "airConditioners": "Air Conditioners",
+    "cookersOvens": "Cookers & Ovens",
+    "cementMixers": "Cement Mixers",
+    "generators": "Generators",
+    "excavators": "Excavators",
+    "drillingMachines": "Drilling Machines",
+    "powerTools": "Power Tools",
+    "buildingMaterials": "Building Materials",
+    "paintings": "Paintings",
+    "sculptures": "Sculptures",
+    "handmadeArt": "Handmade Art",
+    "antiques": "Antiques",
+    "crafts": "Crafts",
+    "mensClothing": "Men's Clothing",
+    "womensClothing": "Women's Clothing",
+    "shoes": "Shoes",
+    "bags": "Bags",
+    "watchesJewelry": "Watches & Jewelry",
+    "cleaning": "Cleaning",
+    "electrical": "Electrical",
+    "plumbing": "Plumbing",
+    "carRepair": "Car Repair",
+    "graphicDesign": "Graphic Design",
+    "tutoring": "Tutoring",
+    "fullTime": "Full-Time",
+    "partTime": "Part-Time",
+    "freelance": "Freelance",
+    "internships": "Internships",
+    "remote": "Remote",
+    "housesSale": "Houses for Sale",
+    "housesRent": "Houses for Rent",
+    "apartments": "Apartments",
+    "land": "Land",
+    "commercialProperty": "Commercial Property"
+  },
+  "tabs": {
+    "home": "Home",
+    "favorites": "Favorites",
+    "myListings": "My Listings",
+    "profile": "Profile"
   },
   "listing": {
     "postItem": "+ Post Item",
@@ -113,8 +204,15 @@
     "minImagesRequired": "{{category}} listings require at least {{min}} images",
     "maxImagesExceeded": "{{category}} listings can have maximum {{max}} images",
     "imageTooLarge": "Image Too Large",
-    "imageExceeds10MB": "One or more images exceed 10MB and will be skipped.",
-    "maximumReached": "Maximum Reached"
+    "imageExceeds10MB": "Image exceeds 10MB limit and will be skipped.",
+    "maximumReached": "Maximum Reached",
+    "fillAllFields": "Please fill all required fields",
+    "invalidFormat": "Invalid Format",
+    "phoneFormatHint": "Phone number must start with country code (e.g., +1 for US, +254 for Kenya)",
+    "invalidEmail": "Invalid Email",
+    "enterValidEmail": "Please enter a valid email address",
+    "videoAlreadyAdded": "Video Already Added",
+    "oneVideoOnly": "Only one video per listing is allowed. Please remove the existing video to add a new one."
   },
   "alerts": {
     "success": "Success! 🎉",
@@ -130,7 +228,10 @@
     "reportSubmitted": "Thank You",
     "reportSubmittedMessage": "Report submitted successfully. We'll review it shortly.",
     "noContactInfo": "No Contact Info",
-    "sellerNoPhone": "Seller has not provided a phone number"
+    "sellerNoPhone": "Seller has not provided a phone number",
+    "failedToDelete": "Failed to delete",
+    "failedToUpdate": "Failed to update",
+    "info": "Info"
   },
   "myListings": {
     "title": "My Listings",
@@ -183,7 +284,9 @@
     "filter": "Filter",
     "apply": "Apply",
     "close": "Close",
-    "comingSoon": "Coming Soon"
+    "comingSoon": "Coming Soon",
+    "areYouSure": "Are you sure?",
+    "incomplete": "Incomplete"
   },
   "report": {
     "title": "Report Listing",
@@ -207,12 +310,17 @@
   "errors": {
     "failedToPickImages": "Failed to pick images",
     "failedToTakePhoto": "Failed to take photo",
+    "failedToPickVideo": "Failed to pick video",
     "failedToCreateListing": "Failed to create listing. Please try again.",
     "failedToUpdateListing": "Failed to update listing. Please try again.",
     "failedToDeleteListing": "Failed to delete listing: {{message}}",
     "failedToLoadListing": "Failed to load listing",
     "permissionRequired": "Permission Required",
-    "cameraPermission": "Camera permission is needed to take photos"
+    "cameraPermission": "Camera permission is needed to take photos",
+    "videoTooLarge": "Video Too Large",
+    "videoSizeExceeded": "Video size is {{size}}MB. Maximum allowed is 30MB.",
+    "invalidVideoFormat": "Invalid Format",
+    "videoFormatNotSupported": "Only MP4 and MOV video formats are supported."
   }
 }
 

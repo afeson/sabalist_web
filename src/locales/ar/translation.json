@@ -1,6 +1,7 @@
 {
   "appName": "سابالِست",
   "tagline": "شراء وبيع في جميع أنحاء أفريقيا",
+  "loadingApp": "Loading Sabalist...",
   "common": {
     "loading": "جار التحميل...",
     "error": "خطأ",
@@ -16,7 +17,9 @@
     "search": "بحث",
     "filter": "تصفية",
     "apply": "تطبيق",
-    "close": "إغلاق"
+    "close": "إغلاق",
+    "areYouSure": "Are you sure?",
+    "incomplete": "Incomplete"
   },
   "auth": {
     "phoneOTP": "رمز الهاتف",
@@ -31,9 +34,22 @@
     "signOut": "تسجيل الخروج",
     "authRequired": "المصادقة مطلوبة",
     "pleaseSignIn": "يرجى تسجيل الدخول للمتابعة",
+    "pleaseSignInToCreate": "Please sign in to create listings",
     "welcome": "مرحباً!",
+    "welcomeUser": "✅ Welcome!",
+    "signedInAs": "Signed in as {{user}}",
     "signInMessage": "سجل الدخول برقم هاتفك لبدء الشراء والبيع",
-    "enterCode": "أدخل رمز التحقق المرسل إلى هاتفك"
+    "enterCode": "أدخل رمز التحقق المرسل إلى هاتفك",
+    "smsSent": "✅ SMS Sent!",
+    "codeSentTo": "Verification code sent to {{phone}}",
+    "checkMessages": "Check your messages and enter the 6-digit code.",
+    "signInError": "Sign-in Error",
+    "signInFailed": "Sign-in Failed",
+    "googleNotAvailable": "Not Available",
+    "googleNotAvailableMessage": "Google Sign-In is currently only available on web. Please use phone sign-in on mobile.",
+    "googleSignInFailed": "Google Sign-In Failed",
+    "checkEmail": "✅ Check your email!",
+    "magicLinkSent": "We sent a login link to {{email}}\n\nClick the link in your email to sign in."
   },
   "features": {
     "secure": "آمن",
@@ -42,6 +58,12 @@
     "fastDesc": "شراء وبيع فوري",
     "community": "مجتمع",
     "communityDesc": "سوق موثوق"
+  },
+  "home": {
+    "heroTitle": "اكتشف شيئاً\nاستثنائياً",
+    "heroSubtitle": "تصفح آلاف الإعلانات من البائعين في جميع أنحاء أفريقيا",
+    "noListings": "لا توجد إعلانات بعد",
+    "beFirst": "كن أول من ينشر!"
   },
   "marketplace": {
     "title": "السوق",
@@ -59,9 +81,80 @@
     "all": "الكل",
     "electronics": "إلكترونيات",
     "vehicles": "مركبات",
-    "realEstate": "عقارات",
+    "furniture": "أثاث",
+    "homeAppliances": "أجهزة منزلية",
+    "constructionEquipment": "معدات بناء",
+    "artCollectibles": "فن ومقتنيات",
     "fashion": "أزياء",
-    "services": "خدمات"
+    "services": "خدمات",
+    "jobs": "وظائف",
+    "realEstate": "عقارات"
+  },
+  "subCategories": {
+    "selectCategory": "اختر فئة",
+    "browseBy": "تصفح {{category}} حسب الفئة",
+    "mobilePhones": "هواتف محمولة",
+    "laptopsComputers": "أجهزة كمبيوتر محمولة",
+    "tablets": "أجهزة لوحية",
+    "tvs": "تلفزيونات",
+    "audioSpeakers": "صوت ومكبرات",
+    "cameras": "كاميرات",
+    "gamingConsoles": "أجهزة ألعاب",
+    "accessories": "إكسسوارات",
+    "cars": "سيارات",
+    "motorcycles": "دراجات نارية",
+    "trucks": "شاحنات",
+    "buses": "حافلات",
+    "bicycles": "دراجات هوائية",
+    "spareParts": "قطع غيار",
+    "sofasChairs": "أرائك وكراسي",
+    "bedsMattresses": "أسرة ومراتب",
+    "tablesDesks": "طاولات ومكاتب",
+    "wardrobes": "خزائن ملابس",
+    "officeFurniture": "أثاث مكتبي",
+    "refrigerators": "ثلاجات",
+    "washingMachines": "غسالات",
+    "microwaves": "أفران ميكروويف",
+    "airConditioners": "مكيفات هواء",
+    "cookersOvens": "مواقد وأفران",
+    "cementMixers": "خلاطات إسمنت",
+    "generators": "مولدات كهربائية",
+    "excavators": "حفارات",
+    "drillingMachines": "آلات حفر",
+    "powerTools": "أدوات كهربائية",
+    "buildingMaterials": "مواد بناء",
+    "paintings": "لوحات فنية",
+    "sculptures": "منحوتات",
+    "handmadeArt": "فن يدوي",
+    "antiques": "تحف أثرية",
+    "crafts": "حرف يدوية",
+    "mensClothing": "ملابس رجالية",
+    "womensClothing": "ملابس نسائية",
+    "shoes": "أحذية",
+    "bags": "حقائب",
+    "watchesJewelry": "ساعات ومجوهرات",
+    "cleaning": "تنظيف",
+    "electrical": "كهرباء",
+    "plumbing": "سباكة",
+    "carRepair": "إصلاح سيارات",
+    "graphicDesign": "تصميم جرافيكي",
+    "tutoring": "تدريس خصوصي",
+    "fullTime": "دوام كامل",
+    "partTime": "دوام جزئي",
+    "freelance": "عمل حر",
+    "internships": "تدريب",
+    "remote": "عن بعد",
+    "housesSale": "منازل للبيع",
+    "housesRent": "منازل للإيجار",
+    "apartments": "شقق",
+    "land": "أراضي",
+    "commercialProperty": "عقارات تجارية"
+  },
+  "tabs": {
+    "home": "الرئيسية",
+    "favorites": "المفضلة",
+    "myListings": "إعلاناتي",
+    "profile": "الملف الشخصي"
   },
   "listing": {
     "postItem": "+ نشر إعلان",
@@ -112,7 +205,14 @@
     "maxImagesExceeded": "إعلانات {{category}} يمكن أن تحتوي على {{max}} صور كحد أقصى",
     "imageTooLarge": "الصورة كبيرة جداً",
     "imageExceeds10MB": "صورة واحدة أو أكثر تتجاوز 10 ميجابايت وسيتم تخطيها.",
-    "maximumReached": "تم الوصول إلى الحد الأقصى"
+    "maximumReached": "تم الوصول إلى الحد الأقصى",
+    "fillAllFields": "Please fill all required fields",
+    "invalidFormat": "Invalid Format",
+    "phoneFormatHint": "Phone number must start with country code (e.g., +1 for US, +254 for Kenya)",
+    "invalidEmail": "Invalid Email",
+    "enterValidEmail": "Please enter a valid email address",
+    "videoAlreadyAdded": "Video Already Added",
+    "oneVideoOnly": "Only one video per listing is allowed. Please remove the existing video to add a new one."
   },
   "alerts": {
     "success": "نجح! 🎉",
@@ -128,7 +228,10 @@
     "reportSubmitted": "شكراً",
     "reportSubmittedMessage": "تم تقديم التقرير بنجاح. سنراجعه قريباً.",
     "noContactInfo": "لا توجد معلومات اتصال",
-    "sellerNoPhone": "البائع لم يقدم رقم هاتف"
+    "sellerNoPhone": "البائع لم يقدم رقم هاتف",
+    "failedToDelete": "Failed to delete",
+    "failedToUpdate": "Failed to update",
+    "info": "Info"
   },
   "myListings": {
     "title": "إعلاناتي",
@@ -210,7 +313,12 @@
     "failedToDeleteListing": "فشل في حذف الإعلان: {{message}}",
     "failedToLoadListing": "فشل في تحميل الإعلان",
     "permissionRequired": "إذن مطلوب",
-    "cameraPermission": "إذن الكاميرا مطلوب لالتقاط الصور"
+    "cameraPermission": "إذن الكاميرا مطلوب لالتقاط الصور",
+    "failedToPickVideo": "Failed to pick video",
+    "videoTooLarge": "Video Too Large",
+    "videoSizeExceeded": "Video size is {{size}}MB. Maximum allowed is 30MB.",
+    "invalidVideoFormat": "Invalid Format",
+    "videoFormatNotSupported": "Only MP4 and MOV video formats are supported."
   }
 }
 

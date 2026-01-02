@@ -11,12 +11,26 @@ import {
   ActivityIndicator,
   SafeAreaView,
   StatusBar,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
-import { auth } from '../lib/firebase';
-import { createListing } from '../services/listings';
+import { useTranslation } from 'react-i18next';
+
+// Platform-aware Firebase imports
+let auth, createListing;
+if (Platform.OS === 'web') {
+  const firebaseWeb = require('../lib/firebase.web');
+  const listingsWeb = require('../services/listings.web');
+  auth = firebaseWeb.auth;
+  createListing = listingsWeb.createListing;
+} else {
+  const firebaseNative = require('../lib/firebase');
+  const listingsNative = require('../services/listings');
+  auth = firebaseNative.auth;
+  createListing = listingsNative.createListing;
+}
 import { 
   getImageLimits, 
   validateImageCount, 
@@ -27,7 +41,11 @@ import { PrimaryButton, Card } from '../components/ui';
 
 const CATEGORIES = ['Electronics', 'Vehicles', 'Real Estate', 'Fashion', 'Services'];
 
+const MAX_VIDEO_SIZE = 30 * 1024 * 1024; // 30MB
+const ALLOWED_VIDEO_FORMATS = ['video/mp4', 'video/quicktime']; // mp4, mov
+
 export default function CreateListingScreen({ navigation }) {
+  const { t } = useTranslation();
   const [step, setStep] = useState(1); // 1: Photos, 2: Details, 3: Review
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -36,9 +54,10 @@ export default function CreateListingScreen({ navigation }) {
   const [location, setLocation] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [images, setImages] = useState([]);
+  const [video, setVideo] = useState(null); // {uri, type, size}
   const [uploading, setUploading] = useState(false);
   const [compressing, setCompressing] = useState(false);
-  
+
   const imageLimits = getImageLimits(category);
   const canProceedFromPhotos = images.length >= imageLimits.min;
   const canSubmit = canProceedFromPhotos && title.trim() && price.trim() && location.trim() && phoneNumber.trim();
@@ -49,8 +68,8 @@ export default function CreateListingScreen({ navigation }) {
       
       if (remainingSlots <= 0) {
         Alert.alert(
-          'Maximum Reached',
-          `${category} listings can have maximum ${imageLimits.max} images.`
+          t('validation.maximumReached'),
+          t('validation.maxImagesExceeded', { category, max: imageLimits.max })
         );
         return;
       }
@@ -68,7 +87,7 @@ export default function CreateListingScreen({ navigation }) {
         const validAssets = [];
         for (const asset of result.assets) {
           if (asset.fileSize && asset.fileSize > GLOBAL_IMAGE_LIMITS.maxFileSize) {
-            Alert.alert('Image Too Large', `Image exceeds 10MB limit and will be skipped.`);
+            Alert.alert(t('validation.imageTooLarge'), t('validation.imageExceeds10MB'));
           } else {
             validAssets.push(asset);
           }
@@ -104,20 +123,20 @@ export default function CreateListingScreen({ navigation }) {
     } catch (error) {
       setCompressing(false);
       console.error('Error picking images:', error);
-      Alert.alert('Error', 'Failed to pick images');
+      Alert.alert(t('common.error'), t('errors.failedToPickImages'));
     }
   };
 
   const takePhoto = async () => {
     try {
       if (images.length >= imageLimits.max) {
-        Alert.alert('Maximum Reached', `${category} listings can have maximum ${imageLimits.max} images.`);
+        Alert.alert(t('validation.maximumReached'), t('validation.maxImagesExceeded', { category, max: imageLimits.max }));
         return;
       }
 
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Camera permission is needed to take photos');
+        Alert.alert(t('errors.permissionRequired'), t('errors.cameraPermission'));
         return;
       }
 
@@ -150,7 +169,7 @@ export default function CreateListingScreen({ navigation }) {
     } catch (error) {
       setCompressing(false);
       console.error('Error taking photo:', error);
-      Alert.alert('Error', 'Failed to take photo');
+      Alert.alert(t('common.error'), t('errors.failedToTakePhoto'));
     }
   };
 
@@ -165,9 +184,61 @@ export default function CreateListingScreen({ navigation }) {
     setImages(newImages);
   };
 
+  const pickVideo = async () => {
+    try {
+      if (video) {
+        Alert.alert(t('validation.videoAlreadyAdded'), t('validation.oneVideoOnly'));
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+        allowsMultipleSelection: false,
+        quality: 1,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+
+        // Validate file size
+        if (asset.fileSize && asset.fileSize > MAX_VIDEO_SIZE) {
+          const sizeMB = (asset.fileSize / (1024 * 1024)).toFixed(1);
+          Alert.alert(
+            t('errors.videoTooLarge'),
+            t('errors.videoSizeExceeded', { size: sizeMB })
+          );
+          return;
+        }
+
+        // Validate video format (if type is available)
+        if (asset.type && !ALLOWED_VIDEO_FORMATS.includes(asset.type)) {
+          Alert.alert(
+            t('errors.invalidVideoFormat'),
+            t('errors.videoFormatNotSupported')
+          );
+          return;
+        }
+
+        setVideo({
+          uri: asset.uri,
+          type: asset.type || 'video/mp4',
+          size: asset.fileSize || 0,
+          duration: asset.duration || 0,
+        });
+      }
+    } catch (error) {
+      console.error('Error picking video:', error);
+      Alert.alert(t('common.error'), t('errors.failedToPickVideo'));
+    }
+  };
+
+  const removeVideo = () => {
+    setVideo(null);
+  };
+
   const handleSubmit = async () => {
     if (!canSubmit) {
-      Alert.alert('Incomplete', 'Please fill all required fields');
+      Alert.alert(t('common.incomplete'), t('validation.fillAllFields'));
       return;
     }
 
@@ -175,10 +246,10 @@ export default function CreateListingScreen({ navigation }) {
 
     try {
       const userId = auth.currentUser?.uid;
-      
+
       if (!userId) {
         setUploading(false);
-        Alert.alert('Authentication Required', 'Please sign in to create listings');
+        Alert.alert(t('auth.authRequired'), t('auth.pleaseSignInToCreate'));
         return;
       }
       
@@ -193,16 +264,16 @@ export default function CreateListingScreen({ navigation }) {
         userId,
       };
 
-      await createListing(listingData, images);
+      await createListing(listingData, images, video);
 
       setUploading(false);
 
       Alert.alert(
-        'Success! 🎉',
-        `Your listing "${title}" has been posted successfully!`,
+        t('alerts.success'),
+        t('alerts.listingPosted', { title }),
         [
-          { 
-            text: 'OK', 
+          {
+            text: t('common.ok'),
             onPress: () => {
               // Reset form
               setStep(1);
@@ -213,6 +284,7 @@ export default function CreateListingScreen({ navigation }) {
               setLocation('');
               setPhoneNumber('');
               setImages([]);
+              setVideo(null);
               navigation.navigate('Home');
             }
           }
@@ -221,7 +293,7 @@ export default function CreateListingScreen({ navigation }) {
     } catch (error) {
       setUploading(false);
       console.error('Error creating listing:', error);
-      Alert.alert('Error', 'Failed to create listing. Please try again.\n\n' + error.message);
+      Alert.alert(t('common.error'), t('errors.failedToCreateListing') + '\n\n' + error.message);
     }
   };
 
@@ -315,6 +387,41 @@ export default function CreateListingScreen({ navigation }) {
               <Text style={styles.addButtonText}>Camera</Text>
             </TouchableOpacity>
           </>
+        )}
+      </View>
+
+      {/* Video Section (Optional) */}
+      <View style={styles.videoSection}>
+        <Text style={styles.videoTitle}>Video (Optional)</Text>
+        <Text style={styles.videoSubtitle}>Add one video • Max 30MB • MP4 or MOV</Text>
+
+        {video ? (
+          <View style={styles.videoPreviewContainer}>
+            <View style={styles.videoPreview}>
+              <Ionicons name="videocam" size={60} color={COLORS.primary} />
+              <Text style={styles.videoFileName}>Video Added</Text>
+              <Text style={styles.videoFileSize}>
+                {(video.size / (1024 * 1024)).toFixed(1)} MB
+              </Text>
+              {video.duration > 0 && (
+                <Text style={styles.videoFileDuration}>
+                  {Math.floor(video.duration / 60)}:{String(Math.floor(video.duration % 60)).padStart(2, '0')}
+                </Text>
+              )}
+            </View>
+            <TouchableOpacity
+              style={styles.removeVideoButton}
+              onPress={removeVideo}
+            >
+              <Ionicons name="close-circle" size={28} color={COLORS.error} />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.addVideoButton} onPress={pickVideo}>
+            <Ionicons name="videocam" size={40} color={COLORS.secondary} />
+            <Text style={styles.addVideoButtonText}>Add Video</Text>
+            <Text style={styles.addVideoButtonHint}>Optional • 30MB max</Text>
+          </TouchableOpacity>
         )}
       </View>
 
@@ -784,5 +891,80 @@ const styles = StyleSheet.create({
     color: COLORS.textDark,
     lineHeight: 20,
     marginTop: SPACING.sm,
+  },
+  // Video Styles
+  videoSection: {
+    marginTop: SPACING.xl,
+    marginBottom: SPACING.lg,
+  },
+  videoTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.textDark,
+    marginBottom: SPACING.xs,
+  },
+  videoSubtitle: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    marginBottom: SPACING.md,
+  },
+  videoPreviewContainer: {
+    position: 'relative',
+  },
+  videoPreview: {
+    backgroundColor: COLORS.card,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    borderRadius: RADIUS.md,
+    borderStyle: 'dashed',
+    padding: SPACING.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 180,
+  },
+  videoFileName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.textDark,
+    marginTop: SPACING.md,
+  },
+  videoFileSize: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    marginTop: SPACING.xs,
+  },
+  videoFileDuration: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.primary,
+    marginTop: SPACING.xs,
+  },
+  removeVideoButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    zIndex: 1,
+  },
+  addVideoButton: {
+    backgroundColor: COLORS.card,
+    borderWidth: 2,
+    borderColor: COLORS.cardBorder,
+    borderRadius: RADIUS.md,
+    borderStyle: 'dashed',
+    padding: SPACING.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 180,
+  },
+  addVideoButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textDark,
+    marginTop: SPACING.sm,
+  },
+  addVideoButtonHint: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginTop: SPACING.xs,
   },
 });

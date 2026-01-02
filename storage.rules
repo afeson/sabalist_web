@@ -11,33 +11,53 @@ service firebase.storage {
     function isImageFile() {
       return request.resource.contentType.matches('image/.*');
     }
-    
-    function isValidSize() {
+
+    function isVideoFile() {
+      return request.resource.contentType.matches('video/.*');
+    }
+
+    function isValidImageSize() {
       // Max 10MB per image (POWER SELLER)
       return request.resource.size < 10 * 1024 * 1024;
     }
-    
+
+    function isValidVideoSize() {
+      // Max 30MB per video
+      return request.resource.size < 30 * 1024 * 1024;
+    }
+
+    function isListingOwner(listingId) {
+      // Check if the authenticated user owns the listing
+      let listing = firestore.get(/databases/(default)/documents/listings/$(listingId));
+      return isSignedIn() && request.auth.uid == listing.data.userId;
+    }
+
     // Power Seller: Organized by listingId
-    match /listings/{listingId}/{imageId} {
-      // Anyone can read listing images
+    match /listings/{listingId}/{fileId} {
+      // Anyone can read listing media (images and videos)
       allow read: if true;
-      
-      // Only authenticated users can upload images
-      // Must be image file and under 10MB
-      allow create: if isSignedIn() 
-                    && isImageFile() 
-                    && isValidSize();
-      
-      // Only authenticated users can delete
-      // TODO: Ideally check if user owns the listing
-      allow delete: if isSignedIn();
+
+      // Only authenticated users can upload images or videos
+      // Images: must be image file and under 10MB
+      // Videos: must be video file and under 30MB
+      allow create: if isSignedIn()
+                    && ((isImageFile() && isValidImageSize())
+                        || (isVideoFile() && isValidVideoSize()));
+
+      // Only the listing owner can delete their media
+      allow delete: if isListingOwner(listingId);
     }
     
     // Legacy flat structure (backward compatibility)
-    match /listings/{imageId} {
+    // NOTE: This path cannot verify listing ownership due to flat structure
+    // New uploads should use /listings/{listingId}/{fileId} structure
+    match /listings/{fileId} {
       allow read: if true;
-      allow create: if isSignedIn() && isImageFile() && isValidSize();
-      allow delete: if isSignedIn();
+      allow create: if isSignedIn()
+                    && ((isImageFile() && isValidImageSize())
+                        || (isVideoFile() && isValidVideoSize()));
+      // Restrict delete to prevent abuse (users can only delete via app logic)
+      allow delete: if false;
     }
     
     // Deny all other paths by default

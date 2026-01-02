@@ -1,6 +1,7 @@
 {
   "appName": "ሳባሊስት",
   "tagline": "በአፍሪካ ውስጥ ይግዙ እና ይሽጡ",
+  "loadingApp": "ሳባሊስት በመጫን ላይ...",
   "common": {
     "loading": "በመጫን ላይ...",
     "error": "ስህተት",
@@ -17,7 +18,9 @@
     "filter": "አጣራ",
     "apply": "ተግብር",
     "close": "ዝጋ",
-    "comingSoon": "በቅርቡ"
+    "comingSoon": "በቅርቡ",
+    "areYouSure": "እርግጠኛ ነዎት?",
+    "incomplete": "ያልተሟላ"
   },
   "auth": {
     "phoneOTP": "ስልክ OTP",
@@ -32,9 +35,22 @@
     "signOut": "ውጣ",
     "authRequired": "ማረጋገጫ ያስፈልጋል",
     "pleaseSignIn": "እባክዎ ለመቀጠል ይግቡ",
+    "pleaseSignInToCreate": "እባክዎ ዝርዝሮችን ለመፍጠር ይግቡ",
     "welcome": "እንኳን ደህና መጣችሁ!",
+    "welcomeUser": "✅ እንኳን ደህና መጣህ!",
+    "signedInAs": "እንደ {{user}} ገብተዋል",
     "signInMessage": "ለመግዛት እና ለመሸጥ በስልክ ቁጥርዎ ይግቡ",
-    "enterCode": "ወደ ስልክዎ የተላከውን የማረጋገጫ ኮድ ያስገቡ"
+    "enterCode": "ወደ ስልክዎ የተላከውን የማረጋገጫ ኮድ ያስገቡ",
+    "smsSent": "✅ ኤስኤምኤስ ተልኳል!",
+    "codeSentTo": "የማረጋገጫ ኮድ ወደ {{phone}} ተልኳል",
+    "checkMessages": "መልዕክቶችዎን ይመልከቱ እና 6-አሃዝ ኮድ ያስገቡ።",
+    "signInError": "የመግቢያ ስህተት",
+    "signInFailed": "መግባት አልተሳካም",
+    "googleNotAvailable": "አይገኝም",
+    "googleNotAvailableMessage": "Google Sign-In ፕላትፎርም web ላይ ብቻ ይገኛል። እባክዎ በሞባይል ላይ የስልክ መግቢያን ይጠቀሙ።",
+    "googleSignInFailed": "Google Sign-In አልተሳካም",
+    "checkEmail": "✅ ኢሜልዎን ያረጋግጡ!",
+    "magicLinkSent": "የመግቢያ ማያያዣ ወደ {{email}} ላክን\n\nለመግባት በኢሜልዎ ውስጥ ያለውን ማያያዣ ጠቅ ያድርጉ።"
   },
   "features": {
     "secure": "ደህንነት",
@@ -43,6 +59,12 @@
     "fastDesc": "ወዲያውኑ ይግዙ እና ይሽጡ",
     "community": "ማህበረሰብ",
     "communityDesc": "የታመነ ገበያ"
+  },
+  "home": {
+    "heroTitle": "የሚያስደንቅ ነገር\nያግኙ",
+    "heroSubtitle": "በመላው አፍሪካ ካሉ ሻጮች በሺዎች የሚቆጠሩ ዝርዝሮችን ይመልከቱ",
+    "noListings": "ገና ምንም ዝርዝር የለም",
+    "beFirst": "የመጀመሪያው ለመለጠፍ ይሁኑ!"
   },
   "marketplace": {
     "title": "ገበያ",
@@ -60,9 +82,80 @@
     "all": "ሁሉም",
     "electronics": "ኤሌክትሮኒክስ",
     "vehicles": "ተሽከርካሪዎች",
-    "realEstate": "ንብረት",
+    "furniture": "የቤት እቃዎች",
+    "homeAppliances": "የቤት መሳሪያዎች",
+    "constructionEquipment": "የግንባታ መሳሪያዎች",
+    "artCollectibles": "ጥበብ እና ስብስቦች",
     "fashion": "ፋሽን",
-    "services": "አገልግሎቶች"
+    "services": "አገልግሎቶች",
+    "jobs": "ስራዎች",
+    "realEstate": "ንብረት"
+  },
+  "subCategories": {
+    "selectCategory": "ምድብ ይምረጡ",
+    "browseBy": "{{category}} በምድብ ይመልከቱ",
+    "mobilePhones": "ሞባይል ስልኮች",
+    "laptopsComputers": "ላፕቶፖች እና ኮምፒውተሮች",
+    "tablets": "ታብሌቶች",
+    "tvs": "ቴሌቪዥኖች",
+    "audioSpeakers": "ኦዲዮ እና ድምጽ ማጉያዎች",
+    "cameras": "ካሜራዎች",
+    "gamingConsoles": "የጨዋታ ኮንሶሎች",
+    "accessories": "መለዋወጫዎች",
+    "cars": "መኪናዎች",
+    "motorcycles": "ሞተር ሳይክሎች",
+    "trucks": "የጭነት መኪናዎች",
+    "buses": "አውቶቡሶች",
+    "bicycles": "ብስክሌቶች",
+    "spareParts": "መለዋወጫ ዕቃዎች",
+    "sofasChairs": "ሶፋዎች እና ወንበሮች",
+    "bedsMattresses": "አልጋዎች እና ፍራሾች",
+    "tablesDesks": "ጠረጴዛዎች",
+    "wardrobes": "የልብስ ቁምሳጥኖች",
+    "officeFurniture": "የቢሮ እቃዎች",
+    "refrigerators": "ፍሪጆች",
+    "washingMachines": "የልብስ ማጠቢያ ማሽኖች",
+    "microwaves": "ማይክሮዌቭ",
+    "airConditioners": "የአየር ማቀዝቀዣዎች",
+    "cookersOvens": "ምድጃዎች እና መጋገሪያዎች",
+    "cementMixers": "የሲሚንቶ መቀላቀያዎች",
+    "generators": "ጀነሬተሮች",
+    "excavators": "ቁፋሮ ማሽኖች",
+    "drillingMachines": "የቁፋሮ ማሽኖች",
+    "powerTools": "የኃይል መሳሪያዎች",
+    "buildingMaterials": "የግንባታ ቁሳቁሶች",
+    "paintings": "ሥዕሎች",
+    "sculptures": "ቅርጻ ቅርጾች",
+    "handmadeArt": "በእጅ የተሠሩ ጥበቦች",
+    "antiques": "ጥንታዊ እቃዎች",
+    "crafts": "የእጅ ሥራዎች",
+    "mensClothing": "የወንዶች ልብሶች",
+    "womensClothing": "የሴቶች ልብሶች",
+    "shoes": "ጫማዎች",
+    "bags": "ቦርሳዎች",
+    "watchesJewelry": "ሰዓቶች እና ጌጣጌጦች",
+    "cleaning": "የጽዳት አገልግሎት",
+    "electrical": "የኤሌክትሪክ አገልግሎት",
+    "plumbing": "የቧንቧ አገልግሎት",
+    "carRepair": "የመኪና ጥገና",
+    "graphicDesign": "ግራፊክ ዲዛይን",
+    "tutoring": "ማስተማር",
+    "fullTime": "ሙሉ ጊዜ",
+    "partTime": "የትርፍ ጊዜ",
+    "freelance": "ነፃ ስራ",
+    "internships": "ሙከራ ስራ",
+    "remote": "ርቀት ላይ",
+    "housesSale": "ለሽያጭ ቤቶች",
+    "housesRent": "ለኪራይ ቤቶች",
+    "apartments": "አፓርትመንቶች",
+    "land": "መሬት",
+    "commercialProperty": "የንግድ ንብረት"
+  },
+  "tabs": {
+    "home": "መነሻ",
+    "favorites": "ተወዳጆች",
+    "myListings": "የእኔ ዝርዝሮች",
+    "profile": "መገለጫ"
   },
   "listing": {
     "postItem": "+ ዕቃ ለጥፍ",
@@ -115,7 +208,14 @@
     "maxImagesExceeded": "{{category}} listings can have maximum {{max}} images",
     "imageTooLarge": "Image Too Large",
     "imageExceeds10MB": "One or more images exceed 10MB and will be skipped.",
-    "maximumReached": "Maximum Reached"
+    "maximumReached": "Maximum Reached",
+    "fillAllFields": "Please fill all required fields",
+    "invalidFormat": "Invalid Format",
+    "phoneFormatHint": "Phone number must start with country code (e.g., +1 for US, +254 for Kenya)",
+    "invalidEmail": "Invalid Email",
+    "enterValidEmail": "Please enter a valid email address",
+    "videoAlreadyAdded": "Video Already Added",
+    "oneVideoOnly": "Only one video per listing is allowed. Please remove the existing video to add a new one."
   },
   "alerts": {
     "success": "Success! 🎉",
@@ -131,7 +231,10 @@
     "reportSubmitted": "Thank You",
     "reportSubmittedMessage": "Report submitted successfully. We'll review it shortly.",
     "noContactInfo": "No Contact Info",
-    "sellerNoPhone": "Seller has not provided a phone number"
+    "sellerNoPhone": "Seller has not provided a phone number",
+    "failedToDelete": "Failed to delete",
+    "failedToUpdate": "Failed to update",
+    "info": "Info"
   },
   "myListings": {
     "title": "የእኔ ዝርዝሮች",
@@ -195,7 +298,12 @@
     "failedToDeleteListing": "Failed to delete listing: {{message}}",
     "failedToLoadListing": "Failed to load listing",
     "permissionRequired": "Permission Required",
-    "cameraPermission": "Camera permission is needed to take photos"
+    "cameraPermission": "Camera permission is needed to take photos",
+    "failedToPickVideo": "Failed to pick video",
+    "videoTooLarge": "Video Too Large",
+    "videoSizeExceeded": "Video size is {{size}}MB. Maximum allowed is 30MB.",
+    "invalidVideoFormat": "Invalid Format",
+    "videoFormatNotSupported": "Only MP4 and MOV video formats are supported."
   }
 }
 

@@ -1,6 +1,7 @@
 {
   "appName": "Sabalist",
   "tagline": "Comprar e Vender em toda a África",
+  "loadingApp": "Loading Sabalist...",
   "common": {
     "loading": "Carregando...",
     "error": "Erro",
@@ -17,7 +18,9 @@
     "filter": "Filtrar",
     "apply": "Aplicar",
     "close": "Fechar",
-    "comingSoon": "Em Breve"
+    "comingSoon": "Em Breve",
+    "areYouSure": "Are you sure?",
+    "incomplete": "Incomplete"
   },
   "auth": {
     "phoneOTP": "OTP Telefônico",
@@ -32,9 +35,22 @@
     "signOut": "Sair",
     "authRequired": "Autenticação Necessária",
     "pleaseSignIn": "Por favor faça login para continuar",
+    "pleaseSignInToCreate": "Please sign in to create listings",
     "welcome": "Bem-vindo!",
+    "welcomeUser": "✅ Welcome!",
+    "signedInAs": "Signed in as {{user}}",
     "signInMessage": "Entre com seu número de telefone para começar a comprar e vender",
-    "enterCode": "Digite o código de verificação enviado para seu telefone"
+    "enterCode": "Digite o código de verificação enviado para seu telefone",
+    "smsSent": "✅ SMS Sent!",
+    "codeSentTo": "Verification code sent to {{phone}}",
+    "checkMessages": "Check your messages and enter the 6-digit code.",
+    "signInError": "Sign-in Error",
+    "signInFailed": "Sign-in Failed",
+    "googleNotAvailable": "Not Available",
+    "googleNotAvailableMessage": "Google Sign-In is currently only available on web. Please use phone sign-in on mobile.",
+    "googleSignInFailed": "Google Sign-In Failed",
+    "checkEmail": "✅ Check your email!",
+    "magicLinkSent": "We sent a login link to {{email}}\n\nClick the link in your email to sign in."
   },
   "features": {
     "secure": "Seguro",
@@ -43,6 +59,12 @@
     "fastDesc": "Compre e venda instantaneamente",
     "community": "Comunidade",
     "communityDesc": "Mercado confiável"
+  },
+  "home": {
+    "heroTitle": "Descubra Algo\nExtraordinário",
+    "heroSubtitle": "Navegue por milhares de anúncios de vendedores em toda a África",
+    "noListings": "Ainda não há anúncios",
+    "beFirst": "Seja o primeiro a publicar!"
   },
   "marketplace": {
     "title": "Mercado",
@@ -60,9 +82,80 @@
     "all": "Todos",
     "electronics": "Eletrônicos",
     "vehicles": "Veículos",
-    "realEstate": "Imóveis",
+    "furniture": "Móveis",
+    "homeAppliances": "Eletrodomésticos",
+    "constructionEquipment": "Equipamento de Construção",
+    "artCollectibles": "Arte e Colecionáveis",
     "fashion": "Moda",
-    "services": "Serviços"
+    "services": "Serviços",
+    "jobs": "Empregos",
+    "realEstate": "Imóveis"
+  },
+  "subCategories": {
+    "selectCategory": "Selecione uma Categoria",
+    "browseBy": "Explorar {{category}} por categoria",
+    "mobilePhones": "Telemóveis",
+    "laptopsComputers": "Portáteis e Computadores",
+    "tablets": "Tablets",
+    "tvs": "Televisores",
+    "audioSpeakers": "Áudio e Colunas",
+    "cameras": "Câmaras",
+    "gamingConsoles": "Consolas de Jogos",
+    "accessories": "Acessórios",
+    "cars": "Carros",
+    "motorcycles": "Motocicletas",
+    "trucks": "Camiões",
+    "buses": "Autocarros",
+    "bicycles": "Bicicletas",
+    "spareParts": "Peças Sobressalentes",
+    "sofasChairs": "Sofás e Cadeiras",
+    "bedsMattresses": "Camas e Colchões",
+    "tablesDesks": "Mesas e Secretárias",
+    "wardrobes": "Roupeiros",
+    "officeFurniture": "Móveis de Escritório",
+    "refrigerators": "Frigoríficos",
+    "washingMachines": "Máquinas de Lavar",
+    "microwaves": "Micro-ondas",
+    "airConditioners": "Ar Condicionado",
+    "cookersOvens": "Fogões e Fornos",
+    "cementMixers": "Betoneiras",
+    "generators": "Geradores",
+    "excavators": "Escavadoras",
+    "drillingMachines": "Máquinas de Perfuração",
+    "powerTools": "Ferramentas Elétricas",
+    "buildingMaterials": "Materiais de Construção",
+    "paintings": "Pinturas",
+    "sculptures": "Esculturas",
+    "handmadeArt": "Arte Artesanal",
+    "antiques": "Antiguidades",
+    "crafts": "Artesanato",
+    "mensClothing": "Roupa de Homem",
+    "womensClothing": "Roupa de Mulher",
+    "shoes": "Sapatos",
+    "bags": "Malas",
+    "watchesJewelry": "Relógios e Joias",
+    "cleaning": "Limpeza",
+    "electrical": "Eletricidade",
+    "plumbing": "Canalizações",
+    "carRepair": "Reparação de Carros",
+    "graphicDesign": "Design Gráfico",
+    "tutoring": "Explicações",
+    "fullTime": "Tempo Inteiro",
+    "partTime": "Meio Período",
+    "freelance": "Freelance",
+    "internships": "Estágios",
+    "remote": "Remoto",
+    "housesSale": "Casas à Venda",
+    "housesRent": "Casas para Arrendar",
+    "apartments": "Apartamentos",
+    "land": "Terrenos",
+    "commercialProperty": "Propriedade Comercial"
+  },
+  "tabs": {
+    "home": "Início",
+    "favorites": "Favoritos",
+    "myListings": "Meus Anúncios",
+    "profile": "Perfil"
   },
   "listing": {
     "postItem": "+ Publicar",
@@ -115,7 +208,14 @@
     "maxImagesExceeded": "Anúncios de {{category}} podem ter no máximo {{max}} imagens",
     "imageTooLarge": "Imagem Muito Grande",
     "imageExceeds10MB": "Uma ou mais imagens excedem 10MB e serão ignoradas.",
-    "maximumReached": "Máximo Atingido"
+    "maximumReached": "Máximo Atingido",
+    "fillAllFields": "Please fill all required fields",
+    "invalidFormat": "Invalid Format",
+    "phoneFormatHint": "Phone number must start with country code (e.g., +1 for US, +254 for Kenya)",
+    "invalidEmail": "Invalid Email",
+    "enterValidEmail": "Please enter a valid email address",
+    "videoAlreadyAdded": "Video Already Added",
+    "oneVideoOnly": "Only one video per listing is allowed. Please remove the existing video to add a new one."
   },
   "alerts": {
     "success": "Sucesso! 🎉",
@@ -131,7 +231,10 @@
     "reportSubmitted": "Obrigado",
     "reportSubmittedMessage": "Denúncia enviada com sucesso. Vamos revisar em breve.",
     "noContactInfo": "Sem Informações de Contato",
-    "sellerNoPhone": "O vendedor não forneceu número de telefone"
+    "sellerNoPhone": "O vendedor não forneceu número de telefone",
+    "failedToDelete": "Failed to delete",
+    "failedToUpdate": "Failed to update",
+    "info": "Info"
   },
   "myListings": {
     "title": "Meus Anúncios",
@@ -213,7 +316,12 @@
     "failedToDeleteListing": "Falha ao excluir anúncio: {{message}}",
     "failedToLoadListing": "Falha ao carregar anúncio",
     "permissionRequired": "Permissão Necessária",
-    "cameraPermission": "Permissão da câmera é necessária para tirar fotos"
+    "cameraPermission": "Permissão da câmera é necessária para tirar fotos",
+    "failedToPickVideo": "Failed to pick video",
+    "videoTooLarge": "Video Too Large",
+    "videoSizeExceeded": "Video size is {{size}}MB. Maximum allowed is 30MB.",
+    "invalidVideoFormat": "Invalid Format",
+    "videoFormatNotSupported": "Only MP4 and MOV video formats are supported."
   }
 }
 

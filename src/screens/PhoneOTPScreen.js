@@ -12,7 +12,16 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { auth } from '../lib/firebase';
+
+// Platform-aware Firebase imports
+let auth;
+if (Platform.OS === 'web') {
+  const firebaseWeb = require('../lib/firebase.web');
+  auth = firebaseWeb.auth;
+} else {
+  const firebaseNative = require('../lib/firebase');
+  auth = firebaseNative.auth;
+}
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { PrimaryButton, Card } from '../components/ui';
 import Input from '../components/Input';
@@ -43,8 +52,8 @@ export default function PhoneOTPScreen() {
     // Validate phone format
     if (!phone.startsWith('+')) {
       Alert.alert(
-        'Invalid Format',
-        'Phone number must start with country code (e.g., +1 for US, +254 for Kenya)'
+        t('validation.invalidFormat'),
+        t('validation.phoneFormatHint')
       );
       return;
     }
@@ -68,8 +77,8 @@ export default function PhoneOTPScreen() {
       setLoading(false);
 
       Alert.alert(
-        '✅ SMS Sent!',
-        `Verification code sent to ${phone}\n\nCheck your messages and enter the 6-digit code.`
+        t('auth.smsSent'),
+        t('auth.codeSentTo', { phone }) + '\n\n' + t('auth.checkMessages')
       );
     } catch (e) {
       setLoading(false);

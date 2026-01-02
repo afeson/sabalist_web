@@ -11,6 +11,16 @@ module.exports = async function (env, argv) {
     argv
   );
 
+  // Exclude native-only modules from web bundle with mock implementations
+  config.resolve.alias = {
+    ...config.resolve.alias,
+    '@react-native-google-signin/google-signin': require.resolve('./mocks/google-signin.web.js'),
+    '@react-native-firebase/app': require.resolve('./mocks/firebase-app.web.js'),
+    '@react-native-firebase/auth': require.resolve('./mocks/firebase-auth.web.js'),
+    '@react-native-firebase/firestore': require.resolve('./mocks/firebase-firestore.web.js'),
+    '@react-native-firebase/storage': require.resolve('./mocks/firebase-storage.web.js'),
+  };
+
   // Add polyfill fallbacks for Node.js modules not available in browser
   config.resolve.fallback = {
     ...config.resolve.fallback,

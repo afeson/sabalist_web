@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
-import LanguageSwitcher from './LanguageSwitcher';
+import LanguageModal from './LanguageModal';
 
 export default function MobileHeader({ onProfilePress, onSearch }) {
   const { i18n } = useTranslation();
@@ -66,31 +66,10 @@ export default function MobileHeader({ onProfilePress, onSearch }) {
       </View>
 
       {/* Language Modal */}
-      <Modal
-        visible={showLanguage}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowLanguage(false)}
-      >
-        <TouchableOpacity 
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowLanguage(false)}
-        >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>{i18n.t('profile.selectLanguage')}</Text>
-                <Text style={styles.modalSubtitle}>{i18n.t('profile.language')}: {i18n.language.toUpperCase()}</Text>
-              </View>
-              <TouchableOpacity onPress={() => setShowLanguage(false)}>
-                <Ionicons name="close" size={28} color={COLORS.textDark} />
-              </TouchableOpacity>
-            </View>
-            <LanguageSwitcher onClose={() => setShowLanguage(false)} />
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      <LanguageModal
+        isVisible={showLanguage}
+        onClose={() => setShowLanguage(false)}
+      />
     </View>
   );
 }
@@ -163,39 +142,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: COLORS.card,
-    borderTopLeftRadius: RADIUS.xl,
-    borderTopRightRadius: RADIUS.xl,
-    paddingBottom: SPACING.xxxl,
-    maxHeight: '70%',
-    minHeight: 400,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.cardBorder,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.textDark,
-  },
-  modalSubtitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.primary,
-    marginTop: 4,
   },
 });
 

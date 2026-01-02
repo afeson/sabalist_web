@@ -7,6 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/branding/sabalist-icon-safe.png",
     "userInterfaceStyle": "light",
+    "scheme": "sabalist",
     "splash": {
       "image": "./assets/branding/sabalist-logo-full.png",
       "resizeMode": "contain",
@@ -19,7 +20,14 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.sabalist.app",
       "icon": "./assets/branding/sabalist-icon-safe.png",
-      "googleServicesFile": "./ios/GoogleService-Info.plist"
+      "googleServicesFile": "./ios/GoogleService-Info.plist",
+      "associatedDomains": [
+        "applinks:sabalist.page.link",
+        "applinks:sabalist.page.link"
+      ],
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.sabalist.app",
@@ -28,14 +36,58 @@
         "foregroundImage": "./assets/branding/sabalist-icon-safe.png",
         "backgroundColor": "#E50914"
       },
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "sabalist.firebaseapp.com",
+              "pathPrefix": "/__/auth/action"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "sabalist.web.app"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "sabalist"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "plugins": [
       "@react-native-firebase/app",
-      "@react-native-firebase/auth"
+      "@react-native-firebase/auth",
+      "@react-native-google-signin/google-signin"
     ],
     "web": {
-      "bundler": "metro",
+      "bundler": "webpack",
       "favicon": "./assets/branding/sabalist-icon-safe.png"
     },
     "extra": {

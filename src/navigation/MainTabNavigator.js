@@ -1,7 +1,10 @@
 import React from 'react';
 import { View, StyleSheet, Platform, TouchableOpacity } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, SHADOWS } from '../theme';
 
 // Screens
@@ -10,8 +13,16 @@ import FavoritesScreen from '../screens/FavoritesScreen';
 import CreateListingScreen from '../screens/CreateListingScreen';
 import MyListingsScreen from '../screens/MyListingsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import ListingDetailScreen from '../screens/ListingDetailScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import HelpSupportScreen from '../screens/HelpSupportScreen';
+import TermsPrivacyScreen from '../screens/TermsPrivacyScreen';
+import AboutScreen from '../screens/AboutScreen';
+import SubCategoriesScreen from '../screens/SubCategoriesScreen';
 
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
 // Custom center button
 function CenterButton({ onPress }) {
@@ -26,14 +37,22 @@ function CenterButton({ onPress }) {
   );
 }
 
-export default function MainTabNavigator() {
+// Bottom Tab Navigator
+function TabNavigator() {
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textMuted,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: {
+          ...styles.tabBar,
+          paddingBottom: Math.max(insets.bottom, 10),
+          height: Platform.OS === 'ios' ? 85 : 70 + Math.max(insets.bottom - 10, 0),
+        },
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
@@ -62,22 +81,22 @@ export default function MainTabNavigator() {
         },
       })}
     >
-      <Tab.Screen 
-        name="Home" 
+      <Tab.Screen
+        name="Home"
         component={HomeScreenSimple}
         options={{
-          tabBarLabel: 'Home',
+          tabBarLabel: t('tabs.home'),
         }}
       />
-      <Tab.Screen 
-        name="Favorites" 
+      <Tab.Screen
+        name="Favorites"
         component={FavoritesScreen}
         options={{
-          tabBarLabel: 'Favorites',
+          tabBarLabel: t('tabs.favorites'),
         }}
       />
-      <Tab.Screen 
-        name="CreateListing" 
+      <Tab.Screen
+        name="CreateListing"
         component={CreateListingScreen}
         options={{
           tabBarLabel: '',
@@ -88,32 +107,102 @@ export default function MainTabNavigator() {
           ),
         }}
       />
-      <Tab.Screen 
-        name="MyListings" 
+      <Tab.Screen
+        name="MyListings"
         component={MyListingsScreen}
         options={{
-          tabBarLabel: 'My Listings',
+          tabBarLabel: t('tabs.myListings'),
         }}
       />
-      <Tab.Screen 
-        name="Profile" 
+      <Tab.Screen
+        name="Profile"
         component={ProfileScreen}
         options={{
-          tabBarLabel: 'Profile',
+          tabBarLabel: t('tabs.profile'),
         }}
       />
     </Tab.Navigator>
   );
 }
 
+// Main Navigator with Stack (wraps tabs and adds detail screens)
+export default function MainTabNavigator() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Stack.Screen
+        name="MainTabs"
+        component={TabNavigator}
+      />
+      <Stack.Screen
+        name="ListingDetail"
+        component={ListingDetailScreen}
+        options={{
+          headerShown: false,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
+        options={{
+          headerShown: false,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{
+          headerShown: false,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="HelpSupport"
+        component={HelpSupportScreen}
+        options={{
+          headerShown: false,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="TermsPrivacy"
+        component={TermsPrivacyScreen}
+        options={{
+          headerShown: false,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="About"
+        component={AboutScreen}
+        options={{
+          headerShown: false,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="SubCategories"
+        component={SubCategoriesScreen}
+        options={{
+          headerShown: false,
+          presentation: 'card',
+        }}
+      />
+    </Stack.Navigator>
+  );
+}
+
 const styles = StyleSheet.create({
   tabBar: {
-    position: 'absolute',
+    position: Platform.OS === 'web' ? 'relative' : 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: Platform.OS === 'ios' ? 85 : 70,
-    paddingBottom: Platform.OS === 'ios' ? 25 : 10,
     paddingTop: 10,
     backgroundColor: COLORS.card,
     borderTopWidth: 1,

@@ -1,17 +1,14 @@
 import React from 'react';
 import { View, Image, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, RADIUS, SPACING, SHADOWS } from '../../theme';
+import { PREMIUM_COLORS, PREMIUM_RADIUS, PREMIUM_SPACING, PREMIUM_SHADOWS } from '../../theme/premiumTheme';
 
-/**
- * Listing card for 2-column grid layout
- */
-export default function ListingCard({ 
-  listing, 
+export default function ListingCard({
+  listing,
   onPress,
   onFavorite,
   style,
-  ...props 
+  ...props
 }) {
   const { title, price, currency = 'USD', location, coverImage, images } = listing;
   const imageUri = coverImage || (images && images[0]);
@@ -22,35 +19,23 @@ export default function ListingCard({
   };
 
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={[styles.card, style]}
       onPress={onPress}
-      activeOpacity={0.7}
+      activeOpacity={0.8}
       {...props}
     >
       {/* Image */}
       <View style={styles.imageContainer}>
-        <Image 
+        <Image
           source={
-            imageUri 
+            imageUri
               ? { uri: imageUri }
               : require('../../../assets/sabalist_app_icon_1024.png')
           }
           style={styles.image}
           resizeMode="cover"
         />
-        {/* Favorite button */}
-        {onFavorite && (
-          <TouchableOpacity 
-            style={styles.favoriteButton}
-            onPress={(e) => {
-              e.stopPropagation();
-              onFavorite();
-            }}
-          >
-            <Ionicons name="heart-outline" size={20} color={COLORS.card} />
-          </TouchableOpacity>
-        )}
       </View>
 
       {/* Content */}
@@ -59,8 +44,8 @@ export default function ListingCard({
         <Text style={styles.title} numberOfLines={2}>
           {title || 'Listing'}
         </Text>
-        <View style={styles.locationRow}>
-          <Ionicons name="location" size={14} color={COLORS.textMuted} />
+        <View style={styles.meta}>
+          <Ionicons name="location-sharp" size={12} color={PREMIUM_COLORS.muted} />
           <Text style={styles.location} numberOfLines={1}>
             {location || 'Location'}
           </Text>
@@ -72,59 +57,45 @@ export default function ListingCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.lg,
+    backgroundColor: PREMIUM_COLORS.card,
+    borderRadius: PREMIUM_RADIUS.lg,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    ...SHADOWS.medium,
+    ...PREMIUM_SHADOWS.card,
   },
   imageContainer: {
     width: '100%',
-    height: 140,
-    backgroundColor: COLORS.backgroundDark,
-    position: 'relative',
+    height: 130,
+    backgroundColor: '#F3F4F6',
   },
   image: {
     width: '100%',
     height: '100%',
   },
-  favoriteButton: {
-    position: 'absolute',
-    top: SPACING.sm,
-    right: SPACING.sm,
-    width: 32,
-    height: 32,
-    borderRadius: RADIUS.full,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   content: {
-    padding: SPACING.md,
+    padding: PREMIUM_SPACING.md,
   },
   price: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.primary,
-    marginBottom: SPACING.xs,
+    fontSize: 20,
+    fontWeight: '800',
+    color: PREMIUM_COLORS.accent,
+    marginBottom: PREMIUM_SPACING.xs,
   },
   title: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.textDark,
-    marginBottom: SPACING.xs,
-    lineHeight: 18,
+    color: PREMIUM_COLORS.text,
+    marginBottom: PREMIUM_SPACING.sm,
+    lineHeight: 19,
+    minHeight: 38,
   },
-  locationRow: {
+  meta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
+    gap: 4,
   },
   location: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: PREMIUM_COLORS.muted,
     flex: 1,
   },
 });
-

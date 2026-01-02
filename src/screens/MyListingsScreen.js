@@ -10,16 +10,30 @@ import {
   StatusBar,
   TouchableOpacity,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
-import { auth } from '../lib/firebase';
-import { getUserListings } from '../services/listings';
+
+// Platform-aware Firebase imports
+let auth, getUserListings;
+if (Platform.OS === 'web') {
+  const firebaseWeb = require('../lib/firebase.web');
+  const listingsWeb = require('../services/listings.web');
+  auth = firebaseWeb.auth;
+  getUserListings = listingsWeb.getUserListings;
+} else {
+  const firebaseNative = require('../lib/firebase');
+  const listingsNative = require('../services/listings');
+  auth = firebaseNative.auth;
+  getUserListings = listingsNative.getUserListings;
+}
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { ListingCard } from '../components/ui';
+import AppHeader from '../components/AppHeader';
 
-export default function MyListingsScreen() {
+export default function MyListingsScreen({ navigation }) {
   const { t } = useTranslation();
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,13 +42,14 @@ export default function MyListingsScreen() {
   const loadMyListings = useCallback(async () => {
     try {
       setLoading(true);
-      const userId = auth.currentUser?.uid;
+      // Platform-aware: web uses auth.currentUser, native uses auth().currentUser
+      const userId = Platform.OS === 'web' ? auth.currentUser?.uid : auth().currentUser?.uid;
       if (!userId) {
         setListings([]);
         setLoading(false);
         return;
       }
-      
+
       const items = await getUserListings(userId);
       setListings(items || []);
     } catch (err) {
@@ -61,7 +76,7 @@ export default function MyListingsScreen() {
     <View style={styles.listingCardWrapper}>
       <ListingCard
         listing={item}
-        onPress={() => Alert.alert(t('listing.listingDetails'), item.title)}
+        onPress={() => navigation?.navigate('ListingDetail', { listingId: item.id })}
       />
       {item.status === 'sold' && (
         <View style={styles.soldBadge}>
@@ -105,9 +120,11 @@ export default function MyListingsScreen() {
   const soldListings = listings.filter(l => l.status === 'sold');
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.card} />
-      
+
+      <AppHeader navigation={navigation} />
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{t('myListings.title')}</Text>
@@ -143,7 +160,7 @@ export default function MyListingsScreen() {
         ListEmptyComponent={renderEmptyState}
         showsVerticalScrollIndicator={false}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

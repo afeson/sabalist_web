@@ -1,0 +1,1 @@
+export const BUILD_VERSION = "UI_REDESIGN_V2_2025-12-29";

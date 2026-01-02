@@ -1,7 +1,12 @@
+/**
+ * Native-specific Firebase Firestore & Storage operations for listings
+ * Uses React Native Firebase SDK (@react-native-firebase)
+ */
+
 import { firestore, storage } from "../lib/firebase";
 
 /**
- * Create a new listing in Firestore (POWER SELLER VERSION)
+ * Create a new listing in Firestore (NATIVE VERSION)
  * @param {Object} listingData - { title, description, price, category, currency, location, userId }
  * @param {Array} imageUris - Array of local image URIs to upload (up to 30)
  * @returns {Promise<string>} - Document ID
@@ -31,15 +36,15 @@ export async function createListing(listingData, imageUris = []) {
 
     // Upload images in parallel to listingId-specific folder
     let imageUrls = [];
-    
+
     if (imageUris.length > 0) {
       console.log(`📤 Uploading ${imageUris.length} images in parallel...`);
-      
+
       // Upload all images in parallel for speed
-      const uploadPromises = imageUris.map((uri, index) => 
+      const uploadPromises = imageUris.map((uri, index) =>
         uploadImage(uri, `listings/${listingId}/image-${index}-${Date.now()}.jpg`)
       );
-      
+
       imageUrls = await Promise.all(uploadPromises);
       console.log(`✅ Uploaded ${imageUrls.length} images`);
 
@@ -49,7 +54,7 @@ export async function createListing(listingData, imageUris = []) {
         coverImage: imageUrls[0] || "", // First image is cover
         updatedAt: firestore.FieldValue.serverTimestamp()
       });
-      
+
       console.log(`✅ Images linked to listing: ${listingId}`);
     }
 
@@ -61,23 +66,19 @@ export async function createListing(listingData, imageUris = []) {
 }
 
 /**
- * Upload image to Firebase Storage (POWER SELLER VERSION)
+ * Upload image to Firebase Storage (NATIVE VERSION)
  * @param {string} uri - Local image URI
  * @param {string} path - Storage path (e.g., listings/{listingId}/image-0.jpg)
  * @returns {Promise<string>} - Download URL
  */
 async function uploadImage(uri, path) {
   try {
-    // Convert URI to blob for web
-    const response = await fetch(uri);
-    const blob = await response.blob();
-
-    // Upload to Firebase Storage with full path
-    const storageRef = storage().ref(path);
-    await storageRef.put(blob);
+    // For React Native, use putFile() instead of blob
+    const reference = storage().ref(path);
+    await reference.putFile(uri);
 
     // Get download URL
-    const downloadURL = await storageRef.getDownloadURL();
+    const downloadURL = await reference.getDownloadURL();
     console.log(`✅ Uploaded: ${path}`);
     return downloadURL;
   } catch (error) {
@@ -87,7 +88,7 @@ async function uploadImage(uri, path) {
 }
 
 /**
- * Fetch listings from Firestore
+ * Fetch listings from Firestore (NATIVE VERSION)
  * @param {Object} options - { category, maxResults }
  * @returns {Promise<Array>} - Array of listings
  */
@@ -124,7 +125,7 @@ export async function fetchListings({ category = null, maxResults = 50 } = {}) {
 }
 
 /**
- * Search listings by text (only active listings)
+ * Search listings by text (only active listings) (NATIVE VERSION)
  * @param {string} searchText - Search query
  * @param {string} category - Category filter
  * @param {number} minPrice - Minimum price filter
@@ -135,10 +136,10 @@ export async function searchListings(searchText = "", category = null, minPrice 
   try {
     // Only fetch active listings for marketplace
     const listings = await fetchListings({ category });
-    
+
     // Filter out sold listings for marketplace display
     let activeListings = listings.filter(listing => listing.status === 'active' || !listing.status);
-    
+
     // Apply price range filter
     if (minPrice !== null && minPrice !== '') {
       activeListings = activeListings.filter(listing => listing.price >= parseFloat(minPrice));
@@ -146,7 +147,7 @@ export async function searchListings(searchText = "", category = null, minPrice 
     if (maxPrice !== null && maxPrice !== '') {
       activeListings = activeListings.filter(listing => listing.price <= parseFloat(maxPrice));
     }
-    
+
     // Apply text search
     if (!searchText.trim()) {
       return activeListings;
@@ -167,7 +168,7 @@ export async function searchListings(searchText = "", category = null, minPrice 
 }
 
 /**
- * Get a single listing by ID
+ * Get a single listing by ID (NATIVE VERSION)
  * @param {string} listingId - Listing document ID
  * @returns {Promise<Object>} - Listing data with id
  */
@@ -190,7 +191,7 @@ export async function getListing(listingId) {
 }
 
 /**
- * Get listings for a specific user
+ * Get listings for a specific user (NATIVE VERSION)
  * @param {string} userId - User ID
  * @returns {Promise<Array>} - Array of user's listings
  */
@@ -217,7 +218,7 @@ export async function getUserListings(userId) {
 }
 
 /**
- * Update an existing listing (POWER SELLER VERSION)
+ * Update an existing listing (NATIVE VERSION)
  * @param {string} listingId - Listing document ID
  * @param {Object} updateData - Fields to update
  * @param {Array} newImageUris - Optional new images to upload
@@ -230,15 +231,15 @@ export async function updateListing(listingId, updateData, newImageUris = [], ex
     let newImageUrls = [];
     if (newImageUris.length > 0) {
       console.log(`📤 Uploading ${newImageUris.length} new images in parallel...`);
-      
+
       const uploadPromises = newImageUris.map((uri, index) =>
         uploadImage(uri, `listings/${listingId}/image-${Date.now()}-${index}.jpg`)
       );
-      
+
       newImageUrls = await Promise.all(uploadPromises);
       console.log(`✅ Uploaded ${newImageUrls.length} new images`);
     }
-    
+
     // Combine existing and new images (in order)
     const allImages = [...existingImages, ...newImageUrls];
 
@@ -259,7 +260,7 @@ export async function updateListing(listingId, updateData, newImageUris = [], ex
 }
 
 /**
- * Mark listing as sold
+ * Mark listing as sold (NATIVE VERSION)
  * @param {string} listingId - Listing document ID
  * @returns {Promise<void>}
  */
@@ -278,7 +279,7 @@ export async function markListingAsSold(listingId) {
 }
 
 /**
- * Reactivate a sold listing
+ * Reactivate a sold listing (NATIVE VERSION)
  * @param {string} listingId - Listing document ID
  * @returns {Promise<void>}
  */
@@ -297,7 +298,7 @@ export async function reactivateListing(listingId) {
 }
 
 /**
- * Increment listing view count
+ * Increment listing view count (NATIVE VERSION)
  * @param {string} listingId - Listing document ID
  * @returns {Promise<void>}
  */
@@ -315,7 +316,7 @@ export async function incrementListingViews(listingId) {
 }
 
 /**
- * Delete a listing and its images from storage
+ * Delete a listing and its images from storage (NATIVE VERSION)
  * @param {string} listingId - Listing document ID
  * @returns {Promise<void>}
  */
@@ -326,7 +327,8 @@ export async function deleteListing(listingId) {
     if (listing.images && listing.images.length > 0) {
       console.log(`🗑️ Deleting ${listing.images.length} images from storage...`);
 
-      for (const imageUrl of listing.images) {
+      // Parallel deletion for better performance
+      const deletePromises = listing.images.map(async (imageUrl) => {
         try {
           // Extract path from URL
           const urlPath = imageUrl.split('/o/')[1]?.split('?')[0];
@@ -340,7 +342,9 @@ export async function deleteListing(listingId) {
           console.warn("⚠️ Could not delete image:", err.message);
           // Continue even if image deletion fails
         }
-      }
+      });
+
+      await Promise.all(deletePromises);
     }
 
     // Delete the document
@@ -352,4 +356,3 @@ export async function deleteListing(listingId) {
     throw error;
   }
 }
-
