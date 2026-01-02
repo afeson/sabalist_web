@@ -1,9 +1,7 @@
 {
-  "buildCommand": "npm run build:web",
-  "outputDirectory": "web-build",
+  "buildCommand": "npm run vercel-build",
+  "outputDirectory": "dist",
   "framework": null,
-  "installCommand": "npm install",
-  "devCommand": "npx expo start --web",
   "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [

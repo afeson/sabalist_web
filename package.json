@@ -7,9 +7,10 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "cross-env EXPO_PLATFORM=web expo start --web",
-    "build:web": "cross-env EXPO_PLATFORM=web expo export:web && cpx \"public/delete-account.html\" web-build",
-    "serve:web": "npx serve web-build"
+    "dev": "expo start --web",
+    "build": "npx expo export:web && cpx \"web-build/**/*\" dist && cpx \"public/delete-account.html\" dist",
+    "vercel-build": "npx expo export:web && cpx \"web-build/**/*\" dist && cpx \"public/delete-account.html\" dist",
+    "serve": "npx serve dist"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.8",
