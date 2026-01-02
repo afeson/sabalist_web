@@ -1,0 +1,28 @@
+# Ignore build output that gets regenerated
+web-build/
+
+# Ignore native directories
+android/
+ios/
+
+# Ignore documentation
+*.md
+!README.md
+
+# Ignore development files
+.env.local
+.env.development
+
+# Ignore Git and version control
+.git/
+.gitignore
+
+# Ignore editor files
+.vscode/
+.idea/
+
+# Ignore test files
+**/*.test.js
+**/*.test.jsx
+**/*.spec.js
+**/*.spec.jsx
