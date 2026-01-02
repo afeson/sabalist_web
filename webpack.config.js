@@ -27,6 +27,9 @@ module.exports = async function (env, argv) {
     crypto: require.resolve('crypto-browserify'),
     stream: require.resolve('stream-browserify'),
     buffer: require.resolve('buffer/'),
+    path: require.resolve('path-browserify'),
+    fs: false,
+    os: false,
   };
 
   // Ensure proper dev server configuration
