@@ -3,12 +3,18 @@
   "buildCommand": "npm run vercel-build",
   "outputDirectory": "dist",
   "framework": null,
-  "cleanUrls": true,
-  "trailingSlash": false,
-  "rewrites": [
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
+      "src": "/delete-account",
+      "dest": "/delete-account.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ],
   "headers": [
