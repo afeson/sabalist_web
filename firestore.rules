@@ -52,6 +52,10 @@ service cloud.firestore {
                     // Status can only be 'active' or 'sold'
                     && request.resource.data.status in ['active', 'sold'];
 
+      // Special case: Allow updating media fields (images, coverImage, videoUrl) during listing creation
+      allow update: if isOwner(resource.data.userId)
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['images', 'coverImage', 'videoUrl', 'updatedAt']);
+
       // Special case: Anyone can increment view counter
       allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views', 'lastViewedAt'])
                     && request.resource.data.views == resource.data.views + 1;

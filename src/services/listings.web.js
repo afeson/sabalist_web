@@ -12,6 +12,12 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage
  */
 export async function createListing(listingData, imageUris = [], videoData = null) {
   try {
+    console.log('📝 Creating listing with data:', {
+      ...listingData,
+      imageCount: imageUris.length,
+      hasVideo: !!videoData
+    });
+
     const listingRef = await addDoc(collection(firestore, "listings"), {
       title: listingData.title,
       description: listingData.description || "",
@@ -32,32 +38,48 @@ export async function createListing(listingData, imageUris = [], videoData = nul
     });
 
     const listingId = listingRef.id;
-    console.log(`✅ Listing created: ${listingId}`);
+    console.log(`✅ Listing created in Firestore: ${listingId}`);
 
     let imageUrls = [];
     let videoUrl = "";
 
-    // Upload images
+    // Upload images with individual error handling
     if (imageUris.length > 0) {
       console.log(`📤 Uploading ${imageUris.length} images...`);
 
-      const uploadPromises = imageUris.map((uri, index) =>
-        uploadImage(uri, `listings/${listingId}/image-${index}-${Date.now()}.jpg`)
-      );
+      try {
+        const uploadPromises = imageUris.map((uri, index) =>
+          uploadImage(uri, `listings/${listingId}/image-${index}-${Date.now()}.jpg`)
+            .catch(err => {
+              console.error(`❌ Failed to upload image ${index}:`, err);
+              return null; // Return null for failed uploads
+            })
+        );
 
-      imageUrls = await Promise.all(uploadPromises);
-      console.log(`✅ Uploaded ${imageUrls.length} images`);
+        const results = await Promise.all(uploadPromises);
+        imageUrls = results.filter(url => url !== null); // Filter out failed uploads
+        console.log(`✅ Uploaded ${imageUrls.length} out of ${imageUris.length} images`);
+      } catch (err) {
+        console.error('❌ Error during image upload batch:', err);
+        // Continue even if image uploads fail
+      }
     }
 
     // Upload video if present
     if (videoData && videoData.uri) {
       console.log(`📤 Uploading video...`);
-      const videoExtension = videoData.type === 'video/quicktime' ? 'mov' : 'mp4';
-      videoUrl = await uploadVideo(videoData.uri, `listings/${listingId}/video-${Date.now()}.${videoExtension}`);
-      console.log(`✅ Uploaded video`);
+      try {
+        const videoExtension = videoData.type === 'video/quicktime' ? 'mov' : 'mp4';
+        videoUrl = await uploadVideo(videoData.uri, `listings/${listingId}/video-${Date.now()}.${videoExtension}`);
+        console.log(`✅ Uploaded video`);
+      } catch (err) {
+        console.error('❌ Video upload failed:', err);
+        // Continue even if video upload fails
+      }
     }
 
     // Update listing with media URLs
+    console.log('📝 Updating listing with media URLs...');
     await updateDoc(doc(firestore, "listings", listingId), {
       images: imageUrls,
       coverImage: imageUrls[0] || "",
@@ -65,24 +87,47 @@ export async function createListing(listingData, imageUris = [], videoData = nul
       updatedAt: serverTimestamp()
     });
 
+    console.log(`✅ Listing ${listingId} completed successfully!`);
     return listingId;
   } catch (error) {
     console.error("❌ Error creating listing:", error);
+    console.error("Error details:", {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
     throw error;
   }
 }
 
 async function uploadImage(uri, path) {
   try {
+    console.log(`📤 Fetching image from URI: ${uri.substring(0, 50)}...`);
     const response = await fetch(uri);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    console.log(`📦 Converting to blob...`);
     const blob = await response.blob();
+    console.log(`📦 Blob size: ${(blob.size / 1024).toFixed(2)} KB`);
+
+    console.log(`☁️ Uploading to Firebase Storage: ${path}`);
     const storageRef = ref(storage, path);
     await uploadBytes(storageRef, blob);
+
+    console.log(`🔗 Getting download URL...`);
     const downloadURL = await getDownloadURL(storageRef);
-    console.log(`✅ Uploaded: ${path}`);
+    console.log(`✅ Upload complete: ${path}`);
     return downloadURL;
   } catch (error) {
     console.error(`❌ Error uploading image ${path}:`, error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      uri: uri.substring(0, 100)
+    });
     throw error;
   }
 }
