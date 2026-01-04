@@ -20,13 +20,13 @@ export default function SubCategoriesScreen({ route, navigation }) {
   };
 
   const handleSubCategoryPress = (subCategory) => {
-    console.log('Selected sub-category:', subCategory.label);
-    // TODO: Navigate to listings for this sub-category
-    // navigation.navigate('CategoryListings', {
-    //   category,
-    //   subCategory: subCategory.id,
-    //   title: subCategory.label
-    // });
+    console.log('Selected sub-category:', subCategory.id);
+    // Navigate to listings for this sub-category with only the ID
+    navigation.navigate('CategoryListings', {
+      category,
+      subcategoryId: subCategory.id,
+      title: t(subCategory.labelKey)
+    });
   };
 
   const renderSubCategory = ({ item }) => (

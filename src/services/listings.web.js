@@ -18,6 +18,7 @@ export async function createListing(listingData, imageUris = [], videoData = nul
       price: parseFloat(listingData.price) || 0,
       currency: listingData.currency || "USD",
       category: listingData.category || "General",
+      subcategory: listingData.subcategory || "", // Add subcategory field
       location: listingData.location || "Africa",
       phoneNumber: listingData.phoneNumber || "",
       userId: listingData.userId,
@@ -297,13 +298,28 @@ export async function getListing(listingId) {
 /**
  * Search listings (WEB VERSION)
  */
-export async function searchListings(searchText = "", category = null, minPrice = null, maxPrice = null) {
+export async function searchListings(searchText = "", category = null, minPrice = null, maxPrice = null, subcategoryId = null) {
   try {
+    console.log('searchListings called with:', { searchText, category, subcategoryId });
+
     // Only fetch active listings for marketplace
     const listings = await fetchListings(category, 50);
 
     // Filter out sold listings for marketplace display
     let activeListings = listings.filter(listing => listing.status === 'active' || !listing.status);
+
+    // Apply subcategory filter if provided
+    if (subcategoryId !== null && subcategoryId !== undefined && subcategoryId !== '') {
+      console.log(`Filtering by subcategory: ${subcategoryId}`);
+      activeListings = activeListings.filter(listing => {
+        const match = listing.subcategory === subcategoryId;
+        if (match) {
+          console.log(`Match found: ${listing.title} has subcategory ${listing.subcategory}`);
+        }
+        return match;
+      });
+      console.log(`After subcategory filter: ${activeListings.length} listings`);
+    }
 
     // Apply price range filter
     if (minPrice !== null && minPrice !== '') {

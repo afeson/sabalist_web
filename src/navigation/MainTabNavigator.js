@@ -20,6 +20,7 @@ import HelpSupportScreen from '../screens/HelpSupportScreen';
 import TermsPrivacyScreen from '../screens/TermsPrivacyScreen';
 import AboutScreen from '../screens/AboutScreen';
 import SubCategoriesScreen from '../screens/SubCategoriesScreen';
+import CategoryListingsScreen from '../screens/CategoryListingsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -188,6 +189,14 @@ export default function MainTabNavigator() {
       <Stack.Screen
         name="SubCategories"
         component={SubCategoriesScreen}
+        options={{
+          headerShown: false,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="CategoryListings"
+        component={CategoryListingsScreen}
         options={{
           headerShown: false,
           presentation: 'card',

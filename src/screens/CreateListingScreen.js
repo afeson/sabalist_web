@@ -31,11 +31,12 @@ if (Platform.OS === 'web') {
   auth = firebaseNative.auth;
   createListing = listingsNative.createListing;
 }
-import { 
-  getImageLimits, 
-  validateImageCount, 
-  GLOBAL_IMAGE_LIMITS 
+import {
+  getImageLimits,
+  validateImageCount,
+  GLOBAL_IMAGE_LIMITS
 } from '../config/categoryLimits';
+import { getSubCategories } from '../config/categories';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { PrimaryButton, Card } from '../components/ui';
 
@@ -51,12 +52,16 @@ export default function CreateListingScreen({ navigation }) {
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
   const [category, setCategory] = useState('Electronics');
+  const [subcategory, setSubcategory] = useState(null); // Store only ID
   const [location, setLocation] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [images, setImages] = useState([]);
   const [video, setVideo] = useState(null); // {uri, type, size}
   const [uploading, setUploading] = useState(false);
   const [compressing, setCompressing] = useState(false);
+
+  // Get subcategories for selected category
+  const availableSubcategories = getSubCategories(category);
 
   const imageLimits = getImageLimits(category);
   const canProceedFromPhotos = images.length >= imageLimits.min;
@@ -258,6 +263,7 @@ export default function CreateListingScreen({ navigation }) {
         description: description.trim(),
         price: price.trim(),
         category,
+        subcategory: subcategory || '', // Include subcategory (empty string if not selected)
         currency: 'USD',
         location: location.trim(),
         phoneNumber: phoneNumber.trim(),
@@ -281,6 +287,7 @@ export default function CreateListingScreen({ navigation }) {
               setDescription('');
               setPrice('');
               setCategory('Electronics');
+              setSubcategory(null);
               setLocation('');
               setPhoneNumber('');
               setImages([]);
@@ -459,7 +466,10 @@ export default function CreateListingScreen({ navigation }) {
             <TouchableOpacity
               key={cat}
               style={[styles.categoryChip, category === cat && styles.categoryChipActive]}
-              onPress={() => setCategory(cat)}
+              onPress={() => {
+                setCategory(cat);
+                setSubcategory(null); // Reset subcategory when category changes
+              }}
             >
               <Text style={[styles.categoryChipText, category === cat && styles.categoryChipTextActive]}>
                 {cat}
@@ -468,6 +478,26 @@ export default function CreateListingScreen({ navigation }) {
           ))}
         </ScrollView>
       </View>
+
+      {/* Subcategory Picker - shown only if category has subcategories */}
+      {availableSubcategories.length > 0 && (
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Subcategory</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryList}>
+            {availableSubcategories.map((subcat) => (
+              <TouchableOpacity
+                key={subcat.id}
+                style={[styles.categoryChip, subcategory === subcat.id && styles.categoryChipActive]}
+                onPress={() => setSubcategory(subcat.id)}
+              >
+                <Text style={[styles.categoryChipText, subcategory === subcat.id && styles.categoryChipTextActive]}>
+                  {t(subcat.labelKey)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       <View style={styles.formGroup}>
         <Text style={styles.label}>Price (USD) *</Text>
