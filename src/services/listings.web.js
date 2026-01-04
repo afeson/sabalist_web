@@ -48,16 +48,21 @@ export async function createListing(listingData, imageUris = [], videoData = nul
       console.log(`📤 Uploading ${imageUris.length} images...`);
 
       try {
-        const uploadPromises = imageUris.map((uri, index) =>
-          uploadImage(uri, `listings/${listingId}/image-${index}-${Date.now()}.jpg`)
-            .catch(err => {
-              console.error(`❌ Failed to upload image ${index}:`, err);
-              return null; // Return null for failed uploads
-            })
-        );
-
-        const results = await Promise.all(uploadPromises);
-        imageUrls = results.filter(url => url !== null); // Filter out failed uploads
+        // Upload images sequentially to avoid overwhelming the connection
+        for (let index = 0; index < imageUris.length; index++) {
+          try {
+            console.log(`📤 [${index + 1}/${imageUris.length}] Starting upload...`);
+            const url = await uploadImage(
+              imageUris[index],
+              `listings/${listingId}/image-${index}-${Date.now()}.jpg`
+            );
+            imageUrls.push(url);
+            console.log(`✅ [${index + 1}/${imageUris.length}] Upload complete`);
+          } catch (err) {
+            console.error(`❌ [${index + 1}/${imageUris.length}] Failed:`, err.message);
+            // Continue with next image
+          }
+        }
         console.log(`✅ Uploaded ${imageUrls.length} out of ${imageUris.length} images`);
       } catch (err) {
         console.error('❌ Error during image upload batch:', err);

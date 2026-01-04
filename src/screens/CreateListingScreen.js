@@ -269,11 +269,12 @@ export default function CreateListingScreen({ navigation }) {
         userId,
       };
 
-      // Create a timeout promise that rejects after 2 minutes
+      // Create a timeout promise that rejects after 5 minutes
+      // (allows ~50 seconds per image for 6 images)
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
           reject(new Error('Request timeout. Please check your internet connection and try again.'));
-        }, 120000); // 2 minutes
+        }, 300000); // 5 minutes
       });
 
       // Race between createListing and timeout
