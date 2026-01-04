@@ -253,11 +253,10 @@ export default function CreateListingScreen({ navigation }) {
       const userId = auth.currentUser?.uid;
 
       if (!userId) {
-        setUploading(false);
         Alert.alert(t('auth.authRequired'), t('auth.pleaseSignInToCreate'));
         return;
       }
-      
+
       const listingData = {
         title: title.trim(),
         description: description.trim(),
@@ -270,9 +269,20 @@ export default function CreateListingScreen({ navigation }) {
         userId,
       };
 
-      await createListing(listingData, images, video);
+      // Create a timeout promise that rejects after 2 minutes
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Request timeout. Please check your internet connection and try again.'));
+        }, 120000); // 2 minutes
+      });
 
-      setUploading(false);
+      // Race between createListing and timeout
+      const listingId = await Promise.race([
+        createListing(listingData, images, video),
+        timeoutPromise
+      ]);
+
+      console.log('✅ Listing created successfully with ID:', listingId);
 
       Alert.alert(
         t('alerts.success'),
@@ -298,9 +308,32 @@ export default function CreateListingScreen({ navigation }) {
         ]
       );
     } catch (error) {
+      console.error('❌ Error in handleSubmit:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        name: error.name
+      });
+
+      // Show user-friendly error message
+      let errorMessage = t('errors.failedToCreateListing');
+
+      if (error.message.includes('timeout')) {
+        errorMessage = 'Upload timeout. Please check your connection and try with smaller images.';
+      } else if (error.message.includes('permission') || error.code === 'permission-denied') {
+        errorMessage = 'Permission denied. Please sign out and sign in again.';
+      } else if (error.message.includes('network') || error.message.includes('fetch')) {
+        errorMessage = 'Network error. Please check your internet connection.';
+      } else if (error.code === 'storage/unauthorized') {
+        errorMessage = 'Storage access denied. Please contact support.';
+      } else if (error.message) {
+        errorMessage += '\n\n' + error.message;
+      }
+
+      Alert.alert(t('common.error'), errorMessage);
+    } finally {
+      // CRITICAL: Always stop spinner, even if error handling fails
       setUploading(false);
-      console.error('Error creating listing:', error);
-      Alert.alert(t('common.error'), t('errors.failedToCreateListing') + '\n\n' + error.message);
     }
   };
 

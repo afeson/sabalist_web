@@ -103,24 +103,38 @@ export async function createListing(listingData, imageUris = [], videoData = nul
 async function uploadImage(uri, path) {
   try {
     console.log(`📤 Fetching image from URI: ${uri.substring(0, 50)}...`);
-    const response = await fetch(uri);
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    // Create AbortController for fetch timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for fetch
+
+    try {
+      const response = await fetch(uri, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      console.log(`📦 Converting to blob...`);
+      const blob = await response.blob();
+      console.log(`📦 Blob size: ${(blob.size / 1024).toFixed(2)} KB`);
+
+      console.log(`☁️ Uploading to Firebase Storage: ${path}`);
+      const storageRef = ref(storage, path);
+      await uploadBytes(storageRef, blob);
+
+      console.log(`🔗 Getting download URL...`);
+      const downloadURL = await getDownloadURL(storageRef);
+      console.log(`✅ Upload complete: ${path}`);
+      return downloadURL;
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        throw new Error('Image fetch timeout - please try with a smaller image or check your connection');
+      }
+      throw fetchError;
     }
-
-    console.log(`📦 Converting to blob...`);
-    const blob = await response.blob();
-    console.log(`📦 Blob size: ${(blob.size / 1024).toFixed(2)} KB`);
-
-    console.log(`☁️ Uploading to Firebase Storage: ${path}`);
-    const storageRef = ref(storage, path);
-    await uploadBytes(storageRef, blob);
-
-    console.log(`🔗 Getting download URL...`);
-    const downloadURL = await getDownloadURL(storageRef);
-    console.log(`✅ Upload complete: ${path}`);
-    return downloadURL;
   } catch (error) {
     console.error(`❌ Error uploading image ${path}:`, error);
     console.error('Error details:', {
@@ -134,15 +148,46 @@ async function uploadImage(uri, path) {
 
 async function uploadVideo(uri, path) {
   try {
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    const storageRef = ref(storage, path);
-    await uploadBytes(storageRef, blob);
-    const downloadURL = await getDownloadURL(storageRef);
-    console.log(`✅ Uploaded video: ${path}`);
-    return downloadURL;
+    console.log(`📤 Fetching video from URI...`);
+
+    // Create AbortController for fetch timeout (longer for videos)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout for video fetch
+
+    try {
+      const response = await fetch(uri, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      console.log(`📦 Converting video to blob...`);
+      const blob = await response.blob();
+      console.log(`📦 Video blob size: ${(blob.size / (1024 * 1024)).toFixed(2)} MB`);
+
+      console.log(`☁️ Uploading video to Firebase Storage: ${path}`);
+      const storageRef = ref(storage, path);
+      await uploadBytes(storageRef, blob);
+
+      console.log(`🔗 Getting video download URL...`);
+      const downloadURL = await getDownloadURL(storageRef);
+      console.log(`✅ Uploaded video: ${path}`);
+      return downloadURL;
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        throw new Error('Video fetch timeout - please try with a smaller video or check your connection');
+      }
+      throw fetchError;
+    }
   } catch (error) {
     console.error(`❌ Error uploading video ${path}:`, error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      uri: uri.substring(0, 100)
+    });
     throw error;
   }
 }
