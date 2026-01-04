@@ -18,12 +18,17 @@ export async function createListing(listingData, imageUris = [], videoData = nul
       hasVideo: !!videoData
     });
 
+    // ✅ FIX: Validate required fields before Firestore write
+    if (!listingData.category || !['Electronics', 'Vehicles', 'Real Estate', 'Fashion', 'Services'].includes(listingData.category)) {
+      throw new Error('Invalid category. Please select a valid category.');
+    }
+
     const listingRef = await addDoc(collection(firestore, "listings"), {
       title: listingData.title,
       description: listingData.description || "",
       price: parseFloat(listingData.price) || 0,
       currency: listingData.currency || "USD",
-      category: listingData.category || "General",
+      category: listingData.category, // ✅ FIX: No fallback - must be valid
       subcategory: listingData.subcategory || "", // Add subcategory field
       location: listingData.location || "Africa",
       phoneNumber: listingData.phoneNumber || "",
@@ -107,39 +112,56 @@ export async function createListing(listingData, imageUris = [], videoData = nul
 
 async function uploadImage(uri, path) {
   try {
-    console.log(`📤 Fetching image from URI: ${uri.substring(0, 50)}...`);
+    console.log(`📤 Processing image: ${uri.substring(0, 50)}...`);
 
-    // Create AbortController for fetch timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for fetch
+    let blob;
 
-    try {
-      const response = await fetch(uri, { signal: controller.signal });
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    // ✅ FIX: Handle data URLs differently than blob URLs
+    if (uri.startsWith('data:')) {
+      console.log(`📦 Converting data URL to blob...`);
+      // Data URL - convert directly to blob without fetch
+      const base64Data = uri.split(',')[1];
+      const mimeType = uri.match(/data:([^;]+);/)?.[1] || 'image/jpeg';
+      const binaryData = atob(base64Data);
+      const bytes = new Uint8Array(binaryData.length);
+      for (let i = 0; i < binaryData.length; i++) {
+        bytes[i] = binaryData.charCodeAt(i);
       }
-
-      console.log(`📦 Converting to blob...`);
-      const blob = await response.blob();
+      blob = new Blob([bytes], { type: mimeType });
       console.log(`📦 Blob size: ${(blob.size / 1024).toFixed(2)} KB`);
+    } else {
+      // Blob URL - use fetch with timeout
+      console.log(`📤 Fetching blob from URI...`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
 
-      console.log(`☁️ Uploading to Firebase Storage: ${path}`);
-      const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, blob);
+      try {
+        const response = await fetch(uri, { signal: controller.signal });
+        clearTimeout(timeoutId);
 
-      console.log(`🔗 Getting download URL...`);
-      const downloadURL = await getDownloadURL(storageRef);
-      console.log(`✅ Upload complete: ${path}`);
-      return downloadURL;
-    } catch (fetchError) {
-      clearTimeout(timeoutId);
-      if (fetchError.name === 'AbortError') {
-        throw new Error('Image fetch timeout - please try with a smaller image or check your connection');
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        blob = await response.blob();
+        console.log(`📦 Blob size: ${(blob.size / 1024).toFixed(2)} KB`);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Image fetch timeout - please try with a smaller image or check your connection');
+        }
+        throw fetchError;
       }
-      throw fetchError;
     }
+
+    console.log(`☁️ Uploading to Firebase Storage: ${path}`);
+    const storageRef = ref(storage, path);
+    await uploadBytes(storageRef, blob);
+
+    console.log(`🔗 Getting download URL...`);
+    const downloadURL = await getDownloadURL(storageRef);
+    console.log(`✅ Upload complete: ${path}`);
+    return downloadURL;
   } catch (error) {
     console.error(`❌ Error uploading image ${path}:`, error);
     console.error('Error details:', {

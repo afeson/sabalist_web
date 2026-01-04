@@ -1,26 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView, Switch, Alert, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView, Switch, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { Card } from '../components/ui';
-
-// Platform-aware Firebase imports
-let firestore, auth, doc, getDoc, updateDoc;
-if (Platform.OS === 'web') {
-  const firebaseWeb = require('../lib/firebase.web');
-  const firestoreImports = require('firebase/firestore');
-  firestore = firebaseWeb.firestore;
-  auth = firebaseWeb.auth;
-  doc = firestoreImports.doc;
-  getDoc = firestoreImports.getDoc;
-  updateDoc = firestoreImports.updateDoc;
-} else {
-  const firebaseNative = require('../lib/firebase');
-  firestore = firebaseNative.firestore;
-  auth = firebaseNative.auth;
-  // Native Firestore uses different API
-}
+import { firestore, auth } from '../lib/firebase.web';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
 export default function NotificationsScreen({ navigation }) {
   const { t } = useTranslation();
@@ -49,29 +34,15 @@ export default function NotificationsScreen({ navigation }) {
         return;
       }
 
-      if (Platform.OS === 'web') {
-        const userDoc = await getDoc(doc(firestore, 'users', userId));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          setSettings({
-            emailNotifications: userData.emailNotifications ?? false,
-            pushNotifications: userData.pushNotifications ?? false,
-            messageNotifications: userData.messageNotifications ?? false,
-            listingUpdates: userData.listingUpdates ?? false
-          });
-        }
-      } else {
-        // Native Firestore implementation
-        const userDoc = await firestore().collection('users').doc(userId).get();
-        if (userDoc.exists) {
-          const userData = userDoc.data();
-          setSettings({
-            emailNotifications: userData.emailNotifications ?? false,
-            pushNotifications: userData.pushNotifications ?? false,
-            messageNotifications: userData.messageNotifications ?? false,
-            listingUpdates: userData.listingUpdates ?? false
-          });
-        }
+      const userDoc = await getDoc(doc(firestore, 'users', userId));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setSettings({
+          emailNotifications: userData.emailNotifications ?? false,
+          pushNotifications: userData.pushNotifications ?? false,
+          messageNotifications: userData.messageNotifications ?? false,
+          listingUpdates: userData.listingUpdates ?? false
+        });
       }
     } catch (error) {
       console.error('Error loading notification settings:', error);
@@ -94,18 +65,10 @@ export default function NotificationsScreen({ navigation }) {
     setSaving(true);
 
     try {
-      if (Platform.OS === 'web') {
-        await updateDoc(doc(firestore, 'users', userId), {
-          [key]: value,
-          updatedAt: new Date()
-        });
-      } else {
-        // Native Firestore implementation
-        await firestore().collection('users').doc(userId).update({
-          [key]: value,
-          updatedAt: new Date()
-        });
-      }
+      await updateDoc(doc(firestore, 'users', userId), {
+        [key]: value,
+        updatedAt: new Date()
+      });
       console.log(`✅ Updated ${key} to ${value}`);
     } catch (error) {
       console.error('Error updating notification settings:', error);

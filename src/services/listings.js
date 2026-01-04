@@ -19,7 +19,7 @@ export async function createListing(listingData, imageUris = []) {
       description: listingData.description || "",
       price: parseFloat(listingData.price) || 0,
       currency: listingData.currency || "USD",
-      category: listingData.category || "General",
+      category: listingData.category, // ✅ FIX: No "General" fallback - must be valid category
       subcategory: listingData.subcategory || "", // Add subcategory field
       location: listingData.location || "Africa",
       phoneNumber: listingData.phoneNumber || "",
