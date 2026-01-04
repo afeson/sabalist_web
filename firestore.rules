@@ -13,7 +13,11 @@ service cloud.firestore {
     }
 
     function isValidCategory(category) {
-      return category in ['Electronics', 'Vehicles', 'Real Estate', 'Fashion', 'Services'];
+      return category == 'Electronics'
+          || category == 'Vehicles'
+          || category == 'Real Estate'
+          || category == 'Fashion'
+          || category == 'Services';
     }
 
     function isValidImageUrl(url) {
