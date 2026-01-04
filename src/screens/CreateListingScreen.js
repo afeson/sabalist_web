@@ -109,19 +109,37 @@ export default function CreateListingScreen({ navigation }) {
               const manipResult = await manipulateAsync(
                 asset.uri,
                 [{ resize: { width: GLOBAL_IMAGE_LIMITS.compressionWidth } }],
-                { 
+                {
                   compress: GLOBAL_IMAGE_LIMITS.compressionQuality,
-                  format: SaveFormat.JPEG 
+                  format: SaveFormat.JPEG,
+                  base64: true  // ✅ FIX: Get base64 to prevent blob URI expiration
                 }
               );
+
+              // ✅ FIX: Convert to data URL (persistent, won't expire)
+              if (manipResult.base64) {
+                return `data:image/jpeg;base64,${manipResult.base64}`;
+              }
               return manipResult.uri;
             } catch (err) {
               console.warn('Image compression failed, using original:', err);
-              return asset.uri;
+              // Fallback: convert original blob to base64
+              try {
+                const response = await fetch(asset.uri);
+                const blob = await response.blob();
+                return await new Promise((resolve) => {
+                  const reader = new FileReader();
+                  reader.onloadend = () => resolve(reader.result);
+                  reader.readAsDataURL(blob);
+                });
+              } catch (fallbackErr) {
+                console.error('Base64 conversion failed:', fallbackErr);
+                return asset.uri;  // Last resort
+              }
             }
           })
         );
-        
+
         setImages(prev => [...prev, ...compressedImages].slice(0, imageLimits.max));
         setCompressing(false);
       }
@@ -158,15 +176,35 @@ export default function CreateListingScreen({ navigation }) {
           const manipResult = await manipulateAsync(
             result.assets[0].uri,
             [{ resize: { width: GLOBAL_IMAGE_LIMITS.compressionWidth } }],
-            { 
+            {
               compress: GLOBAL_IMAGE_LIMITS.compressionQuality,
-              format: SaveFormat.JPEG 
+              format: SaveFormat.JPEG,
+              base64: true  // ✅ FIX: Get base64 to prevent blob URI expiration
             }
           );
-          setImages(prev => [...prev, manipResult.uri].slice(0, imageLimits.max));
+
+          // ✅ FIX: Convert to data URL (persistent)
+          const imageUri = manipResult.base64
+            ? `data:image/jpeg;base64,${manipResult.base64}`
+            : manipResult.uri;
+
+          setImages(prev => [...prev, imageUri].slice(0, imageLimits.max));
         } catch (err) {
           console.warn('Compression failed, using original:', err);
-          setImages(prev => [...prev, result.assets[0].uri].slice(0, imageLimits.max));
+          // Fallback: convert original to base64
+          try {
+            const response = await fetch(result.assets[0].uri);
+            const blob = await response.blob();
+            const dataUrl = await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.readAsDataURL(blob);
+            });
+            setImages(prev => [...prev, dataUrl].slice(0, imageLimits.max));
+          } catch (fallbackErr) {
+            console.error('Base64 conversion failed:', fallbackErr);
+            setImages(prev => [...prev, result.assets[0].uri].slice(0, imageLimits.max));
+          }
         }
         
         setCompressing(false);

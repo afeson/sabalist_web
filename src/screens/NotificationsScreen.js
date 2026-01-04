@@ -1,11 +1,129 @@
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView, Switch } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView, Switch, Alert, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { Card } from '../components/ui';
 
+// Platform-aware Firebase imports
+let firestore, auth, doc, getDoc, updateDoc;
+if (Platform.OS === 'web') {
+  const firebaseWeb = require('../lib/firebase.web');
+  const firestoreImports = require('firebase/firestore');
+  firestore = firebaseWeb.firestore;
+  auth = firebaseWeb.auth;
+  doc = firestoreImports.doc;
+  getDoc = firestoreImports.getDoc;
+  updateDoc = firestoreImports.updateDoc;
+} else {
+  const firebaseNative = require('../lib/firebase');
+  firestore = firebaseNative.firestore;
+  auth = firebaseNative.auth;
+  // Native Firestore uses different API
+}
+
 export default function NotificationsScreen({ navigation }) {
   const { t } = useTranslation();
+
+  // ✅ FIX: Add state management
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState({
+    emailNotifications: false,
+    pushNotifications: false,
+    messageNotifications: false,
+    listingUpdates: false
+  });
+
+  // ✅ FIX: Load settings from Firestore
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const userId = auth.currentUser?.uid;
+      if (!userId) {
+        console.warn('No user logged in');
+        setLoading(false);
+        return;
+      }
+
+      if (Platform.OS === 'web') {
+        const userDoc = await getDoc(doc(firestore, 'users', userId));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setSettings({
+            emailNotifications: userData.emailNotifications ?? false,
+            pushNotifications: userData.pushNotifications ?? false,
+            messageNotifications: userData.messageNotifications ?? false,
+            listingUpdates: userData.listingUpdates ?? false
+          });
+        }
+      } else {
+        // Native Firestore implementation
+        const userDoc = await firestore().collection('users').doc(userId).get();
+        if (userDoc.exists) {
+          const userData = userDoc.data();
+          setSettings({
+            emailNotifications: userData.emailNotifications ?? false,
+            pushNotifications: userData.pushNotifications ?? false,
+            messageNotifications: userData.messageNotifications ?? false,
+            listingUpdates: userData.listingUpdates ?? false
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error loading notification settings:', error);
+      Alert.alert('Error', 'Failed to load notification settings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ FIX: Save settings to Firestore
+  const updateSetting = async (key, value) => {
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+      Alert.alert('Error', 'Please sign in to update settings');
+      return;
+    }
+
+    // Optimistic update
+    setSettings(prev => ({ ...prev, [key]: value }));
+    setSaving(true);
+
+    try {
+      if (Platform.OS === 'web') {
+        await updateDoc(doc(firestore, 'users', userId), {
+          [key]: value,
+          updatedAt: new Date()
+        });
+      } else {
+        // Native Firestore implementation
+        await firestore().collection('users').doc(userId).update({
+          [key]: value,
+          updatedAt: new Date()
+        });
+      }
+      console.log(`✅ Updated ${key} to ${value}`);
+    } catch (error) {
+      console.error('Error updating notification settings:', error);
+      // Rollback on error
+      setSettings(prev => ({ ...prev, [key]: !value }));
+      Alert.alert('Error', 'Failed to update setting. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -17,7 +135,9 @@ export default function NotificationsScreen({ navigation }) {
           <Ionicons name="arrow-back" size={24} color={COLORS.textDark} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t('profile.notifications')}</Text>
-        <View style={{ width: 24 }} />
+        <View style={{ width: 24 }}>
+          {saving && <ActivityIndicator size="small" color={COLORS.primary} />}
+        </View>
       </View>
 
       {/* Content */}
@@ -39,8 +159,9 @@ export default function NotificationsScreen({ navigation }) {
               </View>
             </View>
             <Switch
-              value={false}
-              disabled={true}
+              value={settings.emailNotifications}
+              onValueChange={(value) => updateSetting('emailNotifications', value)}
+              disabled={saving}
               trackColor={{ false: COLORS.textMuted, true: COLORS.primary }}
             />
           </View>
@@ -60,8 +181,9 @@ export default function NotificationsScreen({ navigation }) {
               </View>
             </View>
             <Switch
-              value={false}
-              disabled={true}
+              value={settings.pushNotifications}
+              onValueChange={(value) => updateSetting('pushNotifications', value)}
+              disabled={saving}
               trackColor={{ false: COLORS.textMuted, true: COLORS.primary }}
             />
           </View>
@@ -81,8 +203,9 @@ export default function NotificationsScreen({ navigation }) {
               </View>
             </View>
             <Switch
-              value={false}
-              disabled={true}
+              value={settings.messageNotifications}
+              onValueChange={(value) => updateSetting('messageNotifications', value)}
+              disabled={saving}
               trackColor={{ false: COLORS.textMuted, true: COLORS.primary }}
             />
           </View>
@@ -102,18 +225,19 @@ export default function NotificationsScreen({ navigation }) {
               </View>
             </View>
             <Switch
-              value={false}
-              disabled={true}
+              value={settings.listingUpdates}
+              onValueChange={(value) => updateSetting('listingUpdates', value)}
+              disabled={saving}
               trackColor={{ false: COLORS.textMuted, true: COLORS.primary }}
             />
           </View>
         </Card>
 
-        {/* Notice */}
+        {/* Info Notice */}
         <View style={styles.notice}>
           <Ionicons name="information-circle" size={20} color={COLORS.info} />
           <Text style={styles.noticeText}>
-            Notification settings will be available in a future update
+            Changes are saved automatically
           </Text>
         </View>
 
@@ -127,6 +251,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',
