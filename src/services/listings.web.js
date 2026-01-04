@@ -109,7 +109,6 @@ export async function fetchListings(categoryFilter = null, limitCount = 20) {
   try {
     let q = query(
       collection(firestore, "listings"),
-      where("status", "==", "active"),
       orderBy("createdAt", "desc"),
       firestoreLimit(limitCount)
     );
@@ -117,7 +116,6 @@ export async function fetchListings(categoryFilter = null, limitCount = 20) {
     if (categoryFilter && categoryFilter !== "All") {
       q = query(
         collection(firestore, "listings"),
-        where("status", "==", "active"),
         where("category", "==", categoryFilter),
         orderBy("createdAt", "desc"),
         firestoreLimit(limitCount)
@@ -130,7 +128,12 @@ export async function fetchListings(categoryFilter = null, limitCount = 20) {
       ...doc.data()
     }));
 
-    return listings;
+    // Filter for active listings (or listings without status field) in-memory
+    const activeListings = listings.filter(listing =>
+      listing.status === 'active' || !listing.status
+    );
+
+    return activeListings;
   } catch (error) {
     console.error("❌ Error fetching listings:", error);
     throw error;

@@ -97,7 +97,6 @@ export async function fetchListings({ category = null, maxResults = 50 } = {}) {
   try {
     let query = firestore()
       .collection("listings")
-      .where("status", "==", "active")
       .orderBy("createdAt", "desc")
       .limit(maxResults);
 
@@ -105,7 +104,6 @@ export async function fetchListings({ category = null, maxResults = 50 } = {}) {
       query = firestore()
         .collection("listings")
         .where("category", "==", category)
-        .where("status", "==", "active")
         .orderBy("createdAt", "desc")
         .limit(maxResults);
     }
@@ -117,8 +115,13 @@ export async function fetchListings({ category = null, maxResults = 50 } = {}) {
       ...doc.data()
     }));
 
-    console.log(`✅ Fetched ${listings.length} listings`);
-    return listings;
+    // Filter for active listings (or listings without status field) in-memory
+    const activeListings = listings.filter(listing =>
+      listing.status === 'active' || !listing.status
+    );
+
+    console.log(`✅ Fetched ${activeListings.length} active listings out of ${listings.length} total`);
+    return activeListings;
   } catch (error) {
     console.error("❌ Error fetching listings:", error);
     throw error;
