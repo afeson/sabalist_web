@@ -12,6 +12,22 @@
       }
     },
     {
+      "src": "/manifest.json",
+      "dest": "/manifest.json"
+    },
+    {
+      "src": "/favicon(-\\d+)?.png",
+      "dest": "/favicon$1.png"
+    },
+    {
+      "src": "/favicon.ico",
+      "dest": "/favicon.ico"
+    },
+    {
+      "src": "/pwa/(.*)",
+      "dest": "/pwa/$1"
+    },
+    {
       "src": "/delete-account",
       "dest": "/delete-account.html"
     },
