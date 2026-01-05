@@ -69,13 +69,27 @@
                 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
                 log('✓ Firebase initialized in ' + (Date.now() - startTime) + 'ms', 'success');
 
-                log('Getting auth...', 'info');
+                log('Getting auth and waiting for auth state...', 'info');
                 const auth = getAuth(app);
-                const currentUser = auth.currentUser;
+
+                // Wait for auth state to load (may take a moment)
+                const currentUser = await new Promise((resolve) => {
+                    const unsubscribe = auth.onAuthStateChanged((user) => {
+                        unsubscribe();
+                        resolve(user);
+                    });
+                    // Timeout after 3 seconds
+                    setTimeout(() => {
+                        unsubscribe();
+                        resolve(null);
+                    }, 3000);
+                });
+
                 log('User: ' + (currentUser ? currentUser.email || currentUser.uid : 'NULL'), currentUser ? 'success' : 'error');
 
                 if (!currentUser) {
                     log('❌ Not signed in - please sign in to sabalist.com first', 'error');
+                    log('Try: 1) Sign in on main site 2) Refresh this page 3) Try again', 'info');
                     testBtn.disabled = false;
                     return;
                 }
