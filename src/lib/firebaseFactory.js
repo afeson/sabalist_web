@@ -32,6 +32,7 @@ export function getFirebase() {
       addDoc: firestoreSDK.addDoc,
       updateDoc: firestoreSDK.updateDoc,
       doc: firestoreSDK.doc,
+      getDoc: firestoreSDK.getDoc,
       serverTimestamp: firestoreSDK.serverTimestamp,
       // Storage methods
       ref: storageSDK.ref,

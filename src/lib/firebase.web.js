@@ -1,5 +1,5 @@
 // Firebase Web SDK for web platform
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
@@ -14,7 +14,14 @@ const firebaseConfig = {
   measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase only once
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+
+console.log('🔥 Firebase Web SDK initialized:', {
+  hasAuth: !!app,
+  hasConfig: !!firebaseConfig.apiKey,
+  projectId: firebaseConfig.projectId,
+});
 
 export const auth = getAuth(app);
 export const firestore = getFirestore(app);

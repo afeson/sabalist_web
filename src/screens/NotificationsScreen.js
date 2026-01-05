@@ -4,13 +4,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { Card } from '../components/ui';
-import { firestore, auth } from '../lib/firebase.web';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { getFirebase } from '../lib/firebaseFactory';
 
 export default function NotificationsScreen({ navigation }) {
   const { t } = useTranslation();
 
-  // ✅ FIX: Add state management
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState({
@@ -20,21 +18,24 @@ export default function NotificationsScreen({ navigation }) {
     listingUpdates: false
   });
 
-  // ✅ FIX: Load settings from Firestore
   useEffect(() => {
     loadSettings();
   }, []);
 
   const loadSettings = async () => {
     try {
-      const userId = auth.currentUser?.uid;
+      const fb = getFirebase();
+      const userId = fb.auth.currentUser?.uid;
+
       if (!userId) {
         console.warn('No user logged in');
         setLoading(false);
         return;
       }
 
-      const userDoc = await getDoc(doc(firestore, 'users', userId));
+      console.log('📖 Loading notification settings for user:', userId);
+      const userDoc = await fb.getDoc(fb.doc(fb.firestore, 'users', userId));
+
       if (userDoc.exists()) {
         const userData = userDoc.data();
         setSettings({
@@ -43,36 +44,39 @@ export default function NotificationsScreen({ navigation }) {
           messageNotifications: userData.messageNotifications ?? false,
           listingUpdates: userData.listingUpdates ?? false
         });
+        console.log('✅ Settings loaded:', userData);
+      } else {
+        console.log('ℹ️ No settings found, using defaults');
       }
     } catch (error) {
-      console.error('Error loading notification settings:', error);
+      console.error('❌ Error loading notification settings:', error);
       Alert.alert('Error', 'Failed to load notification settings');
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ FIX: Save settings to Firestore
   const updateSetting = async (key, value) => {
-    const userId = auth.currentUser?.uid;
+    const fb = getFirebase();
+    const userId = fb.auth.currentUser?.uid;
+
     if (!userId) {
       Alert.alert('Error', 'Please sign in to update settings');
       return;
     }
 
-    // Optimistic update
     setSettings(prev => ({ ...prev, [key]: value }));
     setSaving(true);
 
     try {
-      await updateDoc(doc(firestore, 'users', userId), {
+      console.log(`💾 Updating ${key} to ${value} for user:`, userId);
+      await fb.updateDoc(fb.doc(fb.firestore, 'users', userId), {
         [key]: value,
         updatedAt: new Date()
       });
       console.log(`✅ Updated ${key} to ${value}`);
     } catch (error) {
-      console.error('Error updating notification settings:', error);
-      // Rollback on error
+      console.error('❌ Error updating notification settings:', error);
       setSettings(prev => ({ ...prev, [key]: !value }));
       Alert.alert('Error', 'Failed to update setting. Please try again.');
     } finally {
