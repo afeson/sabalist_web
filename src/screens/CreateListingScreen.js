@@ -32,7 +32,7 @@ import { useTranslation } from 'react-i18next';
 
 import { uploadImage, withTimeout } from '../services/uploadHelpers';
 import { auth } from '../lib/firebase.web';
-import { getFirestore, collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getImageLimits, GLOBAL_IMAGE_LIMITS } from '../config/categoryLimits';
 import { getSubCategories } from '../config/categories';
@@ -332,6 +332,8 @@ export default function CreateListingScreen({ navigation }) {
 
       console.log('✅ Authenticated as:', userId);
 
+      // Use ISO timestamp instead of serverTimestamp() to avoid potential Firestore connection issues
+      const now = new Date().toISOString();
       const listingData = {
         title: title.trim(),
         description: description.trim(),
@@ -347,8 +349,8 @@ export default function CreateListingScreen({ navigation }) {
         videoUrl: '',
         status: 'active',
         views: 0,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        createdAt: now,
+        updatedAt: now,
       };
 
       console.log('📝 Listing data prepared:', {
@@ -451,7 +453,7 @@ export default function CreateListingScreen({ navigation }) {
 
         try {
           const updateData = {
-            updatedAt: serverTimestamp(),
+            updatedAt: new Date().toISOString(),
           };
 
           if (imageUrls.length > 0) {
