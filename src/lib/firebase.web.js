@@ -1,7 +1,7 @@
 // Firebase Web SDK for web platform
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
@@ -17,12 +17,35 @@ const firebaseConfig = {
 // Initialize Firebase only once
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
+const auth = getAuth(app);
+
+// Initialize Firestore with settings for better web compatibility
+// Using persistent cache can help with connection stability
+let firestore;
+try {
+  firestore = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager()
+    })
+  });
+  console.log('🔥 Firestore initialized with persistent cache');
+} catch (error) {
+  // If already initialized or persistent cache fails, fall back to default
+  console.log('🔥 Firestore already initialized or using default cache:', error.message);
+  firestore = getFirestore(app);
+}
+
+const storage = getStorage(app);
+
 console.log('🔥 Firebase Web SDK initialized:', {
-  hasAuth: !!app,
+  hasApp: !!app,
+  hasAuth: !!auth,
+  hasFirestore: !!firestore,
+  hasStorage: !!storage,
   hasConfig: !!firebaseConfig.apiKey,
   projectId: firebaseConfig.projectId,
+  firestoreType: typeof firestore,
+  firestoreName: firestore?.constructor?.name,
 });
 
-export const auth = getAuth(app);
-export const firestore = getFirestore(app);
-export const storage = getStorage(app);
+export { auth, firestore, storage };

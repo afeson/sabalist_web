@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Direct Firestore Write Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #000;
+            color: #0f0;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .log {
+            margin: 5px 0;
+            padding: 8px;
+            background: #111;
+            border-left: 4px solid #0f0;
+            word-wrap: break-word;
+        }
+        .error { border-left-color: #f00; color: #f00; }
+        .success { border-left-color: #0f0; color: #0f0; font-weight: bold; }
+        .info { border-left-color: #fa0; color: #fa0; }
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        button:hover {
+            background: #0c0;
+        }
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔥 Direct Firestore Write Test</h1>
+    <p>This test directly writes to Firestore WITHOUT timeout wrapper</p>
+    <button id="testBtn">Start Test</button>
+    <div id="output"></div>
+
+    <script type="module">
+        const output = document.getElementById('output');
+        const testBtn = document.getElementById('testBtn');
+        let logCount = 0;
+
+        function log(msg, type = 'info') {
+            logCount++;
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.textContent = `[${logCount}] ${new Date().toLocaleTimeString()}.${Date.now() % 1000} - ${msg}`;
+            output.appendChild(div);
+            console.log(msg);
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+
+        testBtn.addEventListener('click', async () => {
+            testBtn.disabled = true;
+            output.innerHTML = '';
+            logCount = 0;
+
+            try {
+                log('Importing Firebase modules...', 'info');
+
+                const { initializeApp, getApps } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
+                const { getAuth, onAuthStateChanged, signInAnonymously } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+                const { getFirestore, collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+                log('✓ Modules imported', 'success');
+
+                const firebaseConfig = {
+                    apiKey: "AIzaSyBTy0WJrU9YCCBzlseDjpbhu9RGYvyQ7sk",
+                    authDomain: "sabalist.firebaseapp.com",
+                    projectId: "sabalist",
+                    storageBucket: "sabalist.firebasestorage.app",
+                    messagingSenderId: "231273918004",
+                    appId: "1:231273918004:web:0020dcc14b7f52e3356461"
+                };
+
+                log('Initializing Firebase...', 'info');
+                const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+                log('✓ Firebase initialized', 'success');
+
+                log('Getting auth instance...', 'info');
+                const auth = getAuth(app);
+                log('✓ Auth instance obtained', 'success');
+
+                log('Checking current user...', 'info');
+                const currentUser = auth.currentUser;
+                log(`Current user: ${currentUser ? currentUser.email || currentUser.uid : 'NULL'}`, currentUser ? 'success' : 'info');
+
+                if (!currentUser) {
+                    log('⚠️ No user logged in - test cannot proceed', 'error');
+                    log('Please sign in to sabalist.com first, then run this test', 'info');
+                    testBtn.disabled = false;
+                    return;
+                }
+
+                log('Getting Firestore instance...', 'info');
+                const db = getFirestore(app);
+                log('✓ Firestore instance obtained', 'success');
+                log(`Firestore type: ${db.constructor.name}`, 'info');
+
+                log('Preparing test document...', 'info');
+                const testDoc = {
+                    title: 'TEST LISTING - Direct Write',
+                    description: 'This is a test listing created via direct Firestore write test',
+                    price: 999,
+                    category: 'Services',
+                    subcategory: '',
+                    currency: 'USD',
+                    location: 'Test Location',
+                    phoneNumber: '+1234567890',
+                    userId: currentUser.uid,
+                    images: [],
+                    coverImage: '',
+                    videoUrl: '',
+                    status: 'active',
+                    views: 0,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                    isTest: true,
+                    testTimestamp: new Date().toISOString()
+                };
+
+                log('Test document prepared:', 'info');
+                log(JSON.stringify(testDoc, null, 2), 'info');
+
+                log('🚀 STARTING FIRESTORE WRITE - NO TIMEOUT WRAPPER', 'success');
+                const writeStartTime = Date.now();
+
+                try {
+                    log('Calling addDoc()...', 'info');
+                    const docRef = await addDoc(collection(db, 'listings'), testDoc);
+                    const writeElapsed = Date.now() - writeStartTime;
+
+                    log(`✅ SUCCESS! Document written in ${writeElapsed}ms`, 'success');
+                    log(`Document ID: ${docRef.id}`, 'success');
+                    log(`Document path: listings/${docRef.id}`, 'success');
+
+                } catch (writeError) {
+                    const writeElapsed = Date.now() - writeStartTime;
+                    log(`❌ WRITE FAILED after ${writeElapsed}ms`, 'error');
+                    log(`Error code: ${writeError.code}`, 'error');
+                    log(`Error message: ${writeError.message}`, 'error');
+                    log(`Full error: ${JSON.stringify(writeError, null, 2)}`, 'error');
+                }
+
+            } catch (error) {
+                log(`❌ TEST ERROR: ${error.message}`, 'error');
+                console.error(error);
+            } finally {
+                testBtn.disabled = false;
+            }
+        });
+
+        log('Ready! Click the button to start the test', 'info');
+        log('Make sure you are signed in to sabalist.com first', 'info');
+    </script>
+</body>
+</html>

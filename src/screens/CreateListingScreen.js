@@ -30,8 +30,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { useTranslation } from 'react-i18next';
 
-import { getFirebase } from '../lib/firebaseFactory';
 import { uploadImage, withTimeout } from '../services/uploadHelpers';
+import { auth } from '../lib/firebase.web';
+import { getFirestore, collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getImageLimits, GLOBAL_IMAGE_LIMITS } from '../config/categoryLimits';
 import { getSubCategories } from '../config/categories';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
@@ -298,19 +300,33 @@ export default function CreateListingScreen({ navigation }) {
     setUploadProgress('Initializing...');
 
     try {
-      const fb = getFirebase();
-      console.log('🔧 Firebase factory loaded:', {
-        auth: !!fb.auth,
-        firestore: !!fb.firestore,
-        storage: !!fb.storage,
-      });
+      // Get Firestore and Storage instances
+      const db = getFirestore();
+      const storage = getStorage();
 
       setUploadProgress('Checking authentication...');
-      const userId = fb.auth.currentUser?.uid;
+      const userId = auth.currentUser?.uid;
+
+      console.log('🔍 Auth check:', {
+        hasAuth: !!auth,
+        hasCurrentUser: !!auth.currentUser,
+        userId: userId || 'NONE',
+      });
 
       if (!userId) {
-        console.error('❌ No authenticated user');
-        Alert.alert(t('auth.authRequired'), t('auth.pleaseSignInToCreate'));
+        console.error('❌ No authenticated user - cannot create listing');
+        setUploading(false);
+        setUploadProgress('');
+
+        if (Platform.OS === 'web') {
+          alert('Please sign in first to create a listing. Redirecting to login...');
+          // Redirect to auth screen or home
+          navigation.navigate('Home');
+        } else {
+          Alert.alert('Sign In Required', 'Please sign in to create a listing', [
+            { text: 'OK', onPress: () => navigation.navigate('Home') }
+          ]);
+        }
         return;
       }
 
@@ -331,8 +347,8 @@ export default function CreateListingScreen({ navigation }) {
         videoUrl: '',
         status: 'active',
         views: 0,
-        createdAt: fb.serverTimestamp(),
-        updatedAt: fb.serverTimestamp(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       };
 
       console.log('📝 Listing data prepared:', {
@@ -348,16 +364,26 @@ export default function CreateListingScreen({ navigation }) {
 
       setUploadProgress('Creating listing document...');
       console.log('📝 Calling Firestore addDoc...');
+      console.log('📝 Firestore instance:', {
+        type: typeof db,
+        name: db?.constructor?.name,
+        app: db?.app?.name,
+      });
 
       let listingRef;
+      const startTime = Date.now();
       try {
+        // Increased timeout to 60 seconds to see if operation just needs more time
         listingRef = await withTimeout(
-          fb.addDoc(fb.collection(fb.firestore, 'listings'), listingData),
-          30000,
+          addDoc(collection(db, 'listings'), listingData),
+          60000,
           'Firestore addDoc'
         );
+        const elapsed = Date.now() - startTime;
+        console.log(`✅ Firestore addDoc completed in ${elapsed}ms`);
       } catch (error) {
-        console.error('❌ Firestore addDoc failed:', error.code, error.message);
+        const elapsed = Date.now() - startTime;
+        console.error(`❌ Firestore addDoc failed after ${elapsed}ms:`, error.code, error.message);
         throw new Error(`Failed to create listing: ${error.message}`);
       }
 
@@ -398,19 +424,19 @@ export default function CreateListingScreen({ navigation }) {
 
         try {
           const videoPath = `listings/${listingId}/video-${Date.now()}.mp4`;
-          const storageRef = fb.ref(fb.storage, videoPath);
+          const storageRef = ref(storage, videoPath);
 
           // For web: convert video URI to blob
           if (Platform.OS === 'web') {
             const response = await fetch(video.uri);
             const blob = await response.blob();
-            await fb.uploadBytes(storageRef, blob);
+            await uploadBytes(storageRef, blob);
           } else {
             // For native: use putFile
             await storageRef.putFile(video.uri);
           }
 
-          videoUrl = await fb.getDownloadURL(storageRef);
+          videoUrl = await getDownloadURL(storageRef);
           console.log(`✅ Video uploaded: ${videoUrl.substring(0, 60)}...`);
         } catch (error) {
           console.error('❌ Video upload failed:', error.message);
@@ -425,7 +451,7 @@ export default function CreateListingScreen({ navigation }) {
 
         try {
           const updateData = {
-            updatedAt: fb.serverTimestamp(),
+            updatedAt: serverTimestamp(),
           };
 
           if (imageUrls.length > 0) {
@@ -438,7 +464,7 @@ export default function CreateListingScreen({ navigation }) {
           }
 
           await withTimeout(
-            fb.updateDoc(fb.doc(fb.firestore, 'listings', listingId), updateData),
+            updateDoc(doc(db, 'listings', listingId), updateData),
             30000,
             'Firestore updateDoc'
           );
@@ -792,6 +818,18 @@ export default function CreateListingScreen({ navigation }) {
         </View>
       )}
 
+      {/* Debug Info - Remove after testing */}
+      {!canSubmit && (
+        <View style={{ padding: 16, backgroundColor: '#FEF2F2', borderRadius: 8, marginVertical: 8 }}>
+          <Text style={{ color: '#991B1B', fontWeight: 'bold', marginBottom: 8 }}>Button Disabled - Missing:</Text>
+          {!canProceedFromPhotos && <Text style={{ color: '#991B1B' }}>• Need at least {imageLimits.min} images (have {images.length})</Text>}
+          {!title.trim() && <Text style={{ color: '#991B1B' }}>• Title is empty</Text>}
+          {!price.trim() && <Text style={{ color: '#991B1B' }}>• Price is empty</Text>}
+          {!location.trim() && <Text style={{ color: '#991B1B' }}>• Location is empty</Text>}
+          {!phoneNumber.trim() && <Text style={{ color: '#991B1B' }}>• Phone number is empty</Text>}
+        </View>
+      )}
+
       {/* Navigation Buttons */}
       <View style={styles.buttonRow}>
         <TouchableOpacity
@@ -803,7 +841,19 @@ export default function CreateListingScreen({ navigation }) {
         </TouchableOpacity>
         <PrimaryButton
           title={uploading ? t('common.posting') : t('common.post')}
-          onPress={handleSubmit}
+          onPress={() => {
+            console.log('🔘 Post button clicked!');
+            console.log('🔘 canSubmit:', canSubmit);
+            console.log('🔘 uploading:', uploading);
+            console.log('🔘 Validation:', {
+              hasImages: canProceedFromPhotos,
+              hasTitle: !!title.trim(),
+              hasPrice: !!price.trim(),
+              hasLocation: !!location.trim(),
+              hasPhone: !!phoneNumber.trim(),
+            });
+            handleSubmit();
+          }}
           disabled={!canSubmit || uploading}
           style={styles.nextButtonInRow}
         />
@@ -846,19 +896,19 @@ export default function CreateListingScreen({ navigation }) {
   );
 }
 
-async function convertBlobToDataURL(blobUrl) {
-  console.log('🔄 convertBlobToDataURL: Starting conversion');
+async function blobToDataURL(blobUrl) {
+  console.log('🔄 blobToDataURL: Starting conversion');
   const response = await fetch(blobUrl);
   const blob = await response.blob();
 
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => {
-      console.log('✅ convertBlobToDataURL: Complete');
+      console.log('✅ blobToDataURL: Complete');
       resolve(reader.result);
     };
     reader.onerror = (error) => {
-      console.error('❌ convertBlobToDataURL: Failed', error);
+      console.error('❌ blobToDataURL: Failed', error);
       reject(error);
     };
     reader.readAsDataURL(blob);

@@ -32,6 +32,26 @@
       "dest": "/delete-account.html"
     },
     {
+      "src": "/firestore-test.html",
+      "dest": "/firestore-test.html"
+    },
+    {
+      "src": "/app-firebase-test.html",
+      "dest": "/app-firebase-test.html"
+    },
+    {
+      "src": "/test-firestore.html",
+      "dest": "/test-firestore.html"
+    },
+    {
+      "src": "/check-auth.html",
+      "dest": "/check-auth.html"
+    },
+    {
+      "src": "/direct-firestore-write-test.html",
+      "dest": "/direct-firestore-write-test.html"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html",
       "headers": {
