@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Firestore Write Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        .log { margin: 5px 0; padding: 8px; background: #111; border-left: 4px solid #0f0; word-wrap: break-word; }
+        .error { border-left-color: #f00; color: #f00; }
+        .success { border-left-color: #0f0; color: #0f0; font-weight: bold; }
+        .info { border-left-color: #fa0; color: #fa0; }
+        button { background: #0f0; color: #000; border: none; padding: 12px 24px; font-size: 16px; font-weight: bold; cursor: pointer; margin: 10px 5px; }
+        button:hover { background: #0c0; }
+        button:disabled { background: #555; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <h1>🔥 Simple Firestore Write Test</h1>
+    <p>Tests basic Firestore write with forced long-polling</p>
+    <button id="testBtn">Test Write</button>
+    <button id="clearBtn">Clear Logs</button>
+    <div id="output"></div>
+
+    <script type="module">
+        const output = document.getElementById('output');
+        const testBtn = document.getElementById('testBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        let logCount = 0;
+
+        function log(msg, type = 'info') {
+            logCount++;
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            const timestamp = new Date().toLocaleTimeString() + '.' + (Date.now() % 1000);
+            div.textContent = `[${logCount}] ${timestamp} - ${msg}`;
+            output.appendChild(div);
+            console.log(msg);
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+
+        clearBtn.addEventListener('click', () => {
+            output.innerHTML = '';
+            logCount = 0;
+        });
+
+        testBtn.addEventListener('click', async () => {
+            testBtn.disabled = true;
+            const startTime = Date.now();
+
+            try {
+                log('⏱️ START TEST - Current time: ' + new Date().toISOString(), 'info');
+                log('Importing Firebase modules...', 'info');
+
+                const { initializeApp, getApps } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
+                const { getAuth } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+                const { initializeFirestore, collection, addDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+                log('✓ Modules imported in ' + (Date.now() - startTime) + 'ms', 'success');
+
+                const firebaseConfig = {
+                    apiKey: "AIzaSyBTy0WJrU9YCCBzlseDjpbhu9RGYvyQ7sk",
+                    authDomain: "sabalist.firebaseapp.com",
+                    projectId: "sabalist",
+                    storageBucket: "sabalist.firebasestorage.app",
+                    messagingSenderId: "231273918004",
+                    appId: "1:231273918004:web:0020dcc14b7f52e3356461"
+                };
+
+                log('Initializing Firebase...', 'info');
+                const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+                log('✓ Firebase initialized in ' + (Date.now() - startTime) + 'ms', 'success');
+
+                log('Getting auth...', 'info');
+                const auth = getAuth(app);
+                const currentUser = auth.currentUser;
+                log('User: ' + (currentUser ? currentUser.email || currentUser.uid : 'NULL'), currentUser ? 'success' : 'error');
+
+                if (!currentUser) {
+                    log('❌ Not signed in - please sign in to sabalist.com first', 'error');
+                    testBtn.disabled = false;
+                    return;
+                }
+
+                log('Initializing Firestore with FORCED LONG-POLLING...', 'info');
+                const db = initializeFirestore(app, {
+                    experimentalForceLongPolling: true,
+                    experimentalAutoDetectLongPolling: false,
+                });
+                log('✓ Firestore initialized in ' + (Date.now() - startTime) + 'ms', 'success');
+
+                const testDoc = {
+                    test: true,
+                    title: 'Simple Write Test',
+                    userId: currentUser.uid,
+                    timestamp: new Date().toISOString(),
+                    message: 'Testing if Firestore write works at all'
+                };
+
+                log('📝 TEST DOCUMENT:', 'info');
+                log(JSON.stringify(testDoc, null, 2), 'info');
+
+                log('🚀 CALLING addDoc() - Time: ' + (Date.now() - startTime) + 'ms', 'success');
+                const writeStart = Date.now();
+
+                // Set a manual 10 second timeout
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error('Manual 10s timeout')), 10000);
+                });
+
+                const writePromise = addDoc(collection(db, 'listings'), testDoc);
+
+                log('⏳ Waiting for write to complete (10s timeout)...', 'info');
+
+                try {
+                    const docRef = await Promise.race([writePromise, timeoutPromise]);
+                    const writeElapsed = Date.now() - writeStart;
+                    const totalElapsed = Date.now() - startTime;
+
+                    log(`✅ SUCCESS! Write completed in ${writeElapsed}ms`, 'success');
+                    log(`Total time: ${totalElapsed}ms`, 'success');
+                    log(`Document ID: ${docRef.id}`, 'success');
+                    log(`Path: listings/${docRef.id}`, 'success');
+
+                } catch (writeError) {
+                    const writeElapsed = Date.now() - writeStart;
+                    const totalElapsed = Date.now() - startTime;
+
+                    log(`❌ WRITE FAILED after ${writeElapsed}ms`, 'error');
+                    log(`Total time: ${totalElapsed}ms`, 'error');
+                    log(`Error: ${writeError.message}`, 'error');
+
+                    if (writeError.code) {
+                        log(`Error code: ${writeError.code}`, 'error');
+                    }
+                }
+
+            } catch (error) {
+                const totalElapsed = Date.now() - startTime;
+                log(`❌ TEST ERROR after ${totalElapsed}ms: ${error.message}`, 'error');
+                console.error(error);
+            } finally {
+                testBtn.disabled = false;
+                const finalElapsed = Date.now() - startTime;
+                log(`⏱️ END TEST - Total time: ${finalElapsed}ms`, 'info');
+            }
+        });
+
+        log('✅ Test ready! Click "Test Write" button', 'success');
+        log('⚠️ Make sure you are signed in to sabalist.com first', 'info');
+    </script>
+</body>
+</html>
