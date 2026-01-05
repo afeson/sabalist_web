@@ -54,6 +54,7 @@ export default function CreateListingScreen({ navigation }) {
   const [location, setLocation] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [images, setImages] = useState([]);
+  const [video, setVideo] = useState(null);
 
   // UI state
   const [uploading, setUploading] = useState(false);
@@ -84,9 +85,9 @@ export default function CreateListingScreen({ navigation }) {
         return;
       }
 
-      // Launch image picker with correct MediaType (not deprecated MediaTypeOptions)
+      // Launch image picker with correct MediaType (string, not enum)
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaType.Images,
+        mediaTypes: ['images'],
         allowsMultipleSelection: true,
         quality: 0.8,
         selectionLimit: Math.min(remainingSlots, 20),
@@ -160,7 +161,7 @@ export default function CreateListingScreen({ navigation }) {
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaType.Images,
+        mediaTypes: ['images'],
         quality: 0.8,
         allowsEditing: false,
       });
@@ -209,6 +210,53 @@ export default function CreateListingScreen({ navigation }) {
    */
   const removeImage = (index) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  /**
+   * Pick video from library
+   */
+  const pickVideo = async () => {
+    try {
+      if (video) {
+        Alert.alert('Video Already Added', 'You can only add one video per listing. Remove the current video first.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['videos'],
+        allowsEditing: false,
+        quality: 1,
+      });
+
+      if (result.canceled || !result.assets || !result.assets[0]) {
+        return;
+      }
+
+      const asset = result.assets[0];
+
+      // Check video size (max 50MB)
+      if (asset.fileSize && asset.fileSize > 50 * 1024 * 1024) {
+        const sizeMB = (asset.fileSize / (1024 * 1024)).toFixed(1);
+        Alert.alert('Video Too Large', `Video is ${sizeMB}MB. Maximum is 50MB.`);
+        return;
+      }
+
+      setVideo({
+        uri: asset.uri,
+        type: asset.type || 'video/mp4',
+        duration: asset.duration,
+      });
+    } catch (error) {
+      console.error('❌ Error picking video:', error);
+      Alert.alert(t('common.error'), 'Failed to pick video. Please try again.');
+    }
+  };
+
+  /**
+   * Remove video
+   */
+  const removeVideo = () => {
+    setVideo(null);
   };
 
   /**
@@ -341,24 +389,62 @@ export default function CreateListingScreen({ navigation }) {
         console.log(`✅ Uploaded ${imageUrls.length} out of ${images.length} images`);
       }
 
-      if (imageUrls.length > 0) {
-        setUploadProgress('Finalizing listing...');
-        console.log('📝 Updating Firestore with image URLs...');
+      // Upload video if present
+      let videoUrl = '';
+      if (video && video.uri) {
+        setUploadProgress('Uploading video...');
+        console.log(`📹 Starting video upload...`);
 
         try {
+          const videoPath = `listings/${listingId}/video-${Date.now()}.mp4`;
+          const storageRef = fb.ref(fb.storage, videoPath);
+
+          // For web: convert video URI to blob
+          if (Platform.OS === 'web') {
+            const response = await fetch(video.uri);
+            const blob = await response.blob();
+            await fb.uploadBytes(storageRef, blob);
+          } else {
+            // For native: use putFile
+            await storageRef.putFile(video.uri);
+          }
+
+          videoUrl = await fb.getDownloadURL(storageRef);
+          console.log(`✅ Video uploaded: ${videoUrl.substring(0, 60)}...`);
+        } catch (error) {
+          console.error('❌ Video upload failed:', error.message);
+          Alert.alert('Warning', 'Failed to upload video. Listing will be created without video.');
+        }
+      }
+
+      // Update Firestore with media URLs
+      if (imageUrls.length > 0 || videoUrl) {
+        setUploadProgress('Finalizing listing...');
+        console.log('📝 Updating Firestore with media URLs...');
+
+        try {
+          const updateData = {
+            updatedAt: fb.serverTimestamp(),
+          };
+
+          if (imageUrls.length > 0) {
+            updateData.images = imageUrls;
+            updateData.coverImage = imageUrls[0] || '';
+          }
+
+          if (videoUrl) {
+            updateData.videoUrl = videoUrl;
+          }
+
           await withTimeout(
-            fb.updateDoc(fb.doc(fb.firestore, 'listings', listingId), {
-              images: imageUrls,
-              coverImage: imageUrls[0] || '',
-              updatedAt: fb.serverTimestamp(),
-            }),
+            fb.updateDoc(fb.doc(fb.firestore, 'listings', listingId), updateData),
             30000,
             'Firestore updateDoc'
           );
-          console.log('✅ Firestore document updated with images');
+          console.log('✅ Firestore document updated with media');
         } catch (error) {
           console.error('❌ Firestore updateDoc failed:', error.message);
-          throw new Error(`Failed to update listing with images: ${error.message}`);
+          throw new Error(`Failed to update listing with media: ${error.message}`);
         }
       }
 
@@ -478,6 +564,28 @@ export default function CreateListingScreen({ navigation }) {
         <Ionicons name="camera" size={20} color="#FFF" />
         <Text style={styles.cameraButtonText}>Take Photo</Text>
       </TouchableOpacity>
+
+      {/* Video Section */}
+      <Text style={styles.sectionTitle}>Video (Optional)</Text>
+      {video ? (
+        <View style={styles.videoPreview}>
+          <View style={styles.videoInfo}>
+            <Ionicons name="videocam" size={40} color={COLORS.primary} />
+            <Text style={styles.videoText}>Video attached ({Math.round(video.duration || 0)}s)</Text>
+          </View>
+          <TouchableOpacity onPress={removeVideo} style={styles.removeVideoButton}>
+            <Ionicons name="close-circle" size={24} color={COLORS.error} />
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <TouchableOpacity
+          style={styles.addVideoButton}
+          onPress={pickVideo}
+        >
+          <Ionicons name="videocam-outline" size={32} color={COLORS.secondary} />
+          <Text style={styles.addVideoText}>Add Video (Max 50MB)</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Next Button */}
       <PrimaryButton
@@ -859,6 +967,48 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  addVideoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.card,
+    borderWidth: 2,
+    borderColor: COLORS.secondary,
+    borderStyle: 'dashed',
+    padding: SPACING.xl,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.lg,
+    gap: 12,
+  },
+  addVideoText: {
+    color: COLORS.secondary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  videoPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.lg,
+  },
+  videoInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  videoText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.textDark,
+  },
+  removeVideoButton: {
+    padding: SPACING.xs,
   },
   formGroup: {
     marginBottom: SPACING.lg,
