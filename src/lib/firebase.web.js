@@ -1,6 +1,6 @@
 // Firebase Web SDK for web platform
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { initializeFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -18,6 +18,15 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
 const auth = getAuth(app);
+
+// CRITICAL: Set auth persistence to LOCAL (survives browser refresh)
+setPersistence(auth, browserLocalPersistence)
+  .then(() => {
+    console.log('🔥 Auth persistence set to LOCAL (survives refresh)');
+  })
+  .catch((error) => {
+    console.error('❌ Failed to set auth persistence:', error);
+  });
 
 // CRITICAL: Force Firestore to use REST API instead of WebSocket/gRPC streaming
 // WebSocket connections may be blocked on Vercel or fail to establish

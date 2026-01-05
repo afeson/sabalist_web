@@ -31,7 +31,7 @@ import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { useTranslation } from 'react-i18next';
 
 import { uploadImage, withTimeout } from '../services/uploadHelpers';
-import { auth } from '../lib/firebase.web';
+import { useAuth } from '../contexts/AuthContext';
 import { getFirestore, collection, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getImageLimits, GLOBAL_IMAGE_LIMITS } from '../config/categoryLimits';
@@ -44,6 +44,7 @@ const CATEGORIES = ['Electronics', 'Vehicles', 'Real Estate', 'Fashion', 'Servic
 
 export default function CreateListingScreen({ navigation }) {
   const { t } = useTranslation();
+  const { user } = useAuth(); // Get authenticated user from AuthContext
 
   // Step state (1: Photos, 2: Details, 3: Review)
   const [step, setStep] = useState(1);
@@ -305,12 +306,12 @@ export default function CreateListingScreen({ navigation }) {
       const storage = getStorage();
 
       setUploadProgress('Checking authentication...');
-      const userId = auth.currentUser?.uid;
+      const userId = user?.uid;
 
       console.log('🔍 Auth check:', {
-        hasAuth: !!auth,
-        hasCurrentUser: !!auth.currentUser,
+        hasUser: !!user,
         userId: userId || 'NONE',
+        userEmail: user?.email || 'NONE',
       });
 
       if (!userId) {
@@ -320,7 +321,6 @@ export default function CreateListingScreen({ navigation }) {
 
         if (Platform.OS === 'web') {
           alert('Please sign in first to create a listing. Redirecting to login...');
-          // Redirect to auth screen or home
           navigation.navigate('Home');
         } else {
           Alert.alert('Sign In Required', 'Please sign in to create a listing', [
@@ -330,7 +330,7 @@ export default function CreateListingScreen({ navigation }) {
         return;
       }
 
-      console.log('✅ Authenticated as:', userId);
+      console.log('✅ Authenticated as:', userId, '(' + user.email + ')');
 
       // Use ISO timestamp instead of serverTimestamp() to avoid potential Firestore connection issues
       const now = new Date().toISOString();
