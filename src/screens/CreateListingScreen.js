@@ -1,10 +1,11 @@
 /**
- * CreateListingScreen - Complete Rewrite
+ * CreateListingScreen - Complete Rewrite (with Video Upload)
  *
  * A bulletproof implementation with:
  * - Safe async/await flows (no hanging promises)
  * - Timeout protection on all operations
  * - Sequential image uploads with progress tracking
+ * - Video upload support (max 50MB)
  * - Guaranteed spinner cleanup (always stops)
  * - Platform-aware Firebase handling
  * - Clear error messages
