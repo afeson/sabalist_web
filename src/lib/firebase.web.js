@@ -1,7 +1,7 @@
 // Firebase Web SDK for web platform
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
@@ -19,12 +19,15 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 
 const auth = getAuth(app);
 
-// Initialize Firestore with memory cache (simpler and more reliable than persistent)
+// CRITICAL: Force Firestore to use REST API instead of WebSocket/gRPC streaming
+// WebSocket connections may be blocked on Vercel or fail to establish
 let firestore;
 try {
-  // Use getFirestore() which uses memory cache by default - more reliable than persistent cache
-  firestore = getFirestore(app);
-  console.log('🔥 Firestore initialized with default memory cache');
+  firestore = initializeFirestore(app, {
+    experimentalForceLongPolling: true,  // Force long-polling (REST) instead of WebSocket
+    experimentalAutoDetectLongPolling: false, // Disable auto-detect, always use long-polling
+  });
+  console.log('🔥 Firestore initialized with FORCED LONG-POLLING (REST mode)');
 } catch (error) {
   console.error('🔥 Firestore initialization error:', error.message);
   throw error;
