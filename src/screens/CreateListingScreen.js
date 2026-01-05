@@ -29,11 +29,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { useTranslation } from 'react-i18next';
 
-// Firebase imports - direct ES6 imports (no conditional require)
-import { auth, firestore, storage } from '../lib/firebase.web';
-import { collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-
+import { getFirebase } from '../lib/firebaseFactory';
+import { uploadImage, withTimeout } from '../services/uploadHelpers';
 import { getImageLimits, GLOBAL_IMAGE_LIMITS } from '../config/categoryLimits';
 import { getSubCategories } from '../config/categories';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
@@ -41,8 +38,6 @@ import { PrimaryButton, Card } from '../components/ui';
 
 // Constants
 const CATEGORIES = ['Electronics', 'Vehicles', 'Real Estate', 'Fashion', 'Services'];
-const UPLOAD_TIMEOUT = 60000; // 60 seconds per image
-const TOTAL_TIMEOUT = 300000; // 5 minutes total
 
 export default function CreateListingScreen({ navigation }) {
   const { t } = useTranslation();
@@ -233,24 +228,45 @@ export default function CreateListingScreen({ navigation }) {
    * - Clear error messages
    */
   const handleSubmit = async () => {
-    // Validation
+    console.log('🚀 ========== SUBMIT STARTED ==========');
+    console.log('🚀 Platform:', Platform.OS);
+    console.log('🚀 Images count:', images.length);
+    console.log('🚀 Category:', category);
+
     if (!canSubmit) {
+      console.warn('⚠️ Submit validation failed');
       Alert.alert(t('common.incomplete'), t('validation.fillAllFields'));
       return;
     }
 
+    if (Platform.OS === 'web' && !navigator.onLine) {
+      console.error('❌ No internet connection');
+      Alert.alert('No Internet', 'Please check your internet connection');
+      return;
+    }
+
     setUploading(true);
-    setUploadProgress('Preparing...');
+    setUploadProgress('Initializing...');
 
     try {
-      // Check authentication
-      const userId = auth.currentUser?.uid;
+      const fb = getFirebase();
+      console.log('🔧 Firebase factory loaded:', {
+        auth: !!fb.auth,
+        firestore: !!fb.firestore,
+        storage: !!fb.storage,
+      });
+
+      setUploadProgress('Checking authentication...');
+      const userId = fb.auth.currentUser?.uid;
+
       if (!userId) {
+        console.error('❌ No authenticated user');
         Alert.alert(t('auth.authRequired'), t('auth.pleaseSignInToCreate'));
         return;
       }
 
-      // Prepare listing data
+      console.log('✅ Authenticated as:', userId);
+
       const listingData = {
         title: title.trim(),
         description: description.trim(),
@@ -261,84 +277,92 @@ export default function CreateListingScreen({ navigation }) {
         location: location.trim(),
         phoneNumber: phoneNumber.trim(),
         userId,
-        images: [], // Will be populated after upload
+        images: [],
         coverImage: '',
         videoUrl: '',
         status: 'active',
         views: 0,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        createdAt: fb.serverTimestamp(),
+        updatedAt: fb.serverTimestamp(),
       };
 
-      // Validate category (must match security rules)
+      console.log('📝 Listing data prepared:', {
+        title: listingData.title,
+        category: listingData.category,
+        price: listingData.price,
+        imageCount: images.length,
+      });
+
       if (!CATEGORIES.includes(category)) {
         throw new Error(`Invalid category: ${category}`);
       }
 
-      console.log('📝 Creating listing document...');
-      setUploadProgress('Creating listing...');
+      setUploadProgress('Creating listing document...');
+      console.log('📝 Calling Firestore addDoc...');
 
-      // Create listing document FIRST (with empty images)
-      const listingRef = await withTimeout(
-        addDoc(collection(firestore, 'listings'), listingData),
-        30000,
-        'Creating listing timed out'
-      );
+      let listingRef;
+      try {
+        listingRef = await withTimeout(
+          fb.addDoc(fb.collection(fb.firestore, 'listings'), listingData),
+          30000,
+          'Firestore addDoc'
+        );
+      } catch (error) {
+        console.error('❌ Firestore addDoc failed:', error.code, error.message);
+        throw new Error(`Failed to create listing: ${error.message}`);
+      }
 
       const listingId = listingRef.id;
-      console.log(`✅ Listing created: ${listingId}`);
+      console.log(`✅ Listing created in Firestore: ${listingId}`);
 
-      // Upload images sequentially
       const imageUrls = [];
 
       if (images.length > 0) {
-        console.log(`📤 Uploading ${images.length} images...`);
+        console.log(`📤 Starting upload of ${images.length} images...`);
 
         for (let i = 0; i < images.length; i++) {
-          const imageUri = images[i];
           setUploadProgress(`Uploading image ${i + 1} of ${images.length}...`);
-          console.log(`📤 [${i + 1}/${images.length}] Uploading image...`);
+          console.log(`📤 [${i + 1}/${images.length}] Starting upload...`);
 
           try {
-            // Upload with timeout protection
             const url = await withTimeout(
-              uploadImageToStorage(imageUri, listingId, i),
-              UPLOAD_TIMEOUT,
-              `Image ${i + 1} upload timed out`
+              uploadImage(images[i], listingId, i),
+              60000,
+              `Image ${i + 1} upload`
             );
-
             imageUrls.push(url);
-            console.log(`✅ [${i + 1}/${images.length}] Upload complete`);
-          } catch (uploadError) {
-            console.error(`❌ Failed to upload image ${i + 1}:`, uploadError);
-            // Continue with other images instead of failing entirely
-            Alert.alert(
-              'Warning',
-              `Failed to upload image ${i + 1}. Continuing with other images.`
-            );
+            console.log(`✅ [${i + 1}/${images.length}] Upload complete, URL: ${url.substring(0, 60)}...`);
+          } catch (error) {
+            console.error(`❌ [${i + 1}/${images.length}] Upload failed:`, error.message);
+            Alert.alert('Warning', `Failed to upload image ${i + 1}. Continuing with others.`);
           }
         }
 
         console.log(`✅ Uploaded ${imageUrls.length} out of ${images.length} images`);
       }
 
-      // Update listing with image URLs
       if (imageUrls.length > 0) {
-        console.log('📝 Updating listing with image URLs...');
         setUploadProgress('Finalizing listing...');
+        console.log('📝 Updating Firestore with image URLs...');
 
-        await withTimeout(
-          updateDoc(doc(firestore, 'listings', listingId), {
-            images: imageUrls,
-            coverImage: imageUrls[0] || '',
-            updatedAt: serverTimestamp(),
-          }),
-          30000,
-          'Updating listing timed out'
-        );
+        try {
+          await withTimeout(
+            fb.updateDoc(fb.doc(fb.firestore, 'listings', listingId), {
+              images: imageUrls,
+              coverImage: imageUrls[0] || '',
+              updatedAt: fb.serverTimestamp(),
+            }),
+            30000,
+            'Firestore updateDoc'
+          );
+          console.log('✅ Firestore document updated with images');
+        } catch (error) {
+          console.error('❌ Firestore updateDoc failed:', error.message);
+          throw new Error(`Failed to update listing with images: ${error.message}`);
+        }
       }
 
-      console.log(`✅ Listing ${listingId} completed successfully!`);
+      console.log(`✅ ========== SUBMIT COMPLETE: ${listingId} ==========`);
 
       // Success! Show alert and navigate
       Alert.alert(
@@ -357,22 +381,23 @@ export default function CreateListingScreen({ navigation }) {
         ]
       );
     } catch (error) {
-      console.error('❌ Error creating listing:', error);
+      console.error('❌ ========== SUBMIT FAILED ==========');
+      console.error('❌ Error:', error.message);
+      console.error('❌ Stack:', error.stack);
 
-      // User-friendly error message
       let errorMessage = 'Failed to create listing. Please try again.';
 
-      if (error.message.includes('timeout')) {
-        errorMessage = 'Upload timed out. Please check your internet connection and try again.';
+      if (error.code === 'TIMEOUT') {
+        errorMessage = `Upload timed out: ${error.operation}. Please check your internet connection.`;
       } else if (error.message.includes('permission')) {
-        errorMessage = 'Permission denied. Please check your account and try again.';
-      } else if (error.code === 'storage/unauthorized') {
-        errorMessage = 'Not authorized to upload images. Please sign in and try again.';
+        errorMessage = 'Permission denied. Please check your account.';
+      } else if (error.message.includes('category')) {
+        errorMessage = 'Invalid category selected. Please try again.';
       }
 
-      Alert.alert(t('common.error'), errorMessage);
+      Alert.alert('Error', errorMessage);
     } finally {
-      // CRITICAL: Always stop spinner, no matter what happened
+      console.log('🔚 Cleanup: Stopping spinner');
       setUploading(false);
       setUploadProgress('');
     }
@@ -712,92 +737,24 @@ export default function CreateListingScreen({ navigation }) {
   );
 }
 
-// ============================================
-// HELPER FUNCTIONS
-// ============================================
-
-/**
- * Upload image to Firebase Storage
- * @param {string} dataURL - Base64 data URL
- * @param {string} listingId - Listing document ID
- * @param {number} index - Image index
- * @returns {Promise<string>} - Download URL
- */
-async function uploadImageToStorage(dataURL, listingId, index) {
-  console.log(`📦 Converting data URL to blob (image ${index})...`);
-
-  // Extract base64 data and mime type
-  const matches = dataURL.match(/^data:([^;]+);base64,(.+)$/);
-  if (!matches) {
-    throw new Error('Invalid data URL format');
-  }
-
-  const mimeType = matches[1];
-  const base64Data = matches[2];
-
-  // Convert base64 to blob
-  const binaryData = atob(base64Data);
-  const bytes = new Uint8Array(binaryData.length);
-  for (let i = 0; i < binaryData.length; i++) {
-    bytes[i] = binaryData.charCodeAt(i);
-  }
-  const blob = new Blob([bytes], { type: mimeType });
-
-  console.log(`📦 Blob created: ${(blob.size / 1024).toFixed(2)} KB`);
-
-  // Upload to Firebase Storage
-  const storagePath = `listings/${listingId}/image-${index}-${Date.now()}.jpg`;
-  const storageRef = ref(storage, storagePath);
-
-  console.log(`📤 Uploading to Storage: ${storagePath}`);
-  await uploadBytes(storageRef, blob);
-
-  console.log(`✅ Upload complete, getting download URL...`);
-  const downloadURL = await getDownloadURL(storageRef);
-
-  return downloadURL;
-}
-
-/**
- * Convert blob URL to data URL (web only)
- * @param {string} blobUrl - Blob URL
- * @returns {Promise<string>} - Data URL
- */
-async function blobToDataURL(blobUrl) {
-  if (Platform.OS !== 'web') {
-    return blobUrl; // Not needed on mobile
-  }
-
+async function convertBlobToDataURL(blobUrl) {
+  console.log('🔄 convertBlobToDataURL: Starting conversion');
   const response = await fetch(blobUrl);
   const blob = await response.blob();
 
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result);
-    reader.onerror = reject;
+    reader.onloadend = () => {
+      console.log('✅ convertBlobToDataURL: Complete');
+      resolve(reader.result);
+    };
+    reader.onerror = (error) => {
+      console.error('❌ convertBlobToDataURL: Failed', error);
+      reject(error);
+    };
     reader.readAsDataURL(blob);
   });
 }
-
-/**
- * Wrap a promise with timeout
- * @param {Promise} promise - Promise to wrap
- * @param {number} ms - Timeout in milliseconds
- * @param {string} errorMessage - Error message if timeout
- * @returns {Promise} - Promise that rejects on timeout
- */
-function withTimeout(promise, ms, errorMessage) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(errorMessage)), ms)
-    ),
-  ]);
-}
-
-// ============================================
-// STYLES
-// ============================================
 
 const styles = StyleSheet.create({
   container: {
