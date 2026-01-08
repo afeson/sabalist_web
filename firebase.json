@@ -15,7 +15,7 @@
     ],
     "rewrites": [
       {
-        "source": "**",
+        "source": "!/@(check-images|test-listing-images|test-firestore|firestore-test|app-firebase-test|check-auth).html",
         "destination": "/index.html"
       }
     ]
