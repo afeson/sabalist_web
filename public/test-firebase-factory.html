@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firebase Factory Test</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    h1 { color: #333; margin-bottom: 20px; }
+    .test-item {
+      border: 2px solid #e0e0e0;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+    .test-item.pass {
+      border-color: #28a745;
+      background: #f0fff4;
+    }
+    .test-item.fail {
+      border-color: #dc3545;
+      background: #fff0f0;
+    }
+    .status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    .status.pass { background: #28a745; color: white; }
+    .status.fail { background: #dc3545; color: white; }
+    pre {
+      background: #f5f5f5;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 12px;
+      margin-top: 8px;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    button:hover { background: #0056b3; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔧 Firebase Factory Test</h1>
+    <p style="color: #666; margin-bottom: 20px;">Tests if Firebase instances are properly initialized</p>
+
+    <button onclick="runTests()" id="testBtn">🧪 Run Tests</button>
+
+    <div id="results"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getAuth } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+    import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+    import { getStorage, ref } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBwvEh8cW_tI0FWXbLY0Sd7QIUX8jNhp94",
+      authDomain: "sabalist-afeson.firebaseapp.com",
+      projectId: "sabalist-afeson",
+      storageBucket: "sabalist-afeson.firebasestorage.app",
+      messagingSenderId: "539257649722",
+      appId: "1:539257649722:web:5e916bdb7cb5da46f74936",
+      measurementId: "G-4GD70C41YZ"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const firestore = getFirestore(app);
+    const storage = getStorage(app);
+
+    window.runTests = async function() {
+      const results = document.getElementById('results');
+      const btn = document.getElementById('testBtn');
+
+      btn.disabled = true;
+      results.innerHTML = '<p style="text-align: center; color: #666;">⏳ Running tests...</p>';
+
+      const tests = [];
+
+      // Test 1: Auth instance
+      const authTest = {
+        name: 'Auth Instance',
+        pass: !!auth && typeof auth === 'object',
+        details: {
+          exists: !!auth,
+          type: typeof auth,
+          hasCurrentUser: auth?.hasOwnProperty('currentUser')
+        }
+      };
+      tests.push(authTest);
+
+      // Test 2: Firestore instance
+      const firestoreTest = {
+        name: 'Firestore Instance',
+        pass: !!firestore && typeof firestore === 'object',
+        details: {
+          exists: !!firestore,
+          type: typeof firestore,
+          hasApp: firestore?.hasOwnProperty('app')
+        }
+      };
+      tests.push(firestoreTest);
+
+      // Test 3: Storage instance
+      const storageTest = {
+        name: 'Storage Instance',
+        pass: !!storage && typeof storage === 'object',
+        details: {
+          exists: !!storage,
+          type: typeof storage,
+          hasApp: storage?.hasOwnProperty('app')
+        }
+      };
+      tests.push(storageTest);
+
+      // Test 4: Storage ref() function
+      let refWorks = false;
+      let refError = null;
+      try {
+        const testRef = ref(storage, 'test-path.jpg');
+        refWorks = !!testRef && testRef.fullPath === 'test-path.jpg';
+      } catch (e) {
+        refError = e.message;
+      }
+
+      const refTest = {
+        name: 'Storage ref() Function',
+        pass: refWorks,
+        details: {
+          works: refWorks,
+          error: refError
+        }
+      };
+      tests.push(refTest);
+
+      // Render results
+      let html = '';
+      const passCount = tests.filter(t => t.pass).length;
+      const totalCount = tests.length;
+
+      html += `<h2 style="margin-bottom: 15px;">Results: ${passCount}/${totalCount} Passed</h2>`;
+
+      tests.forEach(test => {
+        html += `
+          <div class="test-item ${test.pass ? 'pass' : 'fail'}">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <strong>${test.pass ? '✅' : '❌'} ${test.name}</strong>
+              <span class="status ${test.pass ? 'pass' : 'fail'}">${test.pass ? 'PASS' : 'FAIL'}</span>
+            </div>
+            <pre>${JSON.stringify(test.details, null, 2)}</pre>
+          </div>
+        `;
+      });
+
+      if (passCount === totalCount) {
+        html += `
+          <div style="background: #d4edda; border: 2px solid #28a745; color: #155724; padding: 15px; border-radius: 8px; margin-top: 20px; text-align: center;">
+            <strong>✅ All tests passed!</strong><br>
+            Firebase instances are properly initialized.
+          </div>
+        `;
+      } else {
+        html += `
+          <div style="background: #f8d7da; border: 2px solid #dc3545; color: #721c24; padding: 15px; border-radius: 8px; margin-top: 20px; text-align: center;">
+            <strong>❌ Some tests failed!</strong><br>
+            Firebase factory may not be working correctly.
+          </div>
+        `;
+      }
+
+      results.innerHTML = html;
+      btn.disabled = false;
+    };
+  </script>
+</body>
+</html>
