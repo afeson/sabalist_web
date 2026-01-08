@@ -61,6 +61,12 @@ async function uploadImageWeb(dataURL, listingId, index, startTime) {
 
   // Upload to Firebase Storage
   const fb = getFirebase();
+
+  // Debug: Check what's in fb
+  console.log(`🔍 [${index + 1}] Firebase object keys:`, Object.keys(fb));
+  console.log(`🔍 [${index + 1}] fb.storage:`, typeof fb.storage, !!fb.storage);
+  console.log(`🔍 [${index + 1}] fb.ref:`, typeof fb.ref, !!fb.ref);
+
   const storagePath = `listings/${listingId}/image-${index}-${Date.now()}.jpg`;
   const storageRef = fb.ref(fb.storage, storagePath);
 
