@@ -23,20 +23,16 @@ export function getFirebase() {
     const firestoreSDK = require('firebase/firestore');
     const storageSDK = require('firebase/storage');
 
-    // Handle both default and named exports
-    const firebaseWeb = firebaseWebModule.default || firebaseWebModule;
-
     console.log('🔧 Firebase factory - Web platform detected');
     console.log('🔧 firebaseWebModule keys:', Object.keys(firebaseWebModule));
-    console.log('🔧 has default?', !!firebaseWebModule.default);
-    console.log('🔧 firebaseWeb.auth:', typeof firebaseWeb.auth, !!firebaseWeb.auth);
-    console.log('🔧 firebaseWeb.firestore:', typeof firebaseWeb.firestore, !!firebaseWeb.firestore);
-    console.log('🔧 firebaseWeb.storage:', typeof firebaseWeb.storage, !!firebaseWeb.storage);
+    console.log('🔧 firebaseWebModule.auth:', typeof firebaseWebModule.auth, !!firebaseWebModule.auth);
+    console.log('🔧 firebaseWebModule.firestore:', typeof firebaseWebModule.firestore, !!firebaseWebModule.firestore);
+    console.log('🔧 firebaseWebModule.storage:', typeof firebaseWebModule.storage, !!firebaseWebModule.storage);
 
     firebaseCache = {
-      auth: firebaseWeb.auth,
-      firestore: firebaseWeb.firestore,
-      storage: firebaseWeb.storage,
+      auth: firebaseWebModule.auth,
+      firestore: firebaseWebModule.firestore,
+      storage: firebaseWebModule.storage,
       // Firestore methods
       collection: firestoreSDK.collection,
       addDoc: firestoreSDK.addDoc,
@@ -50,7 +46,10 @@ export function getFirebase() {
       getDownloadURL: storageSDK.getDownloadURL,
     };
 
-    console.log('🔧 Firebase cache created with firestore:', typeof firebaseCache.firestore, !!firebaseCache.firestore);
+    console.log('🔧 Firebase cache created:');
+    console.log('🔧  - auth:', typeof firebaseCache.auth, !!firebaseCache.auth);
+    console.log('🔧  - firestore:', typeof firebaseCache.firestore, !!firebaseCache.firestore);
+    console.log('🔧  - storage:', typeof firebaseCache.storage, !!firebaseCache.storage);
   } else {
     // Native: Dynamic require for React Native Firebase
     const firebaseNative = require('./firebase');
