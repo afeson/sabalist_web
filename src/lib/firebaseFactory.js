@@ -13,7 +13,9 @@ let firebaseCache = null;
  * Called at RUNTIME, not module load time
  */
 export function getFirebase() {
-  if (firebaseCache) {
+  // TEMPORARY: Always rebuild cache to ensure latest version during development
+  // Remove this in production
+  if (firebaseCache && process.env.NODE_ENV === 'production') {
     return firebaseCache;
   }
 
