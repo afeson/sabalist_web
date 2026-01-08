@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test Listing Images</title>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getFirestore, collection, query, orderBy, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+    // Your Firebase config (same as in your app)
+    const firebaseConfig = {
+      apiKey: "AIzaSyBwvEh8cW_tI0FWXbLY0Sd7QIUX8jNhp94",
+      authDomain: "sabalist-afeson.firebaseapp.com",
+      projectId: "sabalist-afeson",
+      storageBucket: "sabalist-afeson.firebasestorage.app",
+      messagingSenderId: "539257649722",
+      appId: "1:539257649722:web:5e916bdb7cb5da46f74936",
+      measurementId: "G-4GD70C41YZ"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    async function testListingImages() {
+      const output = document.getElementById('output');
+      output.innerHTML = '<p>Loading latest listings...</p>';
+
+      try {
+        const q = query(
+          collection(db, 'listings'),
+          orderBy('createdAt', 'desc'),
+          limit(5)
+        );
+
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+          output.innerHTML = '<p style="color: red;">No listings found!</p>';
+          return;
+        }
+
+        let html = '<h2>Latest 5 Listings:</h2>';
+
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const imageCount = data.images?.length || 0;
+
+          html += `
+            <div style="border: 2px solid #ccc; padding: 15px; margin: 10px 0; border-radius: 8px;">
+              <h3>${data.title || 'Untitled'}</h3>
+              <p><strong>ID:</strong> ${doc.id}</p>
+              <p><strong>Image Count:</strong> ${imageCount}</p>
+              <p><strong>Cover Image:</strong> ${data.coverImage ? 'SET' : 'EMPTY'}</p>
+
+              ${imageCount > 0 ? `
+                <details>
+                  <summary>Show ${imageCount} Image URLs</summary>
+                  <ol>
+                    ${data.images.map((url, i) => `
+                      <li>
+                        <a href="${url}" target="_blank">Image ${i + 1}</a>
+                        <br><small>${url.substring(0, 80)}...</small>
+                      </li>
+                    `).join('')}
+                  </ol>
+                </details>
+                <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
+                  ${data.images.map((url, i) => `
+                    <img src="${url}" style="width: 150px; height: 150px; object-fit: cover; border: 1px solid #ddd;"
+                         alt="Image ${i + 1}"
+                         onerror="this.style.border='3px solid red'; this.alt='Failed to load'">
+                  `).join('')}
+                </div>
+              ` : '<p style="color: orange;">No images</p>'}
+
+              <p><strong>Created:</strong> ${data.createdAt?.toDate?.()?.toLocaleString() || 'Unknown'}</p>
+            </div>
+          `;
+        });
+
+        output.innerHTML = html;
+      } catch (error) {
+        output.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+        console.error('Error:', error);
+      }
+    }
+
+    // Run test when page loads
+    window.addEventListener('load', testListingImages);
+
+    // Make it available globally for manual refresh
+    window.testListingImages = testListingImages;
+  </script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    #output {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 Listing Images Diagnostic Tool</h1>
+  <p>This tool fetches the latest 5 listings from Firestore and shows how many images each has.</p>
+  <button onclick="window.testListingImages()">🔄 Refresh</button>
+  <div id="output">Loading...</div>
+</body>
+</html>
