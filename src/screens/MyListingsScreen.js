@@ -17,17 +17,19 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 
 // Platform-aware Firebase imports
-let auth, getUserListings;
+let auth, getUserListings, subscribeToUserListings;
 if (Platform.OS === 'web') {
   const firebaseWeb = require('../lib/firebase.web');
   const listingsWeb = require('../services/listings.web');
   auth = firebaseWeb.auth;
   getUserListings = listingsWeb.getUserListings;
+  subscribeToUserListings = listingsWeb.subscribeToUserListings;
 } else {
   const firebaseNative = require('../lib/firebase');
   const listingsNative = require('../services/listings');
   auth = firebaseNative.auth;
   getUserListings = listingsNative.getUserListings;
+  subscribeToUserListings = listingsNative.subscribeToUserListings;
 }
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { ListingCard } from '../components/ui';
@@ -61,19 +63,33 @@ export default function MyListingsScreen({ navigation, route }) {
     }
   }, []);
 
-  // Refetch when screen focused
-  useFocusEffect(
-    useCallback(() => {
-      loadMyListings();
-    }, [])
-  );
-
-  // Refetch when route params change (e.g., after creating new listing)
+  // Real-time listener for user's listings
   React.useEffect(() => {
-    if (route?.params?.refresh) {
-      loadMyListings();
+    // Platform-aware: web uses auth.currentUser, native uses auth().currentUser
+    const userId = Platform.OS === 'web' ? auth.currentUser?.uid : auth().currentUser?.uid;
+
+    if (!userId) {
+      console.log('🔴 No user logged in, skipping listener setup');
+      setListings([]);
+      setLoading(false);
+      return;
     }
-  }, [route?.params?.refresh]);
+
+    console.log('🔴 Setting up real-time listener for user listings:', userId);
+    setLoading(true);
+
+    const unsubscribe = subscribeToUserListings(userId, (newListings) => {
+      console.log('🔴 Received real-time update:', newListings.length, 'user listings');
+      setListings(newListings);
+      setLoading(false);
+      setRefreshing(false);
+    });
+
+    return () => {
+      console.log('🔴 Cleaning up user listings listener');
+      unsubscribe();
+    };
+  }, []); // Empty deps - only set up once
 
   const onRefresh = () => {
     setRefreshing(true);

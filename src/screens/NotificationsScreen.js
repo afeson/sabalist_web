@@ -30,30 +30,42 @@ export default function NotificationsScreen({ navigation }) {
   const loadSettings = async () => {
     try {
       if (!user?.uid) {
-        console.warn('No user logged in');
+        console.warn('⚠️ No user logged in');
         setLoading(false);
         return;
       }
 
       console.log('📖 Loading notification settings for user:', user.uid);
       const fb = getFirebase();
-      const userDoc = await fb.getDoc(fb.doc(fb.firestore, 'users', user.uid));
+
+      console.log('📖 Firestore instance:', typeof fb.firestore, !!fb.firestore);
+      const docRef = fb.doc(fb.firestore, 'users', user.uid);
+      console.log('📖 Document reference:', docRef);
+
+      const userDoc = await fb.getDoc(docRef);
+      console.log('📖 Document exists?', userDoc.exists());
 
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        setSettings({
+        console.log('📖 User data:', userData);
+
+        const loadedSettings = {
           emailNotifications: userData.emailNotifications ?? false,
           pushNotifications: userData.pushNotifications ?? false,
           messageNotifications: userData.messageNotifications ?? false,
           listingUpdates: userData.listingUpdates ?? false
-        });
-        console.log('✅ Settings loaded:', userData);
+        };
+
+        console.log('✅ Settings loaded:', loadedSettings);
+        setSettings(loadedSettings);
       } else {
-        console.log('ℹ️ No settings found, using defaults');
+        console.log('ℹ️ User document does not exist, using defaults');
       }
     } catch (error) {
       console.error('❌ Error loading notification settings:', error);
-      Alert.alert('Error', 'Failed to load notification settings');
+      console.error('❌ Error code:', error.code);
+      console.error('❌ Error message:', error.message);
+      Alert.alert('Error', `Failed to load notification settings: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -65,21 +77,36 @@ export default function NotificationsScreen({ navigation }) {
       return;
     }
 
+    // Optimistically update UI
     setSettings(prev => ({ ...prev, [key]: value }));
     setSaving(true);
 
     try {
       console.log(`💾 Updating ${key} to ${value} for user:`, user.uid);
       const fb = getFirebase();
-      await fb.updateDoc(fb.doc(fb.firestore, 'users', user.uid), {
+
+      // Use serverTimestamp for consistency
+      const updateData = {
         [key]: value,
-        updatedAt: new Date()
-      });
-      console.log(`✅ Updated ${key} to ${value}`);
+        updatedAt: fb.serverTimestamp()
+      };
+
+      console.log('💾 Update data:', updateData);
+      console.log('💾 Firestore instance:', typeof fb.firestore, !!fb.firestore);
+      console.log('💾 Doc reference:', fb.doc(fb.firestore, 'users', user.uid));
+
+      await fb.updateDoc(fb.doc(fb.firestore, 'users', user.uid), updateData);
+
+      console.log(`✅ Successfully updated ${key} to ${value} in Firestore`);
     } catch (error) {
       console.error('❌ Error updating notification settings:', error);
+      console.error('❌ Error code:', error.code);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error stack:', error.stack);
+
+      // Revert UI state on error
       setSettings(prev => ({ ...prev, [key]: !value }));
-      Alert.alert('Error', 'Failed to update setting. Please try again.');
+      Alert.alert('Error', `Failed to update setting: ${error.message}`);
     } finally {
       setSaving(false);
     }

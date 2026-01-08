@@ -4,7 +4,7 @@
  */
 
 import { firestore, storage } from "../lib/firebase.web";
-import { collection, addDoc, updateDoc, doc, serverTimestamp, query, where, orderBy, limit as firestoreLimit, deleteDoc, increment, getDocsFromServer, getDocFromServer } from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc, serverTimestamp, query, where, orderBy, limit as firestoreLimit, deleteDoc, increment, getDocsFromServer, getDocFromServer, onSnapshot } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 
 /**
@@ -90,12 +90,29 @@ export async function createListing(listingData, imageUris = [], videoData = nul
 
     // Update listing with media URLs
     console.log('📝 Updating listing with media URLs...');
+    console.log(`📝 Image URLs to save (${imageUrls.length}):`, imageUrls);
+    console.log(`📝 Cover image:`, imageUrls[0] || "");
+    console.log(`📝 Video URL:`, videoUrl);
+
     await updateDoc(doc(firestore, "listings", listingId), {
       images: imageUrls,
       coverImage: imageUrls[0] || "",
       videoUrl: videoUrl,
       updatedAt: serverTimestamp()
     });
+
+    // Verify the update was successful by reading back the document
+    console.log('🔍 Verifying listing was updated correctly...');
+    const verifyDoc = await getDocFromServer(doc(firestore, "listings", listingId));
+    if (verifyDoc.exists()) {
+      const savedData = verifyDoc.data();
+      console.log('✅ Verification: images array in Firestore =', savedData.images?.length || 0, 'images');
+      console.log('✅ Verification: images URLs =', savedData.images);
+      if (savedData.images?.length !== imageUrls.length) {
+        console.error('❌ WARNING: Saved images count does not match uploaded count!');
+        console.error('   Expected:', imageUrls.length, 'Got:', savedData.images?.length);
+      }
+    }
 
     console.log(`✅ Listing ${listingId} completed successfully!`);
     return listingId;
@@ -477,6 +494,86 @@ export async function searchListings(searchText = "", category = null, minPrice 
     });
   } catch (error) {
     console.error("❌ Error searching listings:", error);
+    throw error;
+  }
+}
+
+/**
+ * Subscribe to real-time listings updates (WEB VERSION)
+ * Returns unsubscribe function
+ */
+export function subscribeToListings(callback, categoryFilter = null, limitCount = 20) {
+  try {
+    let q = query(
+      collection(firestore, "listings"),
+      orderBy("createdAt", "desc"),
+      firestoreLimit(limitCount)
+    );
+
+    if (categoryFilter && categoryFilter !== "All") {
+      q = query(
+        collection(firestore, "listings"),
+        where("category", "==", categoryFilter),
+        orderBy("createdAt", "desc"),
+        firestoreLimit(limitCount)
+      );
+    }
+
+    console.log('🔴 Setting up real-time listener for listings...');
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      console.log('🔴 Real-time update received:', snapshot.docs.length, 'listings');
+      const listings = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      // Filter for active listings
+      const activeListings = listings.filter(listing =>
+        listing.status === 'active' || !listing.status
+      );
+
+      callback(activeListings);
+    }, (error) => {
+      console.error("❌ Error in listings listener:", error);
+      callback([]);
+    });
+
+    return unsubscribe;
+  } catch (error) {
+    console.error("❌ Error setting up listings listener:", error);
+    throw error;
+  }
+}
+
+/**
+ * Subscribe to real-time user listings updates (WEB VERSION)
+ * Returns unsubscribe function
+ */
+export function subscribeToUserListings(userId, callback) {
+  try {
+    const q = query(
+      collection(firestore, "listings"),
+      where("userId", "==", userId),
+      orderBy("createdAt", "desc")
+    );
+
+    console.log('🔴 Setting up real-time listener for user listings:', userId);
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      console.log('🔴 Real-time update received:', snapshot.docs.length, 'user listings');
+      const listings = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      callback(listings);
+    }, (error) => {
+      console.error("❌ Error in user listings listener:", error);
+      callback([]);
+    });
+
+    return unsubscribe;
+  } catch (error) {
+    console.error("❌ Error setting up user listings listener:", error);
     throw error;
   }
 }

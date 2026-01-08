@@ -17,15 +17,17 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 
 // Platform-aware listings imports
-let fetchListings, searchListings;
+let fetchListings, searchListings, subscribeToListings;
 if (Platform.OS === 'web') {
   const listingsWeb = require('../services/listings.web');
   fetchListings = listingsWeb.fetchListings;
   searchListings = listingsWeb.searchListings;
+  subscribeToListings = listingsWeb.subscribeToListings;
 } else {
   const listingsNative = require('../services/listings');
   fetchListings = listingsNative.fetchListings;
   searchListings = listingsNative.searchListings;
+  subscribeToListings = listingsNative.subscribeToListings;
 }
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { SearchBar, CategoryPill, ListingCard, IconButton } from '../components/ui';
@@ -61,16 +63,40 @@ export default function HomeScreen() {
     }
   }, [searchText, selectedCategory]);
 
+  // Real-time listener for listings when no search text
   useEffect(() => {
-    loadListings();
-  }, [selectedCategory]);
+    // If user is searching, use search instead of listener
+    if (searchText.trim()) {
+      return;
+    }
 
-  useFocusEffect(
-    useCallback(() => {
-      console.log('🔄 HomeScreen focused - reloading listings');
+    // Set up real-time listener
+    console.log('🔴 Setting up real-time listener for category:', selectedCategory);
+    setLoading(true);
+
+    const unsubscribe = subscribeToListings(
+      (newListings) => {
+        console.log('🔴 Received real-time update:', newListings.length, 'listings');
+        setListings(newListings);
+        setLoading(false);
+        setRefreshing(false);
+      },
+      selectedCategory === 'All' ? null : selectedCategory,
+      20
+    );
+
+    return () => {
+      console.log('🔴 Cleaning up listener');
+      unsubscribe();
+    };
+  }, [selectedCategory, searchText]);
+
+  // When user searches, use search function instead
+  useEffect(() => {
+    if (searchText.trim()) {
       loadListings();
-    }, [loadListings])
-  );
+    }
+  }, [searchText]);
 
   const onRefresh = () => {
     setRefreshing(true);
