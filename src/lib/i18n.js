@@ -58,9 +58,10 @@ const getInitialLanguage = async () => {
     if (storedLanguage) {
       return storedLanguage;
     }
-    
-    // Get device locale
-    const deviceLocale = Localization.locale.split('-')[0];
+
+    // Get device locale - use getLocales() for newer expo-localization
+    const locales = Localization.getLocales?.() || [{ languageCode: 'en' }];
+    const deviceLocale = locales[0]?.languageCode || 'en';
     const supportedLanguage = LANGUAGES.find(lang => lang.code === deviceLocale);
     return supportedLanguage ? deviceLocale : 'en';
   } catch (error) {

@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView, Switch, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../contexts/AuthContext';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { Card } from '../components/ui';
 import { getFirebase } from '../lib/firebaseFactory';
 
 export default function NotificationsScreen({ navigation }) {
   const { t } = useTranslation();
+  const { user, loading: authLoading } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -19,22 +21,23 @@ export default function NotificationsScreen({ navigation }) {
   });
 
   useEffect(() => {
-    loadSettings();
-  }, []);
+    // Wait for auth to be ready before loading settings
+    if (!authLoading) {
+      loadSettings();
+    }
+  }, [authLoading, user]);
 
   const loadSettings = async () => {
     try {
-      const fb = getFirebase();
-      const userId = fb.auth.currentUser?.uid;
-
-      if (!userId) {
+      if (!user?.uid) {
         console.warn('No user logged in');
         setLoading(false);
         return;
       }
 
-      console.log('📖 Loading notification settings for user:', userId);
-      const userDoc = await fb.getDoc(fb.doc(fb.firestore, 'users', userId));
+      console.log('📖 Loading notification settings for user:', user.uid);
+      const fb = getFirebase();
+      const userDoc = await fb.getDoc(fb.doc(fb.firestore, 'users', user.uid));
 
       if (userDoc.exists()) {
         const userData = userDoc.data();
@@ -57,10 +60,7 @@ export default function NotificationsScreen({ navigation }) {
   };
 
   const updateSetting = async (key, value) => {
-    const fb = getFirebase();
-    const userId = fb.auth.currentUser?.uid;
-
-    if (!userId) {
+    if (!user?.uid) {
       Alert.alert('Error', 'Please sign in to update settings');
       return;
     }
@@ -69,8 +69,9 @@ export default function NotificationsScreen({ navigation }) {
     setSaving(true);
 
     try {
-      console.log(`💾 Updating ${key} to ${value} for user:`, userId);
-      await fb.updateDoc(fb.doc(fb.firestore, 'users', userId), {
+      console.log(`💾 Updating ${key} to ${value} for user:`, user.uid);
+      const fb = getFirebase();
+      await fb.updateDoc(fb.doc(fb.firestore, 'users', user.uid), {
         [key]: value,
         updatedAt: new Date()
       });
@@ -84,10 +85,27 @@ export default function NotificationsScreen({ navigation }) {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <View style={[styles.container, styles.centerContent]}>
         <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>
+          {authLoading ? 'Authenticating...' : 'Loading settings...'}
+        </Text>
+      </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <Text style={styles.errorText}>Please sign in to view notification settings</Text>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -306,5 +324,26 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: COLORS.info,
+  },
+  loadingText: {
+    marginTop: SPACING.md,
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+  },
+  errorText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.error,
+    textAlign: 'center',
+    marginBottom: SPACING.xl,
+    paddingHorizontal: SPACING.xl,
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.primary,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xl,
   },
 });

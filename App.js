@@ -125,6 +125,7 @@ function AppContent() {
 
   // Show startup loading screen
   if (!appReady || loading) {
+    console.log('APP_LOADING: appReady =', appReady, ', loading =', loading);
     return (
       <View style={[styles.container, styles.centerContent]}>
         <ActivityIndicator size="large" color={COLORS.primary} />
@@ -172,6 +173,9 @@ class AppErrorBoundary extends React.Component {
 }
 
 export default function App() {
+  console.log('🚀 APP: Component mounting - React is running!');
+  console.log('🚀 APP: Timestamp:', new Date().toISOString());
+
   return (
     <AppErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>

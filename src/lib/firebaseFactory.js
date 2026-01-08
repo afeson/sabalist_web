@@ -19,9 +19,19 @@ export function getFirebase() {
 
   if (Platform.OS === 'web') {
     // Web: Dynamic require for Firebase Web SDK
-    const firebaseWeb = require('./firebase.web');
+    const firebaseWebModule = require('./firebase.web');
     const firestoreSDK = require('firebase/firestore');
     const storageSDK = require('firebase/storage');
+
+    // Handle both default and named exports
+    const firebaseWeb = firebaseWebModule.default || firebaseWebModule;
+
+    console.log('🔧 Firebase factory - Web platform detected');
+    console.log('🔧 firebaseWebModule keys:', Object.keys(firebaseWebModule));
+    console.log('🔧 has default?', !!firebaseWebModule.default);
+    console.log('🔧 firebaseWeb.auth:', typeof firebaseWeb.auth, !!firebaseWeb.auth);
+    console.log('🔧 firebaseWeb.firestore:', typeof firebaseWeb.firestore, !!firebaseWeb.firestore);
+    console.log('🔧 firebaseWeb.storage:', typeof firebaseWeb.storage, !!firebaseWeb.storage);
 
     firebaseCache = {
       auth: firebaseWeb.auth,
@@ -39,6 +49,8 @@ export function getFirebase() {
       uploadBytes: storageSDK.uploadBytes,
       getDownloadURL: storageSDK.getDownloadURL,
     };
+
+    console.log('🔧 Firebase cache created with firestore:', typeof firebaseCache.firestore, !!firebaseCache.firestore);
   } else {
     // Native: Dynamic require for React Native Firebase
     const firebaseNative = require('./firebase');

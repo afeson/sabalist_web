@@ -3,85 +3,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isValidCategory(category) {
-      return category == 'Electronics'
-          || category == 'Vehicles'
-          || category == 'Real Estate'
-          || category == 'Fashion'
-          || category == 'Services';
-    }
-
-    function isValidImageUrl(url) {
-      return url.matches('https://firebasestorage.googleapis.com/.*');
-    }
-
-    // Listings collection
+    // Listings collection - OPEN FOR TESTING
     match /listings/{listingId} {
-      // Anyone can read active listings or owners can read their own
-      allow read: if resource.data.status == 'active' || isOwner(resource.data.userId);
-
-      // Only authenticated users can create listings with validation
-      allow create: if isSignedIn()
-                    && request.resource.data.userId == request.auth.uid
-                    && request.resource.data.status == 'active'
-                    // Price validation
-                    && request.resource.data.price >= 0
-                    && request.resource.data.price <= 999999999
-                    // String length validation
-                    && request.resource.data.title.size() > 0
-                    && request.resource.data.title.size() <= 200
-                    && request.resource.data.description.size() <= 5000
-                    && request.resource.data.location.size() > 0
-                    && request.resource.data.location.size() <= 200
-                    && request.resource.data.phoneNumber.size() > 0
-                    && request.resource.data.phoneNumber.size() <= 30
-                    // Category validation
-                    && isValidCategory(request.resource.data.category)
-                    // Image validation
-                    && request.resource.data.images.size() >= 0
-                    && request.resource.data.images.size() <= 30;
-
-      // Only the owner can update their listing (full update)
-      allow update: if isOwner(resource.data.userId)
-                    && request.resource.data.userId == resource.data.userId // Can't change owner
-                    // Status can only be 'active' or 'sold'
-                    && request.resource.data.status in ['active', 'sold'];
-
-      // Special case: Allow updating media fields (images, coverImage, videoUrl) during listing creation
-      allow update: if isOwner(resource.data.userId)
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['images', 'coverImage', 'videoUrl', 'updatedAt']);
-
-      // Special case: Anyone can increment view counter
-      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views', 'lastViewedAt'])
-                    && request.resource.data.views == resource.data.views + 1;
-
-      // Only the owner can delete their listing
-      allow delete: if isOwner(resource.data.userId);
-    }
-
-    // Ads collection (legacy, if needed)
-    match /ads/{adId} {
       allow read: if true;
-      allow create: if isSignedIn();
-      allow update, delete: if isOwner(resource.data.userId);
-    }
-
-    // Reports collection
-    match /reports/{reportId} {
-      // Only authenticated users can create reports
-      allow create: if isSignedIn()
-                    && request.resource.data.reportedBy == request.auth.uid;
-      // Only admins can read/update reports (for now, restrict all reads)
-      allow read, update, delete: if false;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null;
     }
 
     // Deny all other collections by default

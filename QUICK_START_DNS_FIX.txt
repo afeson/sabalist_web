@@ -1,0 +1,69 @@
+========================================
+QUICK START: Fix Hostinger DNS for AWS Amplify
+========================================
+
+STEP 1: Get Hostinger API Token
+--------------------------------
+1. The browser should have opened: https://hpanel.hostinger.com/api-tokens
+2. Log into Hostinger if prompted
+3. Click "Create API Token"
+4. Give it a name like "AWS Amplify DNS"
+5. Select permissions: "Manage DNS records"
+6. Click "Create"
+7. COPY the token (you won't see it again!)
+
+STEP 2: Run the Fix Script
+---------------------------
+1. Double-click: fix-dns.bat
+2. Paste your Hostinger API token when prompted
+3. Press Enter
+4. The script will automatically:
+   ✓ Delete old CAA records
+   ✓ Add AWS CAA records
+   ✓ Add SSL verification CNAME
+   ✓ Add domain routing CNAMEs
+
+STEP 3: Wait and Verify
+------------------------
+1. Wait 10-30 minutes for DNS propagation
+2. Run: verify-dns.bat
+3. Check AWS Amplify Console for domain status
+
+========================================
+FILES CREATED:
+========================================
+1. fix-dns.bat - Main script to run
+2. fix-hostinger-dns.ps1 - PowerShell automation
+3. verify-dns.bat - Verification script
+4. HOSTINGER_DNS_SETUP.md - Detailed manual guide
+
+========================================
+TROUBLESHOOTING:
+========================================
+
+If script fails with "API token" error:
+- Make sure you created the token with "DNS" permissions
+- Token must be for the account that owns sabalist.com
+- Try regenerating the token if it's expired
+
+If DNS doesn't update:
+- Check Hostinger email for any security confirmations
+- Wait longer (up to 48h for full propagation)
+- Contact Hostinger support
+
+If AWS Amplify still shows "Pending":
+- Verify CNAME records are correct with verify-dns.bat
+- Check AWS Amplify logs for specific errors
+- May need to remove and re-add domain in Amplify
+
+========================================
+EXPECTED RESULT:
+========================================
+
+Within 30 minutes, you should see:
+✓ AWS Amplify domain status: "Available"
+✓ SSL certificate issued
+✓ sabalist.com redirects to your Amplify app
+✓ HTTPS working automatically
+
+========================================

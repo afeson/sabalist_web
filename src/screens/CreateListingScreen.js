@@ -32,7 +32,7 @@ import { useTranslation } from 'react-i18next';
 
 import { uploadImage, withTimeout } from '../services/uploadHelpers';
 import { useAuth } from '../contexts/AuthContext';
-import { getFirestore, collection, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, updateDoc, doc, getDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getImageLimits, GLOBAL_IMAGE_LIMITS } from '../config/categoryLimits';
 import { getSubCategories } from '../config/categories';
@@ -411,11 +411,13 @@ export default function CreateListingScreen({ navigation }) {
             console.log(`✅ [${i + 1}/${images.length}] Upload complete, URL: ${url.substring(0, 60)}...`);
           } catch (error) {
             console.error(`❌ [${i + 1}/${images.length}] Upload failed:`, error.message);
-            Alert.alert('Warning', `Failed to upload image ${i + 1}. Continuing with others.`);
+            console.error(`❌ Error details:`, error);
+            // Fail the entire operation if any image fails
+            throw new Error(`Failed to upload image ${i + 1}: ${error.message}`);
           }
         }
 
-        console.log(`✅ Uploaded ${imageUrls.length} out of ${images.length} images`);
+        console.log(`✅ Successfully uploaded ALL ${imageUrls.length} images`);
       }
 
       // Upload video if present
@@ -450,6 +452,8 @@ export default function CreateListingScreen({ navigation }) {
       if (imageUrls.length > 0 || videoUrl) {
         setUploadProgress('Finalizing listing...');
         console.log('📝 Updating Firestore with media URLs...');
+        console.log('📝 Image URLs array length:', imageUrls.length);
+        console.log('📝 Image URLs:', imageUrls.map((url, i) => `[${i}]: ${url.substring(0, 60)}...`));
 
         try {
           const updateData = {
@@ -459,18 +463,34 @@ export default function CreateListingScreen({ navigation }) {
           if (imageUrls.length > 0) {
             updateData.images = imageUrls;
             updateData.coverImage = imageUrls[0] || '';
+            console.log('📝 Setting images field with', imageUrls.length, 'URLs');
           }
 
           if (videoUrl) {
             updateData.videoUrl = videoUrl;
+            console.log('📝 Setting videoUrl:', videoUrl.substring(0, 60));
           }
 
+          console.log('📝 Calling updateDoc with data:', JSON.stringify(updateData, null, 2).substring(0, 500));
           await withTimeout(
             updateDoc(doc(db, 'listings', listingId), updateData),
             30000,
             'Firestore updateDoc'
           );
-          console.log('✅ Firestore document updated with media');
+          console.log('✅ Firestore document updated with', imageUrls.length, 'images');
+
+          // Verify the update was successful by reading back the document
+          console.log('🔍 Verifying images were saved correctly...');
+          const verifyDoc = await getDoc(doc(db, 'listings', listingId));
+          if (verifyDoc.exists()) {
+            const savedData = verifyDoc.data();
+            console.log('✅ Verification: images array length =', savedData.images?.length || 0);
+            console.log('✅ Verification: coverImage =', savedData.coverImage ? 'SET' : 'EMPTY');
+            if (savedData.images?.length !== imageUrls.length) {
+              console.error('❌ WARNING: Saved images count does not match uploaded count!');
+              console.error('   Expected:', imageUrls.length, 'Got:', savedData.images?.length);
+            }
+          }
         } catch (error) {
           console.error('❌ Firestore updateDoc failed:', error.message);
           throw new Error(`Failed to update listing with media: ${error.message}`);
@@ -489,8 +509,8 @@ export default function CreateListingScreen({ navigation }) {
             onPress: () => {
               // Reset form
               resetForm();
-              // Navigate to MyListings
-              navigation.navigate('MyListings');
+              // Navigate to MyListings with timestamp to force refetch
+              navigation.navigate('MyListings', { refresh: Date.now() });
             },
           },
         ]

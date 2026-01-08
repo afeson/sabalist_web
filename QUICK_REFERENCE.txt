@@ -1,0 +1,70 @@
+================================================================================
+FIREBASE STORAGE CORS FIX - QUICK REFERENCE
+================================================================================
+
+CURRENT STATUS:
+- Script is running and waiting for Google authentication
+- Browser should have opened for sign-in
+- After you sign in, CORS will be applied automatically
+
+================================================================================
+WHAT TO DO NEXT (After script completes):
+================================================================================
+
+1. ADD FIREBASE AUTHORIZED DOMAINS (2 minutes)
+   URL: https://console.firebase.google.com/project/sabalist/authentication/settings
+
+   Click "Add domain" and add these 3 domains:
+   ✓ sabalist.com
+   ✓ www.sabalist.com
+   ✓ afrilist-mvp.vercel.app
+
+2. ADD VERCEL ENVIRONMENT VARIABLES (5 minutes)
+   URL: https://vercel.com/team_RAjA5rDelmgg6P6vDbgFuZDS/afrilist-mvp/settings/environment-variables
+
+   Click "Add New" for each variable (check Production, Preview, Development):
+
+   ✓ EXPO_PUBLIC_FIREBASE_API_KEY = AIzaSyBTy0WJrU9YCCBzlseDjpbhu9RGYvyQ7sk
+   ✓ EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN = sabalist.firebaseapp.com
+   ✓ EXPO_PUBLIC_FIREBASE_PROJECT_ID = sabalist
+   ✓ EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET = sabalist.firebasestorage.app
+   ✓ EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = 231273918004
+   ✓ EXPO_PUBLIC_FIREBASE_APP_ID = 1:231273918004:web:0020dcc14b7f52e3356461
+   ✓ EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID = G-LGGRMQBGSD
+
+3. REDEPLOY ON VERCEL
+   - Go to Deployments tab
+   - Click "..." on latest deployment
+   - Click "Redeploy"
+   - Wait ~2 minutes
+
+4. WAIT 2-3 MINUTES for CORS to propagate
+
+5. TEST CREATE LISTING
+   - Go to https://sabalist.com
+   - Press F12 (DevTools)
+   - Try creating a listing with images
+   - Watch Network tab for "200 OK" on firebasestorage.googleapis.com requests
+
+================================================================================
+EXPECTED RESULT:
+================================================================================
+
+✓ No CORS errors in console
+✓ Image uploads succeed
+✓ Create Listing completes in <30 seconds
+✓ Listings appear on homepage with images
+
+================================================================================
+IF STILL NOT WORKING:
+================================================================================
+
+1. Hard refresh browser (Ctrl+Shift+R)
+2. Check console for specific error messages
+3. Verify CORS was applied:
+   https://console.cloud.google.com/storage/browser
+   Click bucket → Configuration tab → Check CORS
+
+4. Read MANUAL_CORS_FIX.md for detailed troubleshooting
+
+================================================================================

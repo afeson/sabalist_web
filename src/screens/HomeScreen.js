@@ -67,8 +67,9 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      console.log('🔄 HomeScreen focused - reloading listings');
       loadListings();
-    }, [selectedCategory, searchText])
+    }, [loadListings])
   );
 
   const onRefresh = () => {

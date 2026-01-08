@@ -1,38 +1,12 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import { createContext, useState, useEffect, useContext } from 'react';
 import { Platform } from 'react-native';
 
-// Platform-specific Firebase imports with lazy loading
-let auth, onAuthStateChanged, signOut;
-let firebaseLoaded = false;
+// Direct imports for web (webpack will tree-shake native imports)
+import { auth as webAuth } from '../lib/firebase.web';
+import { onAuthStateChanged as webOnAuthStateChanged, signOut as webSignOut } from 'firebase/auth';
 
-const loadFirebase = () => {
-  if (firebaseLoaded) return true;
-
-  try {
-    console.log('🔥 AUTH_CONTEXT: Loading Firebase modules...');
-
-    if (Platform.OS === 'web') {
-      // Web: Use Firebase Web SDK
-      const { auth: webAuth } = require('../lib/firebase.web');
-      const firebaseAuth = require('firebase/auth');
-      auth = webAuth;
-      onAuthStateChanged = firebaseAuth.onAuthStateChanged;
-      signOut = firebaseAuth.signOut;
-    } else {
-      // Native: Use React Native Firebase
-      const { auth: nativeAuth } = require('../lib/firebase');
-      auth = nativeAuth;
-      // For native, auth is a module - we'll use auth().onAuthStateChanged
-    }
-
-    firebaseLoaded = true;
-    console.log('✅ AUTH_CONTEXT: Firebase modules loaded');
-    return true;
-  } catch (error) {
-    console.error('❌ AUTH_CONTEXT: Firebase load error:', error);
-    return false;
-  }
-};
+// We'll dynamically require native Firebase only on native platforms
+let nativeAuth;
 
 const AuthContext = createContext({});
 
@@ -58,66 +32,74 @@ export function AuthProvider({ children }) {
 
     const setupAuth = async () => {
       try {
-        console.log('AUTH_CONTEXT: Setting up auth listener');
-        console.log('AUTH_CONTEXT: Platform =', Platform.OS);
+        console.log('🔥 AUTH_CONTEXT: Setting up auth listener');
+        console.log('🔥 AUTH_CONTEXT: Platform =', Platform.OS);
 
-        // DEV-ONLY: Bypass authentication in development
-        // DISABLED FOR PRODUCTION - Only enable locally for testing
-        // Expo production builds set __DEV__ = false automatically
+        // DEV-ONLY: Bypass authentication in development (native only)
         if (__DEV__ && Platform.OS !== 'web') {
           console.log('🚀 DEV MODE: Bypassing authentication with fake user');
-          console.log('   Fake user:', DEV_USER.email);
-
-          // Simulate network delay
           await new Promise(resolve => setTimeout(resolve, 500));
 
           if (mounted) {
             setUser(DEV_USER);
             setLoading(false);
           }
-
           console.log('✅ DEV MODE: Fake user authenticated');
-          return; // Skip Firebase setup in dev mode
+          return;
         }
 
         // PRODUCTION: Normal Firebase auth flow
         console.log('🔒 PRODUCTION MODE: Using Firebase authentication');
 
-        // Load Firebase modules
-        const loaded = loadFirebase();
-        if (!loaded) {
-          throw new Error('Failed to load Firebase modules');
-        }
-
-        // Small delay to ensure Firebase is fully initialized on Android
-        if (Platform.OS === 'android') {
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
-
         if (!mounted) return;
 
-        // Set up auth listener
+        // Local flag to track if auth listener has resolved (Safari fix)
+        let resolved = false;
+
+        // Set up auth listener based on platform
         if (Platform.OS === 'web') {
-          // Web listener
-          unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+          console.log('🔥 AUTH_CONTEXT: Setting up WEB auth listener');
+          console.log('🔥 AUTH_CONTEXT: webAuth =', !!webAuth);
+          console.log('🔥 AUTH_CONTEXT: webOnAuthStateChanged =', !!webOnAuthStateChanged);
+
+          // Web listener - use direct imports
+          unsubscribe = webOnAuthStateChanged(webAuth, (currentUser) => {
             if (!mounted) return;
-            console.log('AUTH_CONTEXT: Web auth state changed');
-            console.log('AUTH_CONTEXT: User =', currentUser ? currentUser.email || currentUser.phoneNumber : 'NULL');
-            setUser(currentUser);
+            resolved = true;
+            console.log('✅ AUTH_CONTEXT: Web auth state changed');
+            console.log('   User =', currentUser ? currentUser.email || currentUser.uid : 'NULL');
+            setUser(currentUser ?? null);
             setLoading(false);
           });
         } else {
-          // Native listener
-          unsubscribe = auth().onAuthStateChanged((currentUser) => {
+          console.log('🔥 AUTH_CONTEXT: Setting up NATIVE auth listener');
+          // Native listener - dynamic require
+          if (!nativeAuth) {
+            nativeAuth = require('../lib/firebase').auth;
+          }
+          unsubscribe = nativeAuth().onAuthStateChanged((currentUser) => {
             if (!mounted) return;
-            console.log('AUTH_CONTEXT: Native auth state changed');
-            console.log('AUTH_CONTEXT: User =', currentUser ? currentUser.email || currentUser.phoneNumber : 'NULL');
-            setUser(currentUser);
+            resolved = true;
+            console.log('✅ AUTH_CONTEXT: Native auth state changed');
+            console.log('   User =', currentUser ? currentUser.email || currentUser.uid : 'NULL');
+            setUser(currentUser ?? null);
             setLoading(false);
           });
         }
+
+        console.log('🔥 AUTH_CONTEXT: Auth listener registered, waiting for callback...');
+
+        // Safety timeout: If auth listener doesn't fire within 3 seconds, assume no user (Safari fix)
+        setTimeout(() => {
+          if (!resolved && mounted) {
+            console.warn('⚠️ AUTH_CONTEXT: Auth listener timeout - continuing without user (Safari fallback)');
+            setUser(null);
+            setLoading(false);
+          }
+        }, 3000);
       } catch (err) {
         console.error('❌ AUTH_CONTEXT: Setup error:', err);
+        console.error('❌ AUTH_CONTEXT: Error details:', err.message, err.stack);
         if (mounted) {
           setError(err.message);
           setLoading(false);
@@ -129,12 +111,12 @@ export function AuthProvider({ children }) {
 
     return () => {
       mounted = false;
-      console.log('AUTH_CONTEXT: Cleaning up listener');
+      console.log('🔥 AUTH_CONTEXT: Cleaning up listener');
       if (unsubscribe) {
         try {
           unsubscribe();
         } catch (err) {
-          console.error('AUTH_CONTEXT: Error cleaning up listener:', err);
+          console.error('❌ AUTH_CONTEXT: Error cleaning up listener:', err);
         }
       }
     };
@@ -142,11 +124,10 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     try {
-      console.log('LOGOUT: START');
-      console.log('LOGOUT: Platform =', Platform.OS);
+      console.log('🔥 LOGOUT: START');
+      console.log('🔥 LOGOUT: Platform =', Platform.OS);
 
-      // DEV-ONLY: Handle logout in dev mode
-      // DISABLED FOR PRODUCTION - Only enable locally for testing
+      // DEV-ONLY: Handle logout in dev mode (native only)
       if (__DEV__ && Platform.OS !== 'web') {
         console.log('🚀 DEV MODE: Simulating logout');
         setUser(null);
@@ -155,29 +136,27 @@ export function AuthProvider({ children }) {
       }
 
       // PRODUCTION: Normal Firebase logout
-      if (!firebaseLoaded) {
-        throw new Error('Firebase not loaded');
-      }
-
-      const currentUser = Platform.OS === 'web' ? auth.currentUser : auth().currentUser;
-      console.log('LOGOUT: User before =', currentUser?.email || currentUser?.phoneNumber || 'NONE');
-
       if (Platform.OS === 'web') {
-        await signOut(auth);
-        console.log('LOGOUT: Web signOut completed');
+        const currentUser = webAuth.currentUser;
+        console.log('🔥 LOGOUT: Web user before =', currentUser?.email || 'NONE');
+
+        await webSignOut(webAuth);
+        console.log('✅ LOGOUT: Web signOut completed');
       } else {
-        await auth().signOut();
-        console.log('LOGOUT: Native signOut completed');
+        if (!nativeAuth) {
+          nativeAuth = require('../lib/firebase').auth;
+        }
+        const currentUser = nativeAuth().currentUser;
+        console.log('🔥 LOGOUT: Native user before =', currentUser?.email || 'NONE');
+
+        await nativeAuth().signOut();
+        console.log('✅ LOGOUT: Native signOut completed');
       }
 
-      const afterUser = Platform.OS === 'web' ? auth.currentUser : auth().currentUser;
-      console.log('LOGOUT: User after =', afterUser?.email || afterUser?.phoneNumber || 'NONE');
-      console.log('LOGOUT: DONE - auth listener will update user state');
-
-      // User state will be updated by onAuthStateChanged listener
+      console.log('✅ LOGOUT: DONE - auth listener will update user state');
       return true;
     } catch (err) {
-      console.error('LOGOUT: ERROR', err);
+      console.error('❌ LOGOUT: ERROR', err);
       throw err;
     }
   };

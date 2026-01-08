@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Firestore Test</title>
+</head>
+<body>
+    <h1>Testing Firestore Connection</h1>
+    <div id="result"></div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBTy0WJrU9YCCBzlseDjpbhu9RGYvyQ7sk",
+            authDomain: "sabalist.firebaseapp.com",
+            projectId: "sabalist",
+            storageBucket: "sabalist.firebasestorage.app",
+            messagingSenderId: "231273918004",
+            appId: "1:231273918004:web:0020dcc14b7f52e3356461"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        const result = document.getElementById('result');
+        result.innerHTML = 'Initializing...';
+
+        try {
+            // Sign in anonymously
+            result.innerHTML += '<br>Signing in anonymously...';
+            await signInAnonymously(auth);
+            result.innerHTML += '<br>✅ Signed in: ' + auth.currentUser.uid;
+
+            // Try to create a test document
+            result.innerHTML += '<br>Creating test document...';
+            const testData = {
+                title: 'Test Listing',
+                category: 'Electronics',
+                price: 100,
+                userId: auth.currentUser.uid,
+                status: 'active',
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+                images: [],
+                coverImage: '',
+                videoUrl: '',
+                views: 0,
+                description: 'Test',
+                location: 'Test',
+                phoneNumber: '+254712345678',
+                subcategory: '',
+                currency: 'USD'
+            };
+
+            console.log('Sending to Firestore:', testData);
+            const docRef = await addDoc(collection(db, 'listings'), testData);
+            result.innerHTML += '<br>✅ SUCCESS! Document created: ' + docRef.id;
+            console.log('✅ Document created:', docRef.id);
+        } catch (error) {
+            result.innerHTML += '<br>❌ ERROR: ' + error.message;
+            console.error('❌ Error:', error);
+        }
+    </script>
+</body>
+</html>

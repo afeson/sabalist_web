@@ -4,7 +4,7 @@
  */
 
 import { firestore, storage } from "../lib/firebase.web";
-import { collection, addDoc, updateDoc, doc, serverTimestamp, getDoc, query, where, getDocs, orderBy, limit as firestoreLimit, deleteDoc, increment } from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc, serverTimestamp, query, where, orderBy, limit as firestoreLimit, deleteDoc, increment, getDocsFromServer, getDocFromServer } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 
 /**
@@ -239,7 +239,11 @@ export async function fetchListings(categoryFilter = null, limitCount = 20) {
       );
     }
 
-    const snapshot = await getDocs(q);
+    // Force fetch from server to bypass cache and get latest data
+    console.log('📡 Fetching listings from server (bypassing cache)...');
+    const snapshot = await getDocsFromServer(q);
+    console.log('✅ Fetched', snapshot.docs.length, 'listings from server');
+
     const listings = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
@@ -262,10 +266,15 @@ export async function fetchListings(categoryFilter = null, limitCount = 20) {
  */
 export async function getListingById(listingId) {
   try {
-    const docSnap = await getDoc(doc(firestore, "listings", listingId));
+    // Force fetch from server to get latest data (important for images!)
+    console.log('📡 Fetching listing from server, ID:', listingId);
+    const docSnap = await getDocFromServer(doc(firestore, "listings", listingId));
+    console.log('✅ Fetched listing, has images:', docSnap.exists() && docSnap.data().images?.length > 0);
 
     if (docSnap.exists()) {
-      return { id: docSnap.id, ...docSnap.data() };
+      const data = docSnap.data();
+      console.log('✅ Listing images count:', data.images?.length || 0);
+      return { id: docSnap.id, ...data };
     } else {
       throw new Error("Listing not found");
     }
@@ -286,7 +295,11 @@ export async function getUserListings(userId) {
       orderBy("createdAt", "desc")
     );
 
-    const snapshot = await getDocs(q);
+    // Force fetch from server to get latest data
+    console.log('📡 Fetching user listings from server for userId:', userId);
+    const snapshot = await getDocsFromServer(q);
+    console.log('✅ Fetched', snapshot.docs.length, 'user listings from server');
+
     const listings = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()

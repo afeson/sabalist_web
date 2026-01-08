@@ -1,0 +1,10 @@
+{
+  "authorizedDomains": [
+    "localhost",
+    "sabalist.firebaseapp.com",
+    "sabalist.web.app",
+    "sabalist.com",
+    "www.sabalist.com",
+    "afrilist-mvp.vercel.app"
+  ]
+}

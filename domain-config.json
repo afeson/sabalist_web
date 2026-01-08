@@ -1,0 +1,10 @@
+[
+  {
+    "prefix": "",
+    "branchName": "main"
+  },
+  {
+    "prefix": "www",
+    "branchName": "main"
+  }
+]

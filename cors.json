@@ -1,0 +1,17 @@
+[
+  {
+    "origin": [
+      "https://sabalist.com",
+      "https://www.sabalist.com",
+      "https://afrilist-mvp.vercel.app",
+      "https://afrilist-mvp-git-master-afesons-projects.vercel.app",
+      "https://afrilist-p0k3ughwg-afesons-projects.vercel.app",
+      "https://*.vercel.app",
+      "http://localhost:19006",
+      "http://localhost:8081"
+    ],
+    "method": ["GET", "HEAD", "PUT", "POST", "DELETE"],
+    "responseHeader": ["Content-Type", "Access-Control-Allow-Origin"],
+    "maxAgeSeconds": 3600
+  }
+]

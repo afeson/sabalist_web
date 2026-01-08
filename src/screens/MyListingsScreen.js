@@ -33,7 +33,7 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { ListingCard } from '../components/ui';
 import AppHeader from '../components/AppHeader';
 
-export default function MyListingsScreen({ navigation }) {
+export default function MyListingsScreen({ navigation, route }) {
   const { t } = useTranslation();
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -61,11 +61,19 @@ export default function MyListingsScreen({ navigation }) {
     }
   }, []);
 
+  // Refetch when screen focused
   useFocusEffect(
     useCallback(() => {
       loadMyListings();
     }, [])
   );
+
+  // Refetch when route params change (e.g., after creating new listing)
+  React.useEffect(() => {
+    if (route?.params?.refresh) {
+      loadMyListings();
+    }
+  }, [route?.params?.refresh]);
 
   const onRefresh = () => {
     setRefreshing(true);

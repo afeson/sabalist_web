@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>App Firebase Pattern Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        .log { margin: 5px 0; padding: 8px; background: #111; border-left: 4px solid #0f0; }
+        .error { border-left-color: #f00; color: #f00; }
+        .success { border-left-color: #0f0; color: #0f0; font-weight: bold; }
+        .info { border-left-color: #fa0; color: #fa0; }
+        .warn { border-left-color: #ff0; color: #ff0; }
+        h1 { color: #0ff; }
+        pre { background: #222; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔥 Testing App's Exact Firebase Pattern</h1>
+    <p>This mimics the exact imports and pattern used in CreateListingScreen.js</p>
+    <div id="output"></div>
+
+    <script type="module">
+        const output = document.getElementById('output');
+        let stepCount = 0;
+
+        function log(msg, type = 'info') {
+            stepCount++;
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            const time = new Date().toLocaleTimeString();
+            div.innerHTML = `<strong>[${stepCount}] ${time}</strong> ${msg}`;
+            output.appendChild(div);
+            console.log(`[${stepCount}] ${msg}`);
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+
+        async function testFirestore() {
+            try {
+                log('═══════════════════════════════════════', 'info');
+                log('STEP 1: Import Firebase modules (exactly like CreateListingScreen)', 'info');
+                log('═══════════════════════════════════════', 'info');
+
+                // Same imports as CreateListingScreen.js
+                const { initializeApp, getApps } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
+                const { getAuth, signInAnonymously } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+                const { getFirestore, collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+                const { getStorage } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js');
+
+                log('✓ All Firebase modules imported successfully', 'success');
+
+                log('═══════════════════════════════════════', 'info');
+                log('STEP 2: Initialize Firebase (same config as app)', 'info');
+                log('═══════════════════════════════════════', 'info');
+
+                const firebaseConfig = {
+                    apiKey: "AIzaSyBTy0WJrU9YCCBzlseDjpbhu9RGYvyQ7sk",
+                    authDomain: "sabalist.firebaseapp.com",
+                    projectId: "sabalist",
+                    storageBucket: "sabalist.firebasestorage.app",
+                    messagingSenderId: "231273918004",
+                    appId: "1:231273918004:web:0020dcc14b7f52e3356461"
+                };
+
+                const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+                log('✓ Firebase app initialized', 'success');
+                log(`  - Project ID: ${firebaseConfig.projectId}`, 'info');
+
+                log('═══════════════════════════════════════', 'info');
+                log('STEP 3: Get Firebase instances (exactly like app code)', 'info');
+                log('═══════════════════════════════════════', 'info');
+
+                const db = getFirestore();
+                const auth = getAuth();
+                const storage = getStorage();
+
+                log('✓ Got Firestore instance', 'success');
+                log(`  - Type: ${db.type}`, 'info');
+                log(`  - Constructor: ${db.constructor.name}`, 'info');
+
+                log('✓ Got Auth instance', 'success');
+                log('✓ Got Storage instance', 'success');
+
+                log('═══════════════════════════════════════', 'info');
+                log('STEP 4: Authenticate (sign in anonymously)', 'info');
+                log('═══════════════════════════════════════', 'info');
+
+                const userCred = await signInAnonymously(auth);
+                log('✓ Authentication successful', 'success');
+                log(`  - User ID: ${userCred.user.uid}`, 'info');
+
+                log('═══════════════════════════════════════', 'warn');
+                log('STEP 5: TEST 1 - Minimal document (like app does)', 'warn');
+                log('═══════════════════════════════════════', 'warn');
+
+                const minimalData = {
+                    test: 'minimal test from direct HTML',
+                    userId: userCred.user.uid,
+                    createdAt: serverTimestamp(),
+                };
+
+                log(`Calling: addDoc(collection(db, 'listings'), {...})`, 'info');
+                log(`Data: <pre>${JSON.stringify(minimalData, null, 2)}</pre>`, 'info');
+
+                const start1 = performance.now();
+                log(`⏱️ Starting addDoc... (timestamp: ${start1})`, 'warn');
+
+                const docRef1 = await addDoc(collection(db, 'listings'), minimalData);
+
+                const elapsed1 = performance.now() - start1;
+                log(`✅ SUCCESS! Minimal document created in ${elapsed1.toFixed(0)}ms`, 'success');
+                log(`  - Document ID: ${docRef1.id}`, 'success');
+                log(`  - Full path: listings/${docRef1.id}`, 'info');
+
+                log('═══════════════════════════════════════', 'warn');
+                log('STEP 6: TEST 2 - Full listing data (exact structure)', 'warn');
+                log('═══════════════════════════════════════', 'warn');
+
+                const fullListingData = {
+                    title: 'HTML Test Listing',
+                    description: 'Testing from standalone HTML',
+                    price: 999,
+                    category: 'Electronics',
+                    subcategory: 'Phones',
+                    location: 'Nairobi, Kenya',
+                    phoneNumber: '+254700000000',
+                    currency: 'USD',
+                    userId: userCred.user.uid,
+                    status: 'active',
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                    images: [],
+                    coverImage: '',
+                    videoUrl: '',
+                    views: 0,
+                };
+
+                log(`Calling: addDoc(collection(db, 'listings'), {...})`, 'info');
+                log(`Data: <pre>${JSON.stringify(fullListingData, null, 2)}</pre>`, 'info');
+
+                const start2 = performance.now();
+                log(`⏱️ Starting addDoc... (timestamp: ${start2})`, 'warn');
+
+                const docRef2 = await addDoc(collection(db, 'listings'), fullListingData);
+
+                const elapsed2 = performance.now() - start2;
+                log(`✅ SUCCESS! Full listing created in ${elapsed2.toFixed(0)}ms`, 'success');
+                log(`  - Document ID: ${docRef2.id}`, 'success');
+                log(`  - Full path: listings/${docRef2.id}`, 'info');
+
+                log('═══════════════════════════════════════', 'success');
+                log('🎉 ALL TESTS PASSED! Firestore is working correctly!', 'success');
+                log('═══════════════════════════════════════', 'success');
+
+                log('', 'info');
+                log('📊 CONCLUSION:', 'warn');
+                log('If this works but the app doesn\'t, the issue is:', 'warn');
+                log('1. Build process not including correct code', 'warn');
+                log('2. React Native Web bundling issue', 'warn');
+                log('3. Environment variable problem', 'warn');
+                log('4. Code path in app is different than expected', 'warn');
+
+            } catch (error) {
+                log('═══════════════════════════════════════', 'error');
+                log(`❌ ERROR OCCURRED: ${error.message}`, 'error');
+                log('═══════════════════════════════════════', 'error');
+                log(`Error name: ${error.name}`, 'error');
+                log(`Error code: ${error.code || 'N/A'}`, 'error');
+                log(`<pre>${error.stack}</pre>`, 'error');
+                console.error('Full error object:', error);
+
+                log('', 'info');
+                log('🔍 DEBUGGING INFO:', 'info');
+                log('Check browser Network tab for:', 'info');
+                log('- Firestore API calls (firestore.googleapis.com)', 'info');
+                log('- Response status codes', 'info');
+                log('- Request/response headers', 'info');
+                log('- CORS errors', 'info');
+            }
+        }
+
+        // Start the test
+        testFirestore();
+    </script>
+</body>
+</html>

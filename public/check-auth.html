@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auth State Check</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        .log { margin: 5px 0; padding: 8px; background: #111; border-left: 4px solid #0f0; }
+        .error { border-left-color: #f00; color: #f00; }
+        .success { border-left-color: #0f0; color: #0f0; font-weight: bold; }
+        .info { border-left-color: #fa0; color: #fa0; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Firebase Auth State Checker</h1>
+    <p>This checks if onAuthStateChanged fires properly</p>
+    <div id="output"></div>
+
+    <script type="module">
+        const output = document.getElementById('output');
+        let logCount = 0;
+
+        function log(msg, type = 'info') {
+            logCount++;
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.textContent = `[${logCount}] ${new Date().toLocaleTimeString()} - ${msg}`;
+            output.appendChild(div);
+            console.log(msg);
+        }
+
+        try {
+            log('Importing Firebase modules...', 'info');
+
+            const { initializeApp, getApps } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
+            const { getAuth, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+
+            log('✓ Modules imported', 'success');
+
+            const firebaseConfig = {
+                apiKey: "AIzaSyBTy0WJrU9YCCBzlseDjpbhu9RGYvyQ7sk",
+                authDomain: "sabalist.firebaseapp.com",
+                projectId: "sabalist",
+                storageBucket: "sabalist.firebasestorage.app",
+                messagingSenderId: "231273918004",
+                appId: "1:231273918004:web:0020dcc14b7f52e3356461"
+            };
+
+            log('Initializing Firebase...', 'info');
+            const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+            log('✓ Firebase initialized', 'success');
+
+            log('Getting auth instance...', 'info');
+            const auth = getAuth(app);
+            log('✓ Auth instance obtained', 'success');
+
+            log('Setting up onAuthStateChanged listener...', 'info');
+
+            let resolved = false;
+            const startTime = Date.now();
+
+            onAuthStateChanged(auth, (user) => {
+                resolved = true;
+                const elapsed = Date.now() - startTime;
+                log(`✅ onAuthStateChanged FIRED! (${elapsed}ms)`, 'success');
+                log(`User: ${user ? user.email || user.uid : 'NULL (not signed in)'}`, user ? 'success' : 'info');
+
+                if (!user) {
+                    log('No user logged in - you need to sign in first', 'info');
+                    log('This is the expected behavior when not logged in', 'success');
+                }
+            });
+
+            log('Listener set up. Waiting for callback...', 'info');
+
+            // Safety timeout
+            setTimeout(() => {
+                if (!resolved) {
+                    const elapsed = Date.now() - startTime;
+                    log(`❌ TIMEOUT: onAuthStateChanged did NOT fire after ${elapsed}ms`, 'error');
+                    log('This indicates a Firebase Auth initialization problem', 'error');
+                } else {
+                    log('✅ Test completed successfully!', 'success');
+                }
+            }, 5000);
+
+        } catch (error) {
+            log(`❌ ERROR: ${error.message}`, 'error');
+            console.error(error);
+        }
+    </script>
+</body>
+</html>
