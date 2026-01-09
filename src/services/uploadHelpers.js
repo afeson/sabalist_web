@@ -1,12 +1,12 @@
 /**
  * Platform-specific image upload helpers
  * Handles Blob conversion for web, native file URIs for mobile
- * VERSION: 3.0.0 - DIRECT SDK FIX (bypasses factory, uses dynamic import)
+ * VERSION: 4.0.0 - EMERGENCY CACHE BUST (Jan 9, 2026 - 7:30 PM)
  */
 
 import { Platform } from 'react-native';
 
-console.log('🚀 uploadHelpers.js VERSION 3.0.0 - DIRECT SDK FIX loaded');
+console.log('🚀🚀🚀 uploadHelpers.js VERSION 4.0.0 - EMERGENCY FIX 🚀🚀🚀');
 
 /**
  * Upload image - platform-aware
