@@ -2,9 +2,12 @@
  * Platform-aware Firebase factory
  * NO static imports - all runtime resolution
  * Ensures Firebase instances are properly initialized on both web and native
+ * VERSION: 2.0.0 - CACHE BUSTED
  */
 
 import { Platform } from 'react-native';
+
+console.log('🚀 firebaseFactory.js VERSION 2.0.0 loaded');
 
 let firebaseCache = null;
 
@@ -13,9 +16,8 @@ let firebaseCache = null;
  * Called at RUNTIME, not module load time
  */
 export function getFirebase() {
-  // TEMPORARY: Always rebuild cache to ensure latest version during development
-  // Remove this in production
-  if (firebaseCache && process.env.NODE_ENV === 'production') {
+  // Return cached instance if already initialized
+  if (firebaseCache) {
     return firebaseCache;
   }
 

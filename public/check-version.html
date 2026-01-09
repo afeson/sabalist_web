@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Check App Version</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    h1 { color: #333; }
+    .info {
+      background: #d1ecf1;
+      color: #0c5460;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 15px 0;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 15px 0;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 15px 0;
+    }
+    code {
+      background: #f5f5f5;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Version Check</h1>
+    <p>This page checks which version of the app JavaScript is loaded.</p>
+
+    <div class="info">
+      <strong>Expected version: 3.0.0</strong><br>
+      The console should show: <code>🚀🚀🚀 APP.JS VERSION 3.0.0 LOADED - IMAGE UPLOAD FIX 🚀🚀🚀</code>
+    </div>
+
+    <div id="result">Checking...</div>
+
+    <div class="info">
+      <strong>Instructions:</strong><br>
+      1. Open browser console (F12)<br>
+      2. Look for version messages<br>
+      3. If you see VERSION 3.0.0 → cache is cleared ✅<br>
+      4. If you don't see it → cache is still active ❌
+    </div>
+
+    <div class="info">
+      <strong>Current bundle being loaded:</strong><br>
+      Check the Network tab in DevTools.<br>
+      You should see: <code>main.19642b1b.js</code>
+    </div>
+  </div>
+
+  <script>
+    console.log('🔍 VERSION CHECK PAGE LOADED');
+    console.log('🔍 Current timestamp:', new Date().toISOString());
+    console.log('🔍 Current URL:', window.location.href);
+
+    // Check if running in iframe (main app)
+    if (window.parent !== window) {
+      console.log('🔍 Running inside main app iframe');
+    } else {
+      console.log('🔍 Running as standalone page');
+    }
+
+    setTimeout(() => {
+      const resultDiv = document.getElementById('result');
+      resultDiv.innerHTML = `
+        <div class="info">
+          <strong>Check the console now!</strong><br>
+          Look for messages starting with 🚀<br><br>
+          <strong>What to look for:</strong><br>
+          ✅ Good: <code>🚀🚀🚀 APP.JS VERSION 3.0.0 LOADED</code><br>
+          ✅ Good: <code>🚀 firebaseFactory.js VERSION 2.0.0 loaded</code><br>
+          ✅ Good: <code>🚀 uploadHelpers.js VERSION 2.0.0 loaded</code><br>
+          <br>
+          ❌ Bad: None of the above appear<br>
+          <br>
+          If you don't see version messages, your browser is loading cached code.
+        </div>
+      `;
+    }, 1000);
+  </script>
+</body>
+</html>

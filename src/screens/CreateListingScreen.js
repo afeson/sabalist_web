@@ -30,6 +30,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { useTranslation } from 'react-i18next';
 
+// Image upload helper with direct Firebase SDK import (v3.0.0 fix)
 import { uploadImage, withTimeout } from '../services/uploadHelpers';
 import { useAuth } from '../contexts/AuthContext';
 import { getFirestore, collection, addDoc, updateDoc, doc, getDoc } from 'firebase/firestore';

@@ -10,6 +10,24 @@ import AuthScreen from './src/screens/AuthScreen';
 import MainTabNavigator from './src/navigation/MainTabNavigator';
 import { COLORS } from './src/theme';
 
+// VERSION STAMP - MUST APPEAR IN CONSOLE
+console.log('🚀🚀🚀 APP.JS VERSION 4.0.0 LOADED - IMAGE UPLOAD FIX 🚀🚀🚀');
+console.log('🚀 If you see this, cache is cleared and new code is running');
+console.log('🚀 Build timestamp:', new Date().toISOString());
+
+// FORCE VISIBLE INDICATOR
+if (typeof window !== 'undefined') {
+  // Add visible banner at top of page
+  setTimeout(() => {
+    const banner = document.createElement('div');
+    banner.id = 'version-banner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#00ff00;color:#000;text-align:center;padding:10px;font-weight:bold;z-index:999999;font-size:14px;';
+    banner.textContent = '✅ VERSION 4.0.0 LOADED - IMAGE UPLOAD FIXED';
+    document.body.appendChild(banner);
+    console.log('✅ Version banner added to page');
+  }, 1000);
+}
+
 // Lazy load i18n to prevent startup crash
 let i18nInitialized = false;
 const initializeI18n = async () => {

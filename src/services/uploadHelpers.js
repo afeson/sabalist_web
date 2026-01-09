@@ -1,10 +1,12 @@
 /**
  * Platform-specific image upload helpers
  * Handles Blob conversion for web, native file URIs for mobile
+ * VERSION: 3.0.0 - DIRECT SDK FIX (bypasses factory, uses dynamic import)
  */
 
 import { Platform } from 'react-native';
-import { getFirebase } from '../lib/firebaseFactory';
+
+console.log('🚀 uploadHelpers.js VERSION 3.0.0 - DIRECT SDK FIX loaded');
 
 /**
  * Upload image - platform-aware
@@ -59,21 +61,26 @@ async function uploadImageWeb(dataURL, listingId, index, startTime) {
     throw new Error(`Failed to convert image ${index + 1} to Blob: ${error.message}`);
   }
 
-  // Upload to Firebase Storage
-  const fb = getFirebase();
-
-  // Debug: Check what's in fb
-  console.log(`🔍 [${index + 1}] Firebase object keys:`, Object.keys(fb));
-  console.log(`🔍 [${index + 1}] fb.storage:`, typeof fb.storage, !!fb.storage);
-  console.log(`🔍 [${index + 1}] fb.ref:`, typeof fb.ref, !!fb.ref);
-
+  // Upload to Firebase Storage - Direct SDK import to bypass factory caching issues
   const storagePath = `listings/${listingId}/image-${index}-${Date.now()}.jpg`;
-  const storageRef = fb.ref(fb.storage, storagePath);
+  console.log(`🔍 [${index + 1}] Creating storage ref for: ${storagePath}`);
+
+  // Import Firebase Storage functions directly to avoid factory issues
+  const { getStorage, ref: storageRef, uploadBytes: upload, getDownloadURL: getURL } = await import('firebase/storage');
+  const { getApps } = await import('firebase/app');
+
+  const apps = getApps();
+  if (apps.length === 0) {
+    throw new Error('Firebase app not initialized');
+  }
+  const storage = getStorage(apps[0]);
+  const fileRef = storageRef(storage, storagePath);
+  console.log(`🔍 [${index + 1}] Storage ref created:`, !!fileRef);
 
   console.log(`📤 [${index + 1}] Uploading to Storage: ${storagePath}`);
 
   try {
-    const uploadResult = await fb.uploadBytes(storageRef, blob);
+    const uploadResult = await upload(fileRef, blob);
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log(`✅ [${index + 1}] Upload complete in ${elapsed}s, size: ${uploadResult.metadata.size} bytes`);
   } catch (error) {
@@ -84,7 +91,7 @@ async function uploadImageWeb(dataURL, listingId, index, startTime) {
   // Get download URL
   let downloadURL;
   try {
-    downloadURL = await fb.getDownloadURL(storageRef);
+    downloadURL = await getURL(fileRef);
     console.log(`✅ [${index + 1}] Download URL obtained: ${downloadURL.substring(0, 60)}...`);
   } catch (error) {
     console.error(`❌ [${index + 1}] getDownloadURL failed:`, error.message);
