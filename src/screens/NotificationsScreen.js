@@ -59,7 +59,28 @@ export default function NotificationsScreen({ navigation }) {
         console.log('✅ Settings loaded:', loadedSettings);
         setSettings(loadedSettings);
       } else {
-        console.log('ℹ️ User document does not exist, using defaults');
+        console.log('ℹ️ User document does not exist, creating with defaults');
+        // Create user document with default settings
+        const defaultSettings = {
+          emailNotifications: false,
+          pushNotifications: false,
+          messageNotifications: false,
+          listingUpdates: false,
+          createdAt: fb.serverTimestamp(),
+          updatedAt: fb.serverTimestamp()
+        };
+        try {
+          await fb.updateDoc(docRef, defaultSettings);
+          console.log('✅ User document created with defaults');
+          setSettings({
+            emailNotifications: false,
+            pushNotifications: false,
+            messageNotifications: false,
+            listingUpdates: false
+          });
+        } catch (err) {
+          console.warn('⚠️ Could not create user document (may need setDoc):', err.message);
+        }
       }
     } catch (error) {
       console.error('❌ Error loading notification settings:', error);

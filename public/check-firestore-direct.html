@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Direct Firestore Check</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    h1 { color: #333; }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      margin: 10px 5px;
+    }
+    button:hover { background: #0056b3; }
+    .listing {
+      border: 2px solid #e0e0e0;
+      padding: 20px;
+      margin: 15px 0;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+    .listing h3 { color: #007bff; margin-bottom: 12px; }
+    .info { margin: 8px 0; color: #555; font-size: 14px; }
+    .info strong { color: #333; }
+    .images {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .images img {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+    }
+    .images img.error {
+      border-color: #dc3545;
+      border-width: 3px;
+    }
+    .count {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 13px;
+      margin-left: 8px;
+    }
+    .count.good { background: #28a745; color: white; }
+    .count.bad { background: #dc3545; color: white; }
+    .count.ok { background: #ffc107; color: #000; }
+    pre {
+      background: #f5f5f5;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 11px;
+      max-height: 300px;
+    }
+    .error { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 6px; margin: 15px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Firestore Database Check</h1>
+    <p style="color: #666; margin-bottom: 20px;">Direct query to check listings in database</p>
+
+    <button onclick="checkAll()">📊 Check All Listings</button>
+    <button onclick="checkRecent()">🕐 Check Recent (Last 10)</button>
+    <button onclick="checkWithImages()">🖼️ Check Listings With Images</button>
+
+    <div id="output"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getFirestore, collection, query, orderBy, limit, getDocs, where } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBwvEh8cW_tI0FWXbLY0Sd7QIUX8jNhp94",
+      authDomain: "sabalist-afeson.firebaseapp.com",
+      projectId: "sabalist-afeson",
+      storageBucket: "sabalist-afeson.firebasestorage.app",
+      messagingSenderId: "539257649722",
+      appId: "1:539257649722:web:5e916bdb7cb5da46f74936",
+      measurementId: "G-4GD70C41YZ"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function renderListings(listings, title) {
+      const output = document.getElementById('output');
+
+      if (listings.length === 0) {
+        output.innerHTML = `
+          <div class="error">
+            <strong>❌ ${title}</strong><br>
+            No listings found in the database.
+          </div>
+        `;
+        return;
+      }
+
+      let html = `<h2>${title}: ${listings.length} listing(s)</h2>`;
+
+      listings.forEach((listing, idx) => {
+        const imageCount = listing.images?.length || 0;
+        const countClass = imageCount === 0 ? 'bad' : imageCount >= 3 ? 'good' : 'ok';
+
+        html += `
+          <div class="listing">
+            <h3>${idx + 1}. ${listing.title || 'Untitled'}</h3>
+            <div class="info"><strong>ID:</strong> ${listing.id}</div>
+            <div class="info">
+              <strong>Images:</strong>
+              <span class="count ${countClass}">${imageCount}</span>
+            </div>
+            <div class="info"><strong>Cover Image:</strong> ${listing.coverImage ? '✅ Set' : '❌ Not Set'}</div>
+            <div class="info"><strong>Category:</strong> ${listing.category || 'N/A'}</div>
+            <div class="info"><strong>Price:</strong> ${listing.price || 'N/A'}</div>
+            <div class="info"><strong>Status:</strong> ${listing.status || 'active'}</div>
+            <div class="info"><strong>User ID:</strong> ${listing.userId || 'N/A'}</div>
+            <div class="info"><strong>Created:</strong> ${listing.createdAt?.toDate?.()?.toLocaleString() || 'Unknown'}</div>
+
+            ${imageCount > 0 ? `
+              <details style="margin-top: 10px;">
+                <summary style="cursor: pointer; font-weight: 600;">📋 Image URLs (${imageCount})</summary>
+                <pre>${JSON.stringify(listing.images, null, 2)}</pre>
+              </details>
+              <div class="images">
+                ${listing.images.map((url, i) => `
+                  <img
+                    src="${url}"
+                    alt="Image ${i + 1}"
+                    onerror="this.classList.add('error'); this.alt='❌ Failed';"
+                  >
+                `).join('')}
+              </div>
+            ` : '<div class="info" style="color: #dc3545; margin-top: 10px;">⚠️ No images uploaded</div>'}
+
+            <details style="margin-top: 10px;">
+              <summary style="cursor: pointer; font-weight: 600;">🔍 Full Data</summary>
+              <pre>${JSON.stringify(listing, null, 2)}</pre>
+            </details>
+          </div>
+        `;
+      });
+
+      output.innerHTML = html;
+    }
+
+    window.checkAll = async function() {
+      const output = document.getElementById('output');
+      output.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">⏳ Loading all listings...</p>';
+
+      try {
+        const q = query(collection(db, 'listings'), orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
+
+        const listings = [];
+        snapshot.forEach(doc => {
+          listings.push({ id: doc.id, ...doc.data() });
+        });
+
+        renderListings(listings, '📊 All Listings');
+      } catch (error) {
+        output.innerHTML = `
+          <div class="error">
+            <strong>❌ Error loading listings</strong><br>
+            ${error.message}<br>
+            <small>${error.code || 'Unknown error'}</small>
+          </div>
+        `;
+        console.error('Error:', error);
+      }
+    };
+
+    window.checkRecent = async function() {
+      const output = document.getElementById('output');
+      output.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">⏳ Loading recent listings...</p>';
+
+      try {
+        const q = query(
+          collection(db, 'listings'),
+          orderBy('createdAt', 'desc'),
+          limit(10)
+        );
+        const snapshot = await getDocs(q);
+
+        const listings = [];
+        snapshot.forEach(doc => {
+          listings.push({ id: doc.id, ...doc.data() });
+        });
+
+        renderListings(listings, '🕐 Recent Listings (Last 10)');
+      } catch (error) {
+        output.innerHTML = `
+          <div class="error">
+            <strong>❌ Error loading recent listings</strong><br>
+            ${error.message}<br>
+            <small>${error.code || 'Unknown error'}</small>
+          </div>
+        `;
+        console.error('Error:', error);
+      }
+    };
+
+    window.checkWithImages = async function() {
+      const output = document.getElementById('output');
+      output.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">⏳ Loading listings with images...</p>';
+
+      try {
+        // First get all, then filter (Firestore doesn't support array-length queries)
+        const q = query(collection(db, 'listings'), orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
+
+        const listings = [];
+        snapshot.forEach(doc => {
+          const data = { id: doc.id, ...doc.data() };
+          if (data.images && data.images.length > 0) {
+            listings.push(data);
+          }
+        });
+
+        renderListings(listings, '🖼️ Listings With Images');
+      } catch (error) {
+        output.innerHTML = `
+          <div class="error">
+            <strong>❌ Error loading listings with images</strong><br>
+            ${error.message}<br>
+            <small>${error.code || 'Unknown error'}</small>
+          </div>
+        `;
+        console.error('Error:', error);
+      }
+    };
+
+    // Auto-load recent on page load
+    window.addEventListener('load', () => {
+      checkRecent();
+    });
+  </script>
+</body>
+</html>

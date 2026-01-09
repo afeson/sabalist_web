@@ -91,6 +91,18 @@ export default function MyListingsScreen({ navigation, route }) {
     };
   }, []); // Empty deps - only set up once
 
+  // Force refetch when screen receives focus with refresh parameter
+  useFocusEffect(
+    React.useCallback(() => {
+      if (route.params?.refresh) {
+        console.log('🔄 Refresh param detected, forcing reload:', route.params.refresh);
+        loadMyListings();
+        // Clear the param so it doesn't refetch on every focus
+        navigation.setParams({ refresh: undefined });
+      }
+    }, [route.params?.refresh])
+  );
+
   const onRefresh = () => {
     setRefreshing(true);
     loadMyListings();

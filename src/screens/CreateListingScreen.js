@@ -509,8 +509,11 @@ export default function CreateListingScreen({ navigation }) {
             onPress: () => {
               // Reset form
               resetForm();
-              // Navigate to MyListings with timestamp to force refetch
-              navigation.navigate('MyListings', { refresh: Date.now() });
+              // Navigate to Home first, then MyListings to ensure both screens refresh
+              navigation.navigate('Home');
+              setTimeout(() => {
+                navigation.navigate('MyListings', { refresh: Date.now() });
+              }, 100);
             },
           },
         ]
