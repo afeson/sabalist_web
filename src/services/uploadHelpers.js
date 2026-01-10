@@ -1,14 +1,19 @@
 /**
  * Platform-specific image upload helpers
- * Handles Blob conversion for web, native file URIs for mobile
- * VERSION: 6.0.0 - MOBILE BROWSER DEBUG (Jan 10, 2026)
+ * VERSION: 7.0.0 - UNIVERSAL WEB UPLOAD FIX (Jan 10, 2026)
+ *
+ * WEB: Handles ALL input types (File, Blob, data URL, blob URL, HTTP URL)
+ * NEVER uses image.path (doesn't exist on web)
+ * Always normalizes to Blob before Firebase upload
+ *
+ * NATIVE: Uses file URIs with React Native Firebase
  */
 
 import { Platform } from 'react-native';
 
-console.log('🚀🚀🚀 uploadHelpers.js VERSION 6.0.0 - MOBILE BROWSER DEBUG 🚀🚀🚀');
-console.log('🚀 Platform.OS at module load:', Platform.OS);
-console.log('🚀 User Agent at module load:', typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A');
+console.log('🚀🚀🚀 uploadHelpers.js VERSION 7.0.0 - UNIVERSAL WEB UPLOAD FIX 🚀🚀🚀');
+console.log('🚀 Platform.OS:', Platform.OS);
+console.log('🚀 User Agent:', typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A');
 
 /**
  * Upload image - platform-aware
@@ -43,34 +48,79 @@ export async function uploadImage(imageUri, listingId, index) {
 }
 
 /**
- * WEB: Upload image from data URL
+ * WEB: Universal upload handler - handles ALL input types
+ * Accepts: data URL (base64), blob URL, File object, or HTTP URL
+ * Always normalizes to Blob before upload
+ * NEVER uses image.path (doesn't exist on web)
  */
-async function uploadImageWeb(dataURL, listingId, index, startTime) {
-  console.log(`📦 [${index + 1}] Web upload: Converting data URL to Blob...`);
+async function uploadImageWeb(imageInput, listingId, index, startTime) {
+  console.log(`📦 [${index + 1}] ========== WEB UPLOAD START ==========`);
+  console.log(`📦 [${index + 1}] Input type: ${typeof imageInput}`);
+  console.log(`📦 [${index + 1}] Input preview: ${String(imageInput).substring(0, 100)}`);
 
-  // Validate data URL format
-  const matches = dataURL.match(/^data:([^;]+);base64,(.+)$/);
-  if (!matches) {
-    const error = new Error(`Invalid data URL format for image ${index + 1}`);
-    console.error(`❌ [${index + 1}] Data URL validation failed`);
-    throw error;
-  }
-
-  const mimeType = matches[1];
-  const base64Data = matches[2];
-
-  console.log(`📦 [${index + 1}] MIME: ${mimeType}, base64 length: ${base64Data.length} chars`);
-
-  // Convert base64 to Blob
   let blob;
+  let inputType;
+
   try {
-    const binaryString = atob(base64Data);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
+    // Case 1: File object (desktop file picker)
+    if (imageInput instanceof File) {
+      inputType = 'File';
+      console.log(`📦 [${index + 1}] Detected File object: ${imageInput.name}, ${(imageInput.size / 1024).toFixed(2)} KB`);
+      blob = imageInput;
     }
-    blob = new Blob([bytes], { type: mimeType });
-    console.log(`📦 [${index + 1}] Blob created: ${(blob.size / 1024).toFixed(2)} KB`);
+    // Case 2: Blob object (direct blob)
+    else if (imageInput instanceof Blob) {
+      inputType = 'Blob';
+      console.log(`📦 [${index + 1}] Detected Blob object: ${(imageInput.size / 1024).toFixed(2)} KB`);
+      blob = imageInput;
+    }
+    // Case 3: Data URL (base64) - from expo-image-manipulator
+    else if (typeof imageInput === 'string' && imageInput.startsWith('data:')) {
+      inputType = 'data URL (base64)';
+      console.log(`📦 [${index + 1}] Detected data URL, converting to Blob...`);
+
+      const matches = imageInput.match(/^data:([^;]+);base64,(.+)$/);
+      if (!matches) {
+        throw new Error(`Invalid data URL format`);
+      }
+
+      const mimeType = matches[1];
+      const base64Data = matches[2];
+      console.log(`📦 [${index + 1}] MIME: ${mimeType}, base64 length: ${base64Data.length} chars`);
+
+      // Convert base64 to Blob
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      blob = new Blob([bytes], { type: mimeType });
+      console.log(`📦 [${index + 1}] Converted to Blob: ${(blob.size / 1024).toFixed(2)} KB`);
+    }
+    // Case 4: Blob URL (blob:http...) - from camera or picker
+    else if (typeof imageInput === 'string' && imageInput.startsWith('blob:')) {
+      inputType = 'blob URL';
+      console.log(`📦 [${index + 1}] Detected blob URL, fetching...`);
+      const response = await fetch(imageInput);
+      blob = await response.blob();
+      console.log(`📦 [${index + 1}] Fetched Blob: ${(blob.size / 1024).toFixed(2)} KB`);
+    }
+    // Case 5: HTTP/HTTPS URL (rare, but handle it)
+    else if (typeof imageInput === 'string' && (imageInput.startsWith('http://') || imageInput.startsWith('https://'))) {
+      inputType = 'HTTP URL';
+      console.log(`📦 [${index + 1}] Detected HTTP URL, fetching...`);
+      const response = await fetch(imageInput);
+      blob = await response.blob();
+      console.log(`📦 [${index + 1}] Fetched Blob: ${(blob.size / 1024).toFixed(2)} KB`);
+    }
+    else {
+      throw new Error(`Unsupported input type: ${typeof imageInput}, value: ${String(imageInput).substring(0, 50)}`);
+    }
+
+    console.log(`✅ [${index + 1}] Input type: ${inputType}`);
+    console.log(`✅ [${index + 1}] Final Blob size: ${(blob.size / 1024).toFixed(2)} KB`);
+    console.log(`✅ [${index + 1}] Final Blob type: ${blob.type}`);
+
   } catch (error) {
     console.error(`❌ [${index + 1}] Blob conversion failed:`, error.message);
     throw new Error(`Failed to convert image ${index + 1} to Blob: ${error.message}`);

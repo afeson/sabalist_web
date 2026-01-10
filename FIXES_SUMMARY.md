@@ -1,5 +1,32 @@
 # 🎯 COMPLETE FIX SUMMARY - Mobile Image Upload
 
+## Latest Version: 6.0.0 - Mobile Browser Debug (Jan 10, 2026)
+
+### Added Comprehensive Debug Logging
+**Purpose:** Diagnose mobile browser vs desktop browser upload differences
+**Changes:**
+- `CreateListingScreen.js` v6.0.0
+  - Platform detection logging (Platform.OS, User Agent, Mobile Browser detection)
+  - Image object structure logging (uri, type, dimensions, fileSize)
+  - Compressed image result logging
+  - Upload branch tracking (base64 | file | blob)
+  - Final downloadURL logging for each image
+- `uploadHelpers.js` v6.0.0
+  - Module load time platform and user agent logging
+- `public/index.html`
+  - Updated version number to v6.0.0
+
+**Testing Instructions:**
+1. Open mobile browser (iPhone Safari or Chrome)
+2. Create a listing with 3+ images
+3. Open browser console (Safari: Connect to Mac via USB + Safari Developer Tools)
+4. Look for logs with these prefixes:
+   - 📱 Platform info
+   - 🖼️ Image object details
+   - 📤 Upload progress
+   - ✅ Final downloadURL
+5. Compare logs to desktop browser behavior
+
 ## Issues Fixed (Jan 9, 2026)
 
 ### 1. ✅ Image Upload (v4.0.0 → v5.0.0)

@@ -1,6 +1,6 @@
 /**
  * CreateListingScreen - Complete Rewrite (with Video Upload)
- * VERSION 6.0.0 - MOBILE BROWSER DEBUG (Jan 10, 2026)
+ * VERSION 7.0.0 - UNIVERSAL WEB UPLOAD (Jan 10, 2026)
  *
  * A bulletproof implementation with:
  * - Safe async/await flows (no hanging promises)
@@ -9,8 +9,9 @@
  * - Video upload support (max 50MB)
  * - Guaranteed spinner cleanup (always stops)
  * - Platform-aware Firebase handling
+ * - Universal web upload (File, Blob, data URL, blob URL)
+ * - NEVER uses image.path (doesn't exist on web)
  * - Clear error messages
- * - Comprehensive mobile browser debugging logs
  */
 
 import React, { useState } from 'react';
