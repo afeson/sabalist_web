@@ -103,6 +103,8 @@ export default function HomeScreen({ route }) {
     useCallback(() => {
       if (route?.params?.refresh) {
         console.log('🔄 Home: Refresh param detected, forcing reload:', route.params.refresh);
+        // Force a manual refetch to ensure new listing appears immediately
+        setRefreshing(true);
         loadListings();
         // Clear the param so it doesn't refetch on every focus
         navigation.setParams({ refresh: undefined });

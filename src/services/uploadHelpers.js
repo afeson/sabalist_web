@@ -17,12 +17,25 @@ console.log('🚀🚀🚀 uploadHelpers.js VERSION 5.0.0 - MOBILE UPLOAD FIX �
  */
 export async function uploadImage(imageUri, listingId, index) {
   const startTime = Date.now();
-  console.log(`📤 [${index + 1}] uploadImage called, platform: ${Platform.OS}`);
-  console.log(`📤 [${index + 1}] URI type: ${imageUri.substring(0, 30)}...`);
+  console.log(`📤 [${index + 1}] ========== UPLOAD START ==========`);
+  console.log(`📤 [${index + 1}] Platform.OS: "${Platform.OS}"`);
+  console.log(`📤 [${index + 1}] imageUri type: ${typeof imageUri}`);
+  console.log(`📤 [${index + 1}] imageUri exists: ${!!imageUri}`);
+
+  if (!imageUri) {
+    throw new Error(`Image URI is null or undefined for image ${index + 1}`);
+  }
+
+  console.log(`📤 [${index + 1}] imageUri length: ${imageUri.length}`);
+  console.log(`📤 [${index + 1}] imageUri preview: ${imageUri.substring(0, 50)}...`);
+  console.log(`📤 [${index + 1}] Starts with 'data:': ${imageUri.startsWith('data:')}`);
+  console.log(`📤 [${index + 1}] Starts with 'file:': ${imageUri.startsWith('file:')}`);
 
   if (Platform.OS === 'web') {
+    console.log(`📤 [${index + 1}] ✅ Routing to WEB upload`);
     return await uploadImageWeb(imageUri, listingId, index, startTime);
   } else {
+    console.log(`📤 [${index + 1}] ✅ Routing to NATIVE upload`);
     return await uploadImageNative(imageUri, listingId, index, startTime);
   }
 }

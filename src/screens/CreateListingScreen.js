@@ -133,15 +133,30 @@ export default function CreateListingScreen({ navigation }) {
           let imageUri;
           if (Platform.OS === 'web') {
             // Web: Convert to data URL (persistent, won't expire like blob URLs)
+            console.log('🖼️ Web image processing:', {
+              hasBase64: !!compressed.base64,
+              base64Length: compressed.base64?.length || 0,
+              compressedUri: compressed.uri?.substring(0, 50),
+              assetUri: asset.uri?.substring(0, 50)
+            });
+
             if (compressed.base64) {
               imageUri = `data:image/jpeg;base64,${compressed.base64}`;
+              console.log('✅ Created data URL from base64, length:', imageUri.length);
             } else {
               // Fallback: convert blob to data URL using FileReader
-              imageUri = await blobToDataURL(asset.uri);
+              console.log('⚠️ No base64, using fallback blobToDataURL');
+              imageUri = await blobToDataURL(compressed.uri || asset.uri);
+              console.log('✅ Fallback conversion complete, length:', imageUri?.length || 0);
             }
           } else {
             // Native: Use file URI directly (more efficient)
             imageUri = compressed.uri;
+            console.log('✅ Native: Using file URI directly:', imageUri?.substring(0, 50));
+          }
+
+          if (!imageUri) {
+            throw new Error('Failed to process image: imageUri is null');
           }
 
           processedImages.push(imageUri);
@@ -201,14 +216,28 @@ export default function CreateListingScreen({ navigation }) {
         let imageUri;
         if (Platform.OS === 'web') {
           // Web: Convert to data URL
+          console.log('📸 Camera web processing:', {
+            hasBase64: !!compressed.base64,
+            base64Length: compressed.base64?.length || 0,
+            compressedUri: compressed.uri?.substring(0, 50)
+          });
+
           if (compressed.base64) {
             imageUri = `data:image/jpeg;base64,${compressed.base64}`;
+            console.log('✅ Camera: Created data URL, length:', imageUri.length);
           } else {
-            imageUri = await blobToDataURL(asset.uri);
+            console.log('⚠️ Camera: No base64, using fallback');
+            imageUri = await blobToDataURL(compressed.uri || asset.uri);
+            console.log('✅ Camera: Fallback complete, length:', imageUri?.length || 0);
           }
         } else {
           // Native: Use file URI directly
           imageUri = compressed.uri;
+          console.log('✅ Camera native: Using file URI:', imageUri?.substring(0, 50));
+        }
+
+        if (!imageUri) {
+          throw new Error('Failed to process camera image: imageUri is null');
         }
 
         setImages((prev) => [...prev, imageUri]);
