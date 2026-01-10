@@ -1,5 +1,6 @@
 /**
  * CreateListingScreen - Complete Rewrite (with Video Upload)
+ * VERSION 6.0.0 - MOBILE BROWSER DEBUG (Jan 10, 2026)
  *
  * A bulletproof implementation with:
  * - Safe async/await flows (no hanging promises)
@@ -9,6 +10,7 @@
  * - Guaranteed spinner cleanup (always stops)
  * - Platform-aware Firebase handling
  * - Clear error messages
+ * - Comprehensive mobile browser debugging logs
  */
 
 import React, { useState } from 'react';
@@ -80,6 +82,12 @@ export default function CreateListingScreen({ navigation }) {
    */
   const pickImages = async () => {
     try {
+      // CRITICAL DEBUG: Log platform info
+      console.log('📱 ========== PICK IMAGES START ==========');
+      console.log('📱 Platform.OS:', Platform.OS);
+      console.log('📱 User Agent:', typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A');
+      console.log('📱 Is Mobile Browser:', /iPhone|iPad|iPod|Android/i.test(navigator?.userAgent || ''));
+
       const remainingSlots = imageLimits.max - images.length;
 
       if (remainingSlots <= 0) {
@@ -108,6 +116,15 @@ export default function CreateListingScreen({ navigation }) {
         const processedImages = [];
 
         for (const asset of result.assets) {
+          // LOG: Image object structure
+          console.log('🖼️ ========== IMAGE OBJECT ==========');
+          console.log('🖼️ asset.uri:', asset.uri?.substring(0, 100));
+          console.log('🖼️ asset.type:', asset.type);
+          console.log('🖼️ asset.width:', asset.width);
+          console.log('🖼️ asset.height:', asset.height);
+          console.log('🖼️ asset.fileSize:', asset.fileSize);
+          console.log('🖼️ asset keys:', Object.keys(asset));
+
           // Validate file size
           if (asset.fileSize && asset.fileSize > GLOBAL_IMAGE_LIMITS.maxFileSize) {
             const sizeMB = (asset.fileSize / (1024 * 1024)).toFixed(1);
@@ -129,8 +146,17 @@ export default function CreateListingScreen({ navigation }) {
             }
           );
 
+          // LOG: Compressed result
+          console.log('🖼️ ========== COMPRESSED OBJECT ==========');
+          console.log('🖼️ compressed.uri:', compressed.uri?.substring(0, 100));
+          console.log('🖼️ compressed.width:', compressed.width);
+          console.log('🖼️ compressed.height:', compressed.height);
+          console.log('🖼️ compressed.base64:', compressed.base64 ? `${compressed.base64.length} chars` : 'NONE');
+
           // Platform-specific handling
           let imageUri;
+          let uploadBranch;
+
           if (Platform.OS === 'web') {
             // Web: Convert to data URL (persistent, won't expire like blob URLs)
             console.log('🖼️ Web image processing:', {
@@ -142,18 +168,27 @@ export default function CreateListingScreen({ navigation }) {
 
             if (compressed.base64) {
               imageUri = `data:image/jpeg;base64,${compressed.base64}`;
+              uploadBranch = 'base64';
               console.log('✅ Created data URL from base64, length:', imageUri.length);
             } else {
               // Fallback: convert blob to data URL using FileReader
+              uploadBranch = 'blob';
               console.log('⚠️ No base64, using fallback blobToDataURL');
               imageUri = await blobToDataURL(compressed.uri || asset.uri);
               console.log('✅ Fallback conversion complete, length:', imageUri?.length || 0);
             }
           } else {
             // Native: Use file URI directly (more efficient)
+            uploadBranch = 'file';
             imageUri = compressed.uri;
             console.log('✅ Native: Using file URI directly:', imageUri?.substring(0, 50));
           }
+
+          // LOG: Upload branch decision
+          console.log('🖼️ ========== UPLOAD BRANCH ==========');
+          console.log('🖼️ Upload branch:', uploadBranch);
+          console.log('🖼️ imageUri starts with:', imageUri?.substring(0, 30));
+          console.log('🖼️ imageUri length:', imageUri?.length);
 
           if (!imageUri) {
             throw new Error('Failed to process image: imageUri is null');
@@ -442,6 +477,7 @@ export default function CreateListingScreen({ navigation }) {
         for (let i = 0; i < images.length; i++) {
           setUploadProgress(`Uploading image ${i + 1} of ${images.length}...`);
           console.log(`📤 [${i + 1}/${images.length}] Starting upload...`);
+          console.log(`📤 [${i + 1}/${images.length}] Image URI preview:`, images[i]?.substring(0, 50));
 
           try {
             const url = await withTimeout(
@@ -450,7 +486,13 @@ export default function CreateListingScreen({ navigation }) {
               `Image ${i + 1} upload`
             );
             imageUrls.push(url);
-            console.log(`✅ [${i + 1}/${images.length}] Upload complete, URL: ${url.substring(0, 60)}...`);
+
+            // LOG: Final download URL
+            console.log(`✅ ========== FINAL DOWNLOAD URL [${i + 1}/${images.length}] ==========`);
+            console.log(`✅ Final downloadURL:`, url);
+            console.log(`✅ URL length:`, url?.length);
+            console.log(`✅ URL starts with:`, url?.substring(0, 60));
+            console.log(`✅ Total URLs collected so far:`, imageUrls.length);
           } catch (error) {
             console.error(`❌ [${i + 1}/${images.length}] Upload failed:`, error.message);
             console.error(`❌ Error details:`, error);

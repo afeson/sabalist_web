@@ -1,12 +1,14 @@
 /**
  * Platform-specific image upload helpers
  * Handles Blob conversion for web, native file URIs for mobile
- * VERSION: 5.0.0 - MOBILE UPLOAD FIX (Jan 9, 2026 - 8:00 PM)
+ * VERSION: 6.0.0 - MOBILE BROWSER DEBUG (Jan 10, 2026)
  */
 
 import { Platform } from 'react-native';
 
-console.log('🚀🚀🚀 uploadHelpers.js VERSION 5.0.0 - MOBILE UPLOAD FIX 🚀🚀🚀');
+console.log('🚀🚀🚀 uploadHelpers.js VERSION 6.0.0 - MOBILE BROWSER DEBUG 🚀🚀🚀');
+console.log('🚀 Platform.OS at module load:', Platform.OS);
+console.log('🚀 User Agent at module load:', typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A');
 
 /**
  * Upload image - platform-aware
