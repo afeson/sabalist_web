@@ -125,17 +125,23 @@ export default function CreateListingScreen({ navigation }) {
             {
               compress: GLOBAL_IMAGE_LIMITS.compressionQuality,
               format: SaveFormat.JPEG,
-              base64: true, // Get base64 for data URL
+              base64: Platform.OS === 'web', // Only get base64 on web
             }
           );
 
-          // Convert to data URL (persistent, won't expire like blob URLs)
+          // Platform-specific handling
           let imageUri;
-          if (compressed.base64) {
-            imageUri = `data:image/jpeg;base64,${compressed.base64}`;
+          if (Platform.OS === 'web') {
+            // Web: Convert to data URL (persistent, won't expire like blob URLs)
+            if (compressed.base64) {
+              imageUri = `data:image/jpeg;base64,${compressed.base64}`;
+            } else {
+              // Fallback: convert blob to data URL using FileReader
+              imageUri = await blobToDataURL(asset.uri);
+            }
           } else {
-            // Fallback: convert blob to data URL using FileReader (web only)
-            imageUri = await blobToDataURL(asset.uri);
+            // Native: Use file URI directly (more efficient)
+            imageUri = compressed.uri;
           }
 
           processedImages.push(imageUri);
@@ -187,16 +193,22 @@ export default function CreateListingScreen({ navigation }) {
           {
             compress: GLOBAL_IMAGE_LIMITS.compressionQuality,
             format: SaveFormat.JPEG,
-            base64: true,
+            base64: Platform.OS === 'web', // Only get base64 on web
           }
         );
 
-        // Convert to data URL
+        // Platform-specific handling
         let imageUri;
-        if (compressed.base64) {
-          imageUri = `data:image/jpeg;base64,${compressed.base64}`;
+        if (Platform.OS === 'web') {
+          // Web: Convert to data URL
+          if (compressed.base64) {
+            imageUri = `data:image/jpeg;base64,${compressed.base64}`;
+          } else {
+            imageUri = await blobToDataURL(asset.uri);
+          }
         } else {
-          imageUri = await blobToDataURL(asset.uri);
+          // Native: Use file URI directly
+          imageUri = compressed.uri;
         }
 
         setImages((prev) => [...prev, imageUri]);

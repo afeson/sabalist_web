@@ -1,12 +1,12 @@
 /**
  * Platform-specific image upload helpers
  * Handles Blob conversion for web, native file URIs for mobile
- * VERSION: 4.0.0 - EMERGENCY CACHE BUST (Jan 9, 2026 - 7:30 PM)
+ * VERSION: 5.0.0 - MOBILE UPLOAD FIX (Jan 9, 2026 - 8:00 PM)
  */
 
 import { Platform } from 'react-native';
 
-console.log('🚀🚀🚀 uploadHelpers.js VERSION 4.0.0 - EMERGENCY FIX 🚀🚀🚀');
+console.log('🚀🚀🚀 uploadHelpers.js VERSION 5.0.0 - MOBILE UPLOAD FIX 🚀🚀🚀');
 
 /**
  * Upload image - platform-aware
@@ -105,18 +105,23 @@ async function uploadImageWeb(dataURL, listingId, index, startTime) {
 }
 
 /**
- * NATIVE: Upload image from file URI
+ * NATIVE: Upload image from file URI using React Native Firebase
  */
 async function uploadImageNative(fileUri, listingId, index, startTime) {
   console.log(`📦 [${index + 1}] Native upload: Using file URI directly`);
+  console.log(`📦 [${index + 1}] File URI: ${fileUri}`);
 
-  const fb = getFirebase();
   const storagePath = `listings/${listingId}/image-${index}-${Date.now()}.jpg`;
 
   try {
-    const reference = fb.storage().ref(storagePath);
+    // For React Native, we need to use @react-native-firebase/storage
+    // Import dynamically to avoid errors on web
+    const { default: storage } = await import('@react-native-firebase/storage');
+
+    const reference = storage().ref(storagePath);
     console.log(`📤 [${index + 1}] Uploading to: ${storagePath}`);
 
+    // Use putFile for React Native
     await reference.putFile(fileUri);
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log(`✅ [${index + 1}] Upload complete in ${elapsed}s`);
@@ -124,9 +129,14 @@ async function uploadImageNative(fileUri, listingId, index, startTime) {
     const downloadURL = await reference.getDownloadURL();
     console.log(`✅ [${index + 1}] Download URL: ${downloadURL.substring(0, 60)}...`);
 
+    const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.log(`✅ [${index + 1}] Total upload time: ${totalElapsed}s`);
+
     return downloadURL;
   } catch (error) {
-    console.error(`❌ [${index + 1}] Native upload failed:`, error.message);
+    console.error(`❌ [${index + 1}] Native upload failed:`, error);
+    console.error(`❌ [${index + 1}] Error code:`, error.code);
+    console.error(`❌ [${index + 1}] Error message:`, error.message);
     throw new Error(`Failed to upload image ${index + 1}: ${error.message}`);
   }
 }
