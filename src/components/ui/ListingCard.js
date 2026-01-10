@@ -10,8 +10,17 @@ export default function ListingCard({
   style,
   ...props
 }) {
-  const { title, price, currency = 'USD', location, coverImage, images } = listing;
-  const imageUri = coverImage || (images && images[0]);
+  const { title, price, currency = 'USD', location, coverImage, images, updatedAt, createdAt } = listing;
+  let imageUri = coverImage || (images && images[0]);
+
+  // Add cache-busting for mobile browsers (Safari aggressive caching)
+  if (imageUri && imageUri.startsWith('http')) {
+    // Use listing timestamp for consistent cache-busting
+    const timestamp = updatedAt || createdAt || Date.now();
+    const cacheKey = typeof timestamp === 'string' ? timestamp : timestamp.toMillis?.() || timestamp;
+    const separator = imageUri.includes('?') ? '&' : '?';
+    imageUri = `${imageUri}${separator}v=${cacheKey}`;
+  }
 
   const formatPrice = () => {
     if (!price || price === 0) return 'Price on call';
@@ -30,11 +39,12 @@ export default function ListingCard({
         <Image
           source={
             imageUri
-              ? { uri: imageUri }
+              ? { uri: imageUri, cache: 'reload' }
               : require('../../../assets/sabalist_app_icon_1024.png')
           }
           style={styles.image}
           resizeMode="cover"
+          key={imageUri} // Force re-render when image URI changes
         />
       </View>
 

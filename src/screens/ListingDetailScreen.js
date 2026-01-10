@@ -188,19 +188,34 @@ export default function ListingDetailScreen({ route, navigation }) {
               }}
               scrollEventThrottle={16}
             >
-              {images.map((uri, index) => (
-                <TouchableOpacity
-                  key={index}
-                  activeOpacity={0.9}
-                  style={styles.imageContainer}
-                  onPress={() => {
-                    setViewerImageIndex(index);
-                    setImageViewerVisible(true);
-                  }}
-                >
-                  <Image source={{ uri }} style={styles.image} />
-                </TouchableOpacity>
-              ))}
+              {images.map((uri, index) => {
+                // Add cache-busting for mobile browsers
+                let imageUri = uri;
+                if (uri && uri.startsWith('http')) {
+                  const timestamp = listing?.updatedAt || listing?.createdAt || Date.now();
+                  const cacheKey = typeof timestamp === 'string' ? timestamp : timestamp.toMillis?.() || timestamp;
+                  const separator = uri.includes('?') ? '&' : '?';
+                  imageUri = `${uri}${separator}v=${cacheKey}`;
+                }
+
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    activeOpacity={0.9}
+                    style={styles.imageContainer}
+                    onPress={() => {
+                      setViewerImageIndex(index);
+                      setImageViewerVisible(true);
+                    }}
+                  >
+                    <Image
+                      source={{ uri: imageUri, cache: 'reload' }}
+                      style={styles.image}
+                      key={imageUri}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
             {images.length > 1 && (
               <View style={styles.pagination}>
