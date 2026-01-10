@@ -510,9 +510,8 @@ export default function CreateListingScreen({ navigation }) {
             onPress: () => {
               // Reset form
               resetForm();
-              // Navigate directly to MyListings with refresh flag
-              // The real-time listener should pick up the new listing immediately
-              navigation.navigate('MyListings', { refresh: Date.now() });
+              // Navigate to Home with refresh flag to show new listing immediately
+              navigation.navigate('Home', { refresh: Date.now() });
             },
           },
         ]

@@ -35,7 +35,7 @@ import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const CATEGORIES = ['All', 'Electronics', 'Vehicles', 'Real Estate', 'Fashion', 'Services'];
 
-export default function HomeScreen() {
+export default function HomeScreen({ route }) {
   console.log('🔥 HOMESCREEN.JS IS RENDERING 🔥');
   const navigation = useNavigation();
   const { t } = useTranslation();
@@ -97,6 +97,18 @@ export default function HomeScreen() {
       loadListings();
     }
   }, [searchText]);
+
+  // Force refetch when screen receives focus with refresh parameter
+  useFocusEffect(
+    useCallback(() => {
+      if (route?.params?.refresh) {
+        console.log('🔄 Home: Refresh param detected, forcing reload:', route.params.refresh);
+        loadListings();
+        // Clear the param so it doesn't refetch on every focus
+        navigation.setParams({ refresh: undefined });
+      }
+    }, [route?.params?.refresh, loadListings, navigation])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
