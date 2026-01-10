@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView, Switch, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView, Switch, Alert, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { Card } from '../components/ui';
-import { getFirebase } from '../lib/firebaseFactory';
+import { getFirestore, doc, getDoc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function NotificationsScreen({ navigation }) {
   const { t } = useTranslation();
@@ -36,13 +36,11 @@ export default function NotificationsScreen({ navigation }) {
       }
 
       console.log('📖 Loading notification settings for user:', user.uid);
-      const fb = getFirebase();
-
-      console.log('📖 Firestore instance:', typeof fb.firestore, !!fb.firestore);
-      const docRef = fb.doc(fb.firestore, 'users', user.uid);
+      const db = getFirestore();
+      const docRef = doc(db, 'users', user.uid);
       console.log('📖 Document reference:', docRef);
 
-      const userDoc = await fb.getDoc(docRef);
+      const userDoc = await getDoc(docRef);
       console.log('📖 Document exists?', userDoc.exists());
 
       if (userDoc.exists()) {
@@ -66,11 +64,11 @@ export default function NotificationsScreen({ navigation }) {
           pushNotifications: false,
           messageNotifications: false,
           listingUpdates: false,
-          createdAt: fb.serverTimestamp(),
-          updatedAt: fb.serverTimestamp()
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
         };
         try {
-          await fb.updateDoc(docRef, defaultSettings);
+          await setDoc(docRef, defaultSettings);
           console.log('✅ User document created with defaults');
           setSettings({
             emailNotifications: false,
@@ -79,7 +77,7 @@ export default function NotificationsScreen({ navigation }) {
             listingUpdates: false
           });
         } catch (err) {
-          console.warn('⚠️ Could not create user document (may need setDoc):', err.message);
+          console.warn('⚠️ Could not create user document:', err.message);
         }
       }
     } catch (error) {
@@ -104,19 +102,17 @@ export default function NotificationsScreen({ navigation }) {
 
     try {
       console.log(`💾 Updating ${key} to ${value} for user:`, user.uid);
-      const fb = getFirebase();
+      const db = getFirestore();
+      const docRef = doc(db, 'users', user.uid);
 
       // Use serverTimestamp for consistency
       const updateData = {
         [key]: value,
-        updatedAt: fb.serverTimestamp()
+        updatedAt: serverTimestamp()
       };
 
       console.log('💾 Update data:', updateData);
-      console.log('💾 Firestore instance:', typeof fb.firestore, !!fb.firestore);
-      console.log('💾 Doc reference:', fb.doc(fb.firestore, 'users', user.uid));
-
-      await fb.updateDoc(fb.doc(fb.firestore, 'users', user.uid), updateData);
+      await updateDoc(docRef, updateData);
 
       console.log(`✅ Successfully updated ${key} to ${value} in Firestore`);
     } catch (error) {
