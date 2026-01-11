@@ -33,11 +33,11 @@ import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { useTranslation } from 'react-i18next';
 
-// Image upload helper with direct Firebase SDK import (v3.0.0 fix)
-import { uploadImage, withTimeout } from '../services/uploadHelpers';
+// Image upload helper - v12.0.0 COMPLETE REWRITE
+import { imageToBlob, withTimeout } from '../services/uploadHelpers';
 import { useAuth } from '../contexts/AuthContext';
 import { getFirestore, collection, addDoc, updateDoc, doc, getDoc } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getImageLimits, GLOBAL_IMAGE_LIMITS } from '../config/categoryLimits';
 import { getSubCategories } from '../config/categories';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
@@ -472,39 +472,42 @@ export default function CreateListingScreen({ navigation }) {
 
       const imageUrls = [];
 
+      // Upload images using new imageToBlob approach
       if (images.length > 0) {
         console.log(`📤 Starting upload of ${images.length} images...`);
+        const storage = getStorage();
 
         for (let i = 0; i < images.length; i++) {
           setUploadProgress(`Uploading image ${i + 1} of ${images.length}...`);
-          console.log(`📤 [${i + 1}/${images.length}] Starting upload...`);
-          console.log(`📤 [${i + 1}/${images.length}] Image URI preview:`, images[i]?.substring(0, 50));
+          console.log(`📤 Uploading image ${i + 1}`);
 
           try {
-            const url = await withTimeout(
-              uploadImage(images[i], listingId, i),
-              60000,
-              `Image ${i + 1} upload`
+            // Convert image to Blob (NEVER uses .path)
+            const blob = await imageToBlob(images[i], i);
+
+            // Create storage reference
+            const ref = storageRef(
+              storage,
+              `listings/${listingId}/${Date.now()}_${i}.jpg`
             );
+
+            // Upload blob to Firebase Storage
+            await uploadBytes(ref, blob);
+
+            // Get download URL
+            const url = await getDownloadURL(ref);
+
             imageUrls.push(url);
 
-            // LOG: Final download URL
-            console.log(`✅ ========== FINAL DOWNLOAD URL [${i + 1}/${images.length}] ==========`);
-            console.log(`✅ Final downloadURL:`, url);
-            console.log(`✅ URL length:`, url?.length);
-            console.log(`✅ URL starts with:`, url?.substring(0, 60));
-            console.log(`✅ Total URLs collected so far:`, imageUrls.length);
+            console.log(`✅ Image ${i + 1} uploaded: ${url.substring(0, 60)}...`);
           } catch (error) {
-            console.error(`❌❌❌ UPLOAD ABORTED at image ${i + 1}/${images.length} ❌❌❌`);
+            console.error(`❌ UPLOAD ABORTED at image ${i + 1}/${images.length}`);
             console.error(`❌ Error:`, error.message);
-            console.error(`❌ Stack:`, error.stack);
-            console.error(`❌ Successfully uploaded before failure: ${imageUrls.length} images`);
-            // Abort the entire operation if any image fails
             throw new Error(`Upload ABORTED at image ${i + 1}/${images.length}: ${error.message}`);
           }
         }
 
-        console.log(`✅✅✅ UPLOAD SUCCESS: Uploaded ${imageUrls.length} out of ${images.length} images ✅✅✅`);
+        console.log(`✅✅✅ Uploaded ${imageUrls.length} out of ${images.length} images ✅✅✅`);
       }
 
       // Upload video if present
