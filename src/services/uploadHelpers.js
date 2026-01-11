@@ -1,6 +1,6 @@
 /**
  * Platform-specific image upload helpers
- * VERSION: 10.0.0 - CLEAN UPLOAD FLOW (Jan 10, 2026)
+ * VERSION: 11.0.0 - NEVER USE .path (Jan 10, 2026)
  *
  * WEB: Handles image objects OR strings from mobile/desktop browsers
  * - Accepts File, Blob, data URL, blob URL, or image objects
@@ -16,7 +16,7 @@
 
 import { Platform } from 'react-native';
 
-console.log('🚀🚀🚀 uploadHelpers.js VERSION 10.0.0 - CLEAN UPLOAD FLOW 🚀🚀🚀');
+console.log('🚀🚀🚀 uploadHelpers.js VERSION 11.0.0 - NEVER USE .path 🚀🚀🚀');
 console.log('🚀 Platform.OS:', Platform.OS);
 console.log('🚀 User Agent:', typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A');
 
@@ -64,55 +64,58 @@ export async function uploadImage(imageInput, listingId, index) {
 }
 
 /**
- * Extract image source from various image object structures
- * NEVER uses image.path (doesn't exist on web)
+ * UNIVERSAL: Extract upload source - NEVER uses .path
+ * Supports: data URLs (web base64), http URLs (already uploaded), file URIs (mobile)
  */
 function getImageSource(image, index) {
-  console.log(`🔍 [${index + 1}] Extracting image source from object:`, {
+  console.log(`🔍 [${index + 1}] Extracting source:`, {
     type: typeof image,
     isFile: image instanceof File,
     isBlob: image instanceof Blob,
-    keys: typeof image === 'object' && image !== null ? Object.keys(image) : 'N/A'
   });
 
-  // If already a File or Blob, return as-is
+  // CASE 1: Already a File or Blob
   if (image instanceof File || image instanceof Blob) {
-    console.log(`✅ [${index + 1}] Already a File/Blob object`);
+    console.log(`✅ [${index + 1}] File/Blob object`);
     return image;
   }
 
-  // If it's a string (URI), return it
+  // CASE 2: Already a string URI
   if (typeof image === 'string') {
-    console.log(`✅ [${index + 1}] Already a string URI`);
+    console.log(`✅ [${index + 1}] String URI`);
     return image;
   }
 
-  // If it's an object, try various properties
-  if (typeof image === 'object' && image !== null) {
-    // WEB: Try dataUrl, webPath, base64
-    if (image.dataUrl) {
-      console.log(`✅ [${index + 1}] Using image.dataUrl`);
-      return image.dataUrl;
-    }
-    if (image.webPath) {
-      console.log(`✅ [${index + 1}] Using image.webPath`);
-      return image.webPath;
-    }
-    if (image.base64) {
-      console.log(`✅ [${index + 1}] Using image.base64`);
-      return `data:image/jpeg;base64,${image.base64}`;
+  // CASE 3: Object with uri property
+  if (image?.uri) {
+    const uri = image.uri;
+
+    // WEB: data URL (base64)
+    if (uri.startsWith('data:image')) {
+      console.log(`✅ [${index + 1}] WEB base64 from uri`);
+      return uri;
     }
 
-    // MOBILE: Try uri
-    if (image.uri) {
-      console.log(`✅ [${index + 1}] Using image.uri`);
-      return image.uri;
+    // Already uploaded (Firebase Storage URL)
+    if (uri.startsWith('http://') || uri.startsWith('https://')) {
+      console.log(`✅ [${index + 1}] HTTP URL from uri`);
+      return uri;
     }
 
-    // NEVER use image.path - it doesn't exist on web
+    // MOBILE: file URI or blob URL
+    if (uri.startsWith('file://') || uri.startsWith('blob:')) {
+      console.log(`✅ [${index + 1}] Mobile file/blob URI`);
+      return uri;
+    }
+
+    // Any other uri value
+    console.log(`✅ [${index + 1}] Generic URI`);
+    return uri;
   }
 
-  console.error(`❌ [${index + 1}] No valid image source found in:`, image);
+  // NEVER check .path - does not exist on web
+  console.error(`❌ [${index + 1}] Invalid image source. No uri, File, Blob, or string found.`);
+  console.error(`❌ [${index + 1}] Received:`, image);
   return null;
 }
 

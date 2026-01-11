@@ -13,6 +13,16 @@ export default function ListingCard({
   const { title, price, currency = 'USD', location, coverImage, images, updatedAt, createdAt } = listing;
   let imageUri = coverImage || (images && images[0]);
 
+  // DEBUG: Log ALL image data to diagnose display issues
+  console.log('🖼️ ListingCard:', {
+    title: title?.substring(0, 30),
+    hasImageUri: !!imageUri,
+    imageUriPreview: imageUri ? imageUri.substring(0, 60) + '...' : 'NONE',
+    hasCoverImage: !!coverImage,
+    imagesArrayLength: images?.length || 0,
+    listing_id: listing.id
+  });
+
   // Add cache-busting for mobile browsers (Safari aggressive caching)
   if (imageUri && imageUri.startsWith('http')) {
     // Use listing timestamp for consistent cache-busting

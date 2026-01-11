@@ -495,14 +495,16 @@ export default function CreateListingScreen({ navigation }) {
             console.log(`✅ URL starts with:`, url?.substring(0, 60));
             console.log(`✅ Total URLs collected so far:`, imageUrls.length);
           } catch (error) {
-            console.error(`❌ [${i + 1}/${images.length}] Upload failed:`, error.message);
-            console.error(`❌ Error details:`, error);
-            // Fail the entire operation if any image fails
-            throw new Error(`Failed to upload image ${i + 1}: ${error.message}`);
+            console.error(`❌❌❌ UPLOAD ABORTED at image ${i + 1}/${images.length} ❌❌❌`);
+            console.error(`❌ Error:`, error.message);
+            console.error(`❌ Stack:`, error.stack);
+            console.error(`❌ Successfully uploaded before failure: ${imageUrls.length} images`);
+            // Abort the entire operation if any image fails
+            throw new Error(`Upload ABORTED at image ${i + 1}/${images.length}: ${error.message}`);
           }
         }
 
-        console.log(`✅ Successfully uploaded ALL ${imageUrls.length} images`);
+        console.log(`✅✅✅ UPLOAD SUCCESS: Uploaded ${imageUrls.length} out of ${images.length} images ✅✅✅`);
       }
 
       // Upload video if present
