@@ -1,6 +1,54 @@
 # 🎯 COMPLETE FIX SUMMARY - Mobile Image Upload
 
-## Latest Version: 6.0.0 - Mobile Browser Debug (Jan 10, 2026)
+## 🔥 Latest Version: 7.0.0 - UNIVERSAL WEB UPLOAD (Jan 10, 2026)
+
+### ROOT ISSUE FIXED: Mobile Browser Image Uploads
+**Problem:** Mobile browsers don't have `image.path` property, causing upload failures
+**Root Cause:** Web upload code only handled data URLs, not other input types
+**Solution:** Universal web upload handler that accepts ALL input types
+
+### What Was Fixed:
+**uploadHelpers.js** - Complete rewrite of `uploadImageWeb()`:
+- ✅ Handles **File objects** (desktop file picker)
+- ✅ Handles **Blob objects** (direct blob)
+- ✅ Handles **data URLs** (base64 from expo-image-manipulator)
+- ✅ Handles **blob URLs** (`blob:http...` from camera/picker on mobile)
+- ✅ Handles **HTTP/HTTPS URLs** (edge case)
+- ✅ **NEVER references `image.path`** (doesn't exist on web)
+- ✅ Always normalizes to Blob before Firebase Storage upload
+- ✅ Comprehensive logging shows input type detection
+
+### Key Changes:
+```javascript
+// OLD: Only handled data URLs
+if (!dataURL.startsWith('data:')) throw error;
+
+// NEW: Universal handler
+if (input instanceof File) { /* use directly */ }
+else if (input instanceof Blob) { /* use directly */ }
+else if (input.startsWith('data:')) { /* convert base64 → Blob */ }
+else if (input.startsWith('blob:')) { /* fetch → Blob */ }
+else if (input.startsWith('http')) { /* fetch → Blob */ }
+```
+
+### Verification:
+- ✅ No `.path` references anywhere in web code
+- ✅ Single upload path for desktop + mobile browsers
+- ✅ Home feed uses real-time listener (`onSnapshot`)
+- ✅ Deployed to Firebase Hosting
+- ✅ Version 7.0.0 in browser tab title
+
+### Testing on Mobile:
+1. Hard refresh mobile browser (clear cache)
+2. Verify version **7.0.0** in tab title
+3. Create listing with 3+ images
+4. Console should show: `Detected data URL` or `Detected blob URL`
+5. Upload should complete without `.path` errors
+6. New listing should appear in Home feed within 1-2 seconds
+
+---
+
+## Previous Version: 6.0.0 - Mobile Browser Debug (Jan 10, 2026)
 
 ### Added Comprehensive Debug Logging
 **Purpose:** Diagnose mobile browser vs desktop browser upload differences

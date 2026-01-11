@@ -1,8 +1,8 @@
 /**
  * Platform-specific image upload helpers
- * VERSION: 7.0.0 - UNIVERSAL WEB UPLOAD FIX (Jan 10, 2026)
+ * VERSION: 8.0.0 - IMAGE OBJECT SOURCE EXTRACTION (Jan 10, 2026)
  *
- * WEB: Handles ALL input types (File, Blob, data URL, blob URL, HTTP URL)
+ * WEB: Handles image objects with dataUrl, webPath, base64, uri properties
  * NEVER uses image.path (doesn't exist on web)
  * Always normalizes to Blob before Firebase upload
  *
@@ -11,7 +11,7 @@
 
 import { Platform } from 'react-native';
 
-console.log('🚀🚀🚀 uploadHelpers.js VERSION 7.0.0 - UNIVERSAL WEB UPLOAD FIX 🚀🚀🚀');
+console.log('🚀🚀🚀 uploadHelpers.js VERSION 8.0.0 - IMAGE OBJECT SOURCE EXTRACTION 🚀🚀🚀');
 console.log('🚀 Platform.OS:', Platform.OS);
 console.log('🚀 User Agent:', typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A');
 
@@ -48,73 +48,120 @@ export async function uploadImage(imageUri, listingId, index) {
 }
 
 /**
+ * Extract image source from various image object structures
+ * NEVER uses image.path (doesn't exist on web)
+ */
+function getImageSource(image, index) {
+  console.log(`🔍 [${index + 1}] Extracting image source from object:`, {
+    type: typeof image,
+    isFile: image instanceof File,
+    isBlob: image instanceof Blob,
+    keys: typeof image === 'object' && image !== null ? Object.keys(image) : 'N/A'
+  });
+
+  // If already a File or Blob, return as-is
+  if (image instanceof File || image instanceof Blob) {
+    console.log(`✅ [${index + 1}] Already a File/Blob object`);
+    return image;
+  }
+
+  // If it's a string (URI), return it
+  if (typeof image === 'string') {
+    console.log(`✅ [${index + 1}] Already a string URI`);
+    return image;
+  }
+
+  // If it's an object, try various properties
+  if (typeof image === 'object' && image !== null) {
+    // WEB: Try dataUrl, webPath, base64
+    if (image.dataUrl) {
+      console.log(`✅ [${index + 1}] Using image.dataUrl`);
+      return image.dataUrl;
+    }
+    if (image.webPath) {
+      console.log(`✅ [${index + 1}] Using image.webPath`);
+      return image.webPath;
+    }
+    if (image.base64) {
+      console.log(`✅ [${index + 1}] Using image.base64`);
+      return `data:image/jpeg;base64,${image.base64}`;
+    }
+
+    // MOBILE: Try uri
+    if (image.uri) {
+      console.log(`✅ [${index + 1}] Using image.uri`);
+      return image.uri;
+    }
+
+    // NEVER use image.path - it doesn't exist on web
+  }
+
+  console.error(`❌ [${index + 1}] No valid image source found in:`, image);
+  return null;
+}
+
+/**
  * WEB: Universal upload handler - handles ALL input types
- * Accepts: data URL (base64), blob URL, File object, or HTTP URL
+ * Accepts: File, Blob, data URL, blob URL, HTTP URL, or image objects
  * Always normalizes to Blob before upload
  * NEVER uses image.path (doesn't exist on web)
  */
 async function uploadImageWeb(imageInput, listingId, index, startTime) {
   console.log(`📦 [${index + 1}] ========== WEB UPLOAD START ==========`);
-  console.log(`📦 [${index + 1}] Input type: ${typeof imageInput}`);
-  console.log(`📦 [${index + 1}] Input preview: ${String(imageInput).substring(0, 100)}`);
+  console.log(`📦 [${index + 1}] Raw input type: ${typeof imageInput}`);
+
+  // Extract source from image object if needed
+  const source = getImageSource(imageInput, index);
+
+  if (!source) {
+    throw new Error(`Image ${index + 1}: No valid image source (checked dataUrl, webPath, base64, uri)`);
+  }
+
+  console.log(`📦 [${index + 1}] Source type: ${typeof source}`);
+  console.log(`📦 [${index + 1}] Source preview: ${String(source).substring(0, 100)}`);
 
   let blob;
   let inputType;
 
   try {
     // Case 1: File object (desktop file picker)
-    if (imageInput instanceof File) {
+    if (source instanceof File) {
       inputType = 'File';
-      console.log(`📦 [${index + 1}] Detected File object: ${imageInput.name}, ${(imageInput.size / 1024).toFixed(2)} KB`);
-      blob = imageInput;
+      console.log(`📦 [${index + 1}] Detected File object: ${source.name}, ${(source.size / 1024).toFixed(2)} KB`);
+      blob = source;
     }
     // Case 2: Blob object (direct blob)
-    else if (imageInput instanceof Blob) {
+    else if (source instanceof Blob) {
       inputType = 'Blob';
-      console.log(`📦 [${index + 1}] Detected Blob object: ${(imageInput.size / 1024).toFixed(2)} KB`);
-      blob = imageInput;
+      console.log(`📦 [${index + 1}] Detected Blob object: ${(source.size / 1024).toFixed(2)} KB`);
+      blob = source;
     }
     // Case 3: Data URL (base64) - from expo-image-manipulator
-    else if (typeof imageInput === 'string' && imageInput.startsWith('data:')) {
+    else if (typeof source === 'string' && source.startsWith('data:')) {
       inputType = 'data URL (base64)';
       console.log(`📦 [${index + 1}] Detected data URL, converting to Blob...`);
-
-      const matches = imageInput.match(/^data:([^;]+);base64,(.+)$/);
-      if (!matches) {
-        throw new Error(`Invalid data URL format`);
-      }
-
-      const mimeType = matches[1];
-      const base64Data = matches[2];
-      console.log(`📦 [${index + 1}] MIME: ${mimeType}, base64 length: ${base64Data.length} chars`);
-
-      // Convert base64 to Blob
-      const binaryString = atob(base64Data);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      blob = new Blob([bytes], { type: mimeType });
+      const response = await fetch(source);
+      blob = await response.blob();
       console.log(`📦 [${index + 1}] Converted to Blob: ${(blob.size / 1024).toFixed(2)} KB`);
     }
     // Case 4: Blob URL (blob:http...) - from camera or picker
-    else if (typeof imageInput === 'string' && imageInput.startsWith('blob:')) {
+    else if (typeof source === 'string' && source.startsWith('blob:')) {
       inputType = 'blob URL';
       console.log(`📦 [${index + 1}] Detected blob URL, fetching...`);
-      const response = await fetch(imageInput);
+      const response = await fetch(source);
       blob = await response.blob();
       console.log(`📦 [${index + 1}] Fetched Blob: ${(blob.size / 1024).toFixed(2)} KB`);
     }
     // Case 5: HTTP/HTTPS URL (rare, but handle it)
-    else if (typeof imageInput === 'string' && (imageInput.startsWith('http://') || imageInput.startsWith('https://'))) {
+    else if (typeof source === 'string' && (source.startsWith('http://') || source.startsWith('https://'))) {
       inputType = 'HTTP URL';
       console.log(`📦 [${index + 1}] Detected HTTP URL, fetching...`);
-      const response = await fetch(imageInput);
+      const response = await fetch(source);
       blob = await response.blob();
       console.log(`📦 [${index + 1}] Fetched Blob: ${(blob.size / 1024).toFixed(2)} KB`);
     }
     else {
-      throw new Error(`Unsupported input type: ${typeof imageInput}, value: ${String(imageInput).substring(0, 50)}`);
+      throw new Error(`Unsupported source type: ${typeof source}, value: ${String(source).substring(0, 50)}`);
     }
 
     console.log(`✅ [${index + 1}] Input type: ${inputType}`);
