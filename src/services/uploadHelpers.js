@@ -1,6 +1,6 @@
 /**
  * Platform-specific image upload helpers
- * VERSION: 9.0.0 - DEFENSIVE IMAGE OBJECT HANDLING (Jan 10, 2026)
+ * VERSION: 10.0.0 - CLEAN UPLOAD FLOW (Jan 10, 2026)
  *
  * WEB: Handles image objects OR strings from mobile/desktop browsers
  * - Accepts File, Blob, data URL, blob URL, or image objects
@@ -16,7 +16,7 @@
 
 import { Platform } from 'react-native';
 
-console.log('🚀🚀🚀 uploadHelpers.js VERSION 9.0.0 - DEFENSIVE IMAGE OBJECT HANDLING 🚀🚀🚀');
+console.log('🚀🚀🚀 uploadHelpers.js VERSION 10.0.0 - CLEAN UPLOAD FLOW 🚀🚀🚀');
 console.log('🚀 Platform.OS:', Platform.OS);
 console.log('🚀 User Agent:', typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A');
 
@@ -122,62 +122,53 @@ function getImageSource(image, index) {
  * Always normalizes to Blob before upload
  * NEVER uses image.path (doesn't exist on web)
  */
-async function uploadImageWeb(imageInput, listingId, index, startTime) {
+async function uploadImageWeb(imageUri, listingId, index, startTime) {
   console.log(`📦 [${index + 1}] ========== WEB UPLOAD START ==========`);
-  console.log(`📦 [${index + 1}] Raw input type: ${typeof imageInput}`);
-
-  // Extract source from image object if needed
-  const source = getImageSource(imageInput, index);
-
-  if (!source) {
-    throw new Error(`Image ${index + 1}: No valid image source (checked dataUrl, webPath, base64, uri)`);
-  }
-
-  console.log(`📦 [${index + 1}] Source type: ${typeof source}`);
-  console.log(`📦 [${index + 1}] Source preview: ${String(source).substring(0, 100)}`);
+  console.log(`📦 [${index + 1}] imageUri type: ${typeof imageUri}`);
+  console.log(`📦 [${index + 1}] imageUri preview: ${String(imageUri).substring(0, 100)}`);
 
   let blob;
   let inputType;
 
   try {
     // Case 1: File object (desktop file picker)
-    if (source instanceof File) {
+    if (imageUri instanceof File) {
       inputType = 'File';
-      console.log(`📦 [${index + 1}] Detected File object: ${source.name}, ${(source.size / 1024).toFixed(2)} KB`);
-      blob = source;
+      console.log(`📦 [${index + 1}] Detected File object: ${imageUri.name}, ${(imageUri.size / 1024).toFixed(2)} KB`);
+      blob = imageUri;
     }
     // Case 2: Blob object (direct blob)
-    else if (source instanceof Blob) {
+    else if (imageUri instanceof Blob) {
       inputType = 'Blob';
-      console.log(`📦 [${index + 1}] Detected Blob object: ${(source.size / 1024).toFixed(2)} KB`);
-      blob = source;
+      console.log(`📦 [${index + 1}] Detected Blob object: ${(imageUri.size / 1024).toFixed(2)} KB`);
+      blob = imageUri;
     }
     // Case 3: Data URL (base64) - from expo-image-manipulator
-    else if (typeof source === 'string' && source.startsWith('data:')) {
+    else if (typeof imageUri === 'string' && imageUri.startsWith('data:')) {
       inputType = 'data URL (base64)';
       console.log(`📦 [${index + 1}] Detected data URL, converting to Blob...`);
-      const response = await fetch(source);
+      const response = await fetch(imageUri);
       blob = await response.blob();
       console.log(`📦 [${index + 1}] Converted to Blob: ${(blob.size / 1024).toFixed(2)} KB`);
     }
     // Case 4: Blob URL (blob:http...) - from camera or picker
-    else if (typeof source === 'string' && source.startsWith('blob:')) {
+    else if (typeof imageUri === 'string' && imageUri.startsWith('blob:')) {
       inputType = 'blob URL';
       console.log(`📦 [${index + 1}] Detected blob URL, fetching...`);
-      const response = await fetch(source);
+      const response = await fetch(imageUri);
       blob = await response.blob();
       console.log(`📦 [${index + 1}] Fetched Blob: ${(blob.size / 1024).toFixed(2)} KB`);
     }
     // Case 5: HTTP/HTTPS URL (rare, but handle it)
-    else if (typeof source === 'string' && (source.startsWith('http://') || source.startsWith('https://'))) {
+    else if (typeof imageUri === 'string' && (imageUri.startsWith('http://') || imageUri.startsWith('https://'))) {
       inputType = 'HTTP URL';
       console.log(`📦 [${index + 1}] Detected HTTP URL, fetching...`);
-      const response = await fetch(source);
+      const response = await fetch(imageUri);
       blob = await response.blob();
       console.log(`📦 [${index + 1}] Fetched Blob: ${(blob.size / 1024).toFixed(2)} KB`);
     }
     else {
-      throw new Error(`Unsupported source type: ${typeof source}, value: ${String(source).substring(0, 50)}`);
+      throw new Error(`Unsupported imageUri type: ${typeof imageUri}, value: ${String(imageUri).substring(0, 50)}`);
     }
 
     console.log(`✅ [${index + 1}] Input type: ${inputType}`);
