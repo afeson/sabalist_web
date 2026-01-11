@@ -1,17 +1,22 @@
 /**
  * Platform-specific image upload helpers
- * VERSION: 8.0.0 - IMAGE OBJECT SOURCE EXTRACTION (Jan 10, 2026)
+ * VERSION: 9.0.0 - DEFENSIVE IMAGE OBJECT HANDLING (Jan 10, 2026)
  *
- * WEB: Handles image objects with dataUrl, webPath, base64, uri properties
- * NEVER uses image.path (doesn't exist on web)
- * Always normalizes to Blob before Firebase upload
+ * WEB: Handles image objects OR strings from mobile/desktop browsers
+ * - Accepts File, Blob, data URL, blob URL, or image objects
+ * - Extracts source from objects with dataUrl, webPath, base64, uri properties
+ * - NEVER uses image.path (doesn't exist on web)
+ * - Always normalizes to Blob before Firebase upload
  *
  * NATIVE: Uses file URIs with React Native Firebase
+ *
+ * CRITICAL FIX: Now calls getImageSource() FIRST to handle mobile browser
+ * image objects before any string operations
  */
 
 import { Platform } from 'react-native';
 
-console.log('🚀🚀🚀 uploadHelpers.js VERSION 8.0.0 - IMAGE OBJECT SOURCE EXTRACTION 🚀🚀🚀');
+console.log('🚀🚀🚀 uploadHelpers.js VERSION 9.0.0 - DEFENSIVE IMAGE OBJECT HANDLING 🚀🚀🚀');
 console.log('🚀 Platform.OS:', Platform.OS);
 console.log('🚀 User Agent:', typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A');
 
@@ -22,21 +27,32 @@ console.log('🚀 User Agent:', typeof navigator !== 'undefined' ? navigator.use
  * @param {number} index - Image index
  * @returns {Promise<string>} Download URL
  */
-export async function uploadImage(imageUri, listingId, index) {
+export async function uploadImage(imageInput, listingId, index) {
   const startTime = Date.now();
   console.log(`📤 [${index + 1}] ========== UPLOAD START ==========`);
   console.log(`📤 [${index + 1}] Platform.OS: "${Platform.OS}"`);
-  console.log(`📤 [${index + 1}] imageUri type: ${typeof imageUri}`);
-  console.log(`📤 [${index + 1}] imageUri exists: ${!!imageUri}`);
+  console.log(`📤 [${index + 1}] imageInput type: ${typeof imageInput}`);
+  console.log(`📤 [${index + 1}] imageInput exists: ${!!imageInput}`);
 
-  if (!imageUri) {
-    throw new Error(`Image URI is null or undefined for image ${index + 1}`);
+  if (!imageInput) {
+    throw new Error(`Image input is null or undefined for image ${index + 1}`);
   }
 
-  console.log(`📤 [${index + 1}] imageUri length: ${imageUri.length}`);
-  console.log(`📤 [${index + 1}] imageUri preview: ${imageUri.substring(0, 50)}...`);
-  console.log(`📤 [${index + 1}] Starts with 'data:': ${imageUri.startsWith('data:')}`);
-  console.log(`📤 [${index + 1}] Starts with 'file:': ${imageUri.startsWith('file:')}`);
+  // Extract source from image object if it's an object (handles mobile browser camera/picker objects)
+  const imageUri = getImageSource(imageInput, index);
+
+  if (!imageUri) {
+    console.error(`❌ [${index + 1}] Could not extract image source from:`, imageInput);
+    throw new Error(`Image ${index + 1}: No valid image source found. Checked: dataUrl, webPath, base64, uri`);
+  }
+
+  console.log(`📤 [${index + 1}] Extracted imageUri type: ${typeof imageUri}`);
+  if (typeof imageUri === 'string') {
+    console.log(`📤 [${index + 1}] imageUri length: ${imageUri.length}`);
+    console.log(`📤 [${index + 1}] imageUri preview: ${imageUri.substring(0, 50)}...`);
+    console.log(`📤 [${index + 1}] Starts with 'data:': ${imageUri.startsWith('data:')}`);
+    console.log(`📤 [${index + 1}] Starts with 'file:': ${imageUri.startsWith('file:')}`);
+  }
 
   if (Platform.OS === 'web') {
     console.log(`📤 [${index + 1}] ✅ Routing to WEB upload`);
