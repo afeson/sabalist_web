@@ -17,6 +17,7 @@
 import { Platform } from 'react-native';
 
 console.log('🚀🚀🚀 uploadHelpers.js VERSION 11.0.0 - NEVER USE .path 🚀🚀🚀');
+console.log('🚀🚀🚀 FORCE CACHE BREAK: Jan 10 2026 20:45 🚀🚀🚀');
 console.log('🚀 Platform.OS:', Platform.OS);
 console.log('🚀 User Agent:', typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A');
 
