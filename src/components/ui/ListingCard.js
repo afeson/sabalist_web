@@ -11,6 +11,8 @@ export default function ListingCard({
   style,
   ...props
 }) {
+  console.log('🔴 ListingCard render:', listing.id, 'onFavoriteToggle:', !!onFavoriteToggle, 'isFavorited:', isFavorited);
+
   const { title, price, currency = 'USD', location, coverImage, images, updatedAt, createdAt } = listing;
   let imageUri = coverImage || (images && images[0]);
 
@@ -115,6 +117,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 10,
   },
   favoriteIcon: {
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
