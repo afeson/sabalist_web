@@ -32,6 +32,8 @@ if (Platform.OS === 'web') {
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { SearchBar, CategoryPill, ListingCard, IconButton } from '../components/ui';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import { useAuth } from '../contexts/AuthContext';
+import { subscribeToFavorites, addToFavorites, removeFromFavorites } from '../services/favoritesService';
 
 const CATEGORIES = ['All', 'Electronics', 'Vehicles', 'Real Estate', 'Fashion', 'Services'];
 
@@ -39,12 +41,14 @@ export default function HomeScreen({ route }) {
   console.log('🔥 HOMESCREEN.JS IS RENDERING 🔥');
   const navigation = useNavigation();
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showLanguage, setShowLanguage] = useState(false);
+  const [favoriteIds, setFavoriteIds] = useState([]);
 
   const loadListings = useCallback(async () => {
     try {
@@ -98,6 +102,25 @@ export default function HomeScreen({ route }) {
     }
   }, [searchText]);
 
+  // Subscribe to user favorites
+  useEffect(() => {
+    if (!user?.uid) {
+      setFavoriteIds([]);
+      return;
+    }
+
+    console.log('🔴 Setting up favorites listener for user:', user.uid);
+    const unsubscribe = subscribeToFavorites(user.uid, (ids) => {
+      console.log('🔴 Favorites updated:', ids.length, 'items');
+      setFavoriteIds(ids);
+    });
+
+    return () => {
+      console.log('🔴 Cleaning up favorites listener');
+      unsubscribe();
+    };
+  }, [user?.uid]);
+
   // Force refetch when screen receives focus with refresh parameter
   useFocusEffect(
     useCallback(() => {
@@ -119,6 +142,26 @@ export default function HomeScreen({ route }) {
 
   const onSubmitSearch = () => loadListings();
 
+  const handleFavoriteToggle = async (listingId, newFavoritedState) => {
+    if (!user?.uid) {
+      // Navigate to login if not authenticated
+      navigation.navigate('Auth');
+      return;
+    }
+
+    try {
+      if (newFavoritedState) {
+        console.log('➕ Adding to favorites:', listingId);
+        await addToFavorites(user.uid, listingId);
+      } else {
+        console.log('➖ Removing from favorites:', listingId);
+        await removeFromFavorites(user.uid, listingId);
+      }
+    } catch (error) {
+      console.error('❌ Error toggling favorite:', error);
+    }
+  };
+
   const renderCategory = (cat) => (
     <CategoryPill
       key={cat}
@@ -133,6 +176,8 @@ export default function HomeScreen({ route }) {
       <ListingCard
         listing={item}
         onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
+        isFavorited={favoriteIds.includes(item.id)}
+        onFavoriteToggle={handleFavoriteToggle}
       />
     </View>
   );

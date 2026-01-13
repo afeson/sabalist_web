@@ -1,73 +1,114 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
-  RefreshControl,
   ActivityIndicator,
   TouchableOpacity,
   StatusBar,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { PREMIUM_COLORS, PREMIUM_SPACING, PREMIUM_RADIUS, PREMIUM_SHADOWS } from '../theme/premiumTheme';
 import { ListingCard } from '../components/ui';
 import { getCategoryIcon } from '../config/categories';
-
-// Platform-aware listings imports
-let searchListings;
-if (Platform.OS === 'web') {
-  const listingsWeb = require('../services/listings.web');
-  searchListings = listingsWeb.searchListings;
-} else {
-  const listingsNative = require('../services/listings');
-  searchListings = listingsNative.searchListings;
-}
+import { getCategoryId } from '../config/categoryMapping';
+import { getFirestore, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { useAuth } from '../contexts/AuthContext';
+import { subscribeToFavorites, addToFavorites, removeFromFavorites } from '../services/favoritesService';
 
 export default function CategoryListingsScreen({ route, navigation }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const { category, subcategoryId, title } = route.params;
 
-  // Store only the ID, not the full object
-  const [selectedSubcategory, setSelectedSubcategory] = useState(subcategoryId || null);
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [favoriteIds, setFavoriteIds] = useState([]);
 
-  const loadListings = useCallback(async () => {
-    try {
-      setLoading(true);
-      console.log('Loading listings for:', { category, subcategoryId: selectedSubcategory });
-
-      // Call searchListings with category and optional subcategory
-      const items = await searchListings(
-        '', // no search text
-        category, // main category
-        null, // min price
-        null, // max price
-        selectedSubcategory // subcategory ID
-      );
-
-      console.log(`Found ${items?.length || 0} listings`);
-      setListings(items || []);
-    } catch (err) {
-      console.error('Failed to load listings:', err);
-      setListings([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [category, selectedSubcategory]);
-
+  // Subscribe to listings
   useEffect(() => {
-    loadListings();
-  }, [loadListings]);
+    const db = getFirestore();
+    const categoryId = getCategoryId(category);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadListings();
+    console.log('🔴 Setting up realtime listener for:', { category, categoryId, subcategoryId });
+
+    // Build query with categoryId
+    let q = query(
+      collection(db, 'listings'),
+      where('categoryId', '==', categoryId),
+      where('status', '==', 'active'),
+      orderBy('createdAt', 'desc')
+    );
+
+    // Subscribe to realtime updates
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      console.log('🔴 Realtime update received:', snapshot.docs.length, 'listings');
+
+      let items = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      // Filter by subcategory if specified
+      if (subcategoryId) {
+        items = items.filter(item => item.subcategory === subcategoryId);
+        console.log('📍 Filtered by subcategory:', subcategoryId, '→', items.length, 'listings');
+      }
+
+      setListings(items);
+      setLoading(false);
+    }, (error) => {
+      console.error('❌ Error in listings listener:', error);
+      setListings([]);
+      setLoading(false);
+    });
+
+    // Cleanup listener on unmount
+    return () => {
+      console.log('🔴 Cleaning up listener for:', category);
+      unsubscribe();
+    };
+  }, [category, subcategoryId]);
+
+  // Subscribe to user favorites
+  useEffect(() => {
+    if (!user?.uid) {
+      setFavoriteIds([]);
+      return;
+    }
+
+    console.log('🔴 Setting up favorites listener for user:', user.uid);
+    const unsubscribe = subscribeToFavorites(user.uid, (ids) => {
+      console.log('🔴 Favorites updated:', ids.length, 'items');
+      setFavoriteIds(ids);
+    });
+
+    return () => {
+      console.log('🔴 Cleaning up favorites listener');
+      unsubscribe();
+    };
+  }, [user?.uid]);
+
+  const handleFavoriteToggle = async (listingId, newFavoritedState) => {
+    if (!user?.uid) {
+      // Navigate to login if not authenticated
+      navigation.navigate('Auth');
+      return;
+    }
+
+    try {
+      if (newFavoritedState) {
+        console.log('➕ Adding to favorites:', listingId);
+        await addToFavorites(user.uid, listingId);
+      } else {
+        console.log('➖ Removing from favorites:', listingId);
+        await removeFromFavorites(user.uid, listingId);
+      }
+    } catch (error) {
+      console.error('❌ Error toggling favorite:', error);
+    }
   };
 
   const renderListing = ({ item }) => (
@@ -75,6 +116,8 @@ export default function CategoryListingsScreen({ route, navigation }) {
       <ListingCard
         listing={item}
         onPress={() => navigation?.navigate('ListingDetail', { listingId: item.id })}
+        isFavorited={favoriteIds.includes(item.id)}
+        onFavoriteToggle={handleFavoriteToggle}
       />
     </View>
   );
@@ -120,16 +163,8 @@ export default function CategoryListingsScreen({ route, navigation }) {
         renderItem={renderListing}
         numColumns={2}
         contentContainerStyle={styles.listingContent}
-        columnWrapperStyle={styles.listingRow}
+        columnWrapperStyle={listings.length > 0 ? styles.listingRow : null}
         ListEmptyComponent={renderEmpty}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[PREMIUM_COLORS.accent]}
-            tintColor={PREMIUM_COLORS.accent}
-          />
-        }
       />
     </View>
   );

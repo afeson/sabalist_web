@@ -6,26 +6,16 @@ import { PREMIUM_COLORS, PREMIUM_RADIUS, PREMIUM_SPACING, PREMIUM_SHADOWS } from
 export default function ListingCard({
   listing,
   onPress,
-  onFavorite,
+  isFavorited = false,
+  onFavoriteToggle,
   style,
   ...props
 }) {
   const { title, price, currency = 'USD', location, coverImage, images, updatedAt, createdAt } = listing;
   let imageUri = coverImage || (images && images[0]);
 
-  // DEBUG: Log ALL image data to diagnose display issues
-  console.log('🖼️ ListingCard:', {
-    title: title?.substring(0, 30),
-    hasImageUri: !!imageUri,
-    imageUriPreview: imageUri ? imageUri.substring(0, 60) + '...' : 'NONE',
-    hasCoverImage: !!coverImage,
-    imagesArrayLength: images?.length || 0,
-    listing_id: listing.id
-  });
-
-  // Add cache-busting for mobile browsers (Safari aggressive caching)
+  // Add cache-busting for mobile browsers
   if (imageUri && imageUri.startsWith('http')) {
-    // Use listing timestamp for consistent cache-busting
     const timestamp = updatedAt || createdAt || Date.now();
     const cacheKey = typeof timestamp === 'string' ? timestamp : timestamp.toMillis?.() || timestamp;
     const separator = imageUri.includes('?') ? '&' : '?';
@@ -35,6 +25,13 @@ export default function ListingCard({
   const formatPrice = () => {
     if (!price || price === 0) return 'Price on call';
     return `${currency} ${Number(price).toLocaleString()}`;
+  };
+
+  const handleFavoritePress = (e) => {
+    e.stopPropagation();
+    if (onFavoriteToggle) {
+      onFavoriteToggle(listing.id, !isFavorited);
+    }
   };
 
   return (
@@ -54,8 +51,24 @@ export default function ListingCard({
           }
           style={styles.image}
           resizeMode="cover"
-          key={imageUri} // Force re-render when image URI changes
+          key={imageUri}
         />
+
+        {/* Favorite Heart Button */}
+        {onFavoriteToggle && (
+          <TouchableOpacity
+            style={styles.favoriteButton}
+            onPress={handleFavoritePress}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons
+              name={isFavorited ? "heart" : "heart-outline"}
+              size={24}
+              color={isFavorited ? "#E50914" : "#FFF"}
+              style={styles.favoriteIcon}
+            />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Content */}
@@ -86,10 +99,27 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 130,
     backgroundColor: '#F3F4F6',
+    position: 'relative',
   },
   image: {
     width: '100%',
     height: '100%',
+  },
+  favoriteButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  favoriteIcon: {
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   content: {
     padding: PREMIUM_SPACING.md,
