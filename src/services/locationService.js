@@ -1,105 +1,146 @@
 /**
- * Location Service
- * Automatic location detection for web, mobile, and tablet
- * Detects country and city using geolocation + reverse geocoding
+ * Location Service - Facebook Marketplace Style
+ * User selects their city/state, stored in Firestore
  */
 
-import { Platform } from 'react-native';
+import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 import * as Location from 'expo-location';
 
 /**
- * Get user's current location (country, city)
- * Works on: web, mobile, tablet
- * Returns: { country: string, city: string, fullAddress: string }
+ * Get user's saved location from Firestore
  */
-export async function detectUserLocation() {
-  console.log('📍 Starting location detection...');
+export async function getUserLocation(userId) {
+  if (!userId) return null;
 
   try {
-    // Request permission
+    const db = getFirestore();
+    const userRef = doc(db, 'users', userId, 'settings', 'location');
+    const docSnap = await getDoc(userRef);
+
+    if (docSnap.exists()) {
+      return docSnap.data();
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting user location:', error);
+    return null;
+  }
+}
+
+/**
+ * Save user's selected location to Firestore
+ */
+export async function saveUserLocation(userId, locationData) {
+  if (!userId) {
+    throw new Error('userId is required');
+  }
+
+  try {
+    const db = getFirestore();
+    const userRef = doc(db, 'users', userId, 'settings', 'location');
+
+    await setDoc(userRef, {
+      city: locationData.city,
+      state: locationData.state,
+      country: locationData.country,
+      latitude: locationData.latitude || null,
+      longitude: locationData.longitude || null,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Error saving user location:', error);
+    throw error;
+  }
+}
+
+/**
+ * Suggest location using browser geolocation (optional)
+ * Returns null if permission denied or error
+ */
+export async function suggestLocationFromGPS() {
+  try {
+    // Request permission (non-blocking)
     const { status } = await Location.requestForegroundPermissionsAsync();
 
     if (status !== 'granted') {
-      console.warn('⚠️ Location permission denied');
-      return {
-        country: '',
-        city: '',
-        fullAddress: '',
-        error: 'Permission denied'
-      };
+      console.log('Location permission denied - user will select manually');
+      return null;
     }
 
-    console.log('✅ Location permission granted');
-
-    // Get coordinates with timeout
-    const location = await Promise.race([
-      Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      }),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Location timeout')), 15000)
-      )
-    ]);
-
-    const { latitude, longitude } = location.coords;
-    console.log('📍 Coordinates:', latitude, longitude);
-
-    // Reverse geocode to get address
-    const addresses = await Location.reverseGeocodeAsync({
-      latitude,
-      longitude,
+    // Get current position
+    const position = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
     });
 
-    if (addresses && addresses.length > 0) {
+    // Reverse geocode to get city/state
+    const addresses = await Location.reverseGeocodeAsync({
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+    });
+
+    if (addresses.length > 0) {
       const address = addresses[0];
-      const country = address.country || '';
-      const city = address.city || address.subregion || address.region || '';
-      const fullAddress = formatAddress(address);
-
-      console.log('✅ Location detected:', { country, city });
-
       return {
-        country,
-        city,
-        fullAddress,
-        latitude,
-        longitude,
+        city: address.city || '',
+        state: address.region || '',
+        country: address.country || '',
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
       };
     }
 
-    throw new Error('No address found');
-
+    return null;
   } catch (error) {
-    console.error('❌ Location detection failed:', error.message);
-    return {
-      country: '',
-      city: '',
-      fullAddress: '',
-      error: error.message
-    };
+    console.log('Could not detect location:', error.message);
+    return null;
   }
 }
 
 /**
- * Format address object into readable string
+ * Popular cities list for manual selection
  */
-function formatAddress(address) {
-  const parts = [
-    address.city || address.subregion,
-    address.region,
-    address.country,
-  ].filter(Boolean);
+export const POPULAR_CITIES = {
+  'Nigeria': [
+    { city: 'Lagos', state: 'Lagos' },
+    { city: 'Abuja', state: 'FCT' },
+    { city: 'Kano', state: 'Kano' },
+    { city: 'Ibadan', state: 'Oyo' },
+    { city: 'Port Harcourt', state: 'Rivers' },
+    { city: 'Benin City', state: 'Edo' },
+    { city: 'Kaduna', state: 'Kaduna' },
+    { city: 'Enugu', state: 'Enugu' },
+  ],
+  'Kenya': [
+    { city: 'Nairobi', state: 'Nairobi' },
+    { city: 'Mombasa', state: 'Mombasa' },
+    { city: 'Kisumu', state: 'Kisumu' },
+    { city: 'Nakuru', state: 'Nakuru' },
+  ],
+  'Ghana': [
+    { city: 'Accra', state: 'Greater Accra' },
+    { city: 'Kumasi', state: 'Ashanti' },
+    { city: 'Tamale', state: 'Northern' },
+  ],
+  'South Africa': [
+    { city: 'Johannesburg', state: 'Gauteng' },
+    { city: 'Cape Town', state: 'Western Cape' },
+    { city: 'Durban', state: 'KwaZulu-Natal' },
+    { city: 'Pretoria', state: 'Gauteng' },
+  ],
+};
 
-  return parts.join(', ');
+/**
+ * Get all countries
+ */
+export function getCountries() {
+  return Object.keys(POPULAR_CITIES);
 }
 
 /**
- * Check if location services are available
+ * Get cities for a country
  */
-export async function isLocationAvailable() {
-  try {
-    return await Location.hasServicesEnabledAsync();
-  } catch {
-    return false;
-  }
+export function getCitiesForCountry(country) {
+  return POPULAR_CITIES[country] || [];
 }
