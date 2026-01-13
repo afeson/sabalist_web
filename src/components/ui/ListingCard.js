@@ -3,7 +3,7 @@ import { View, Image, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PREMIUM_COLORS, PREMIUM_RADIUS, PREMIUM_SPACING, PREMIUM_SHADOWS } from '../../theme/premiumTheme';
 
-// v1.1.0 - FAVORITES FEATURE ENABLED
+// v1.2.0 - HEART ICON VISIBILITY FIX
 export default function ListingCard({
   listing,
   onPress,
@@ -12,8 +12,6 @@ export default function ListingCard({
   style,
   ...props
 }) {
-  console.log('🔴 ListingCard v1.1.0 render:', listing.id, 'onFavoriteToggle:', !!onFavoriteToggle, 'isFavorited:', isFavorited);
-
   const { title, price, currency = 'USD', location, coverImage, images, updatedAt, createdAt } = listing;
   let imageUri = coverImage || (images && images[0]);
 
@@ -30,13 +28,6 @@ export default function ListingCard({
     return `${currency} ${Number(price).toLocaleString()}`;
   };
 
-  const handleFavoritePress = (e) => {
-    e.stopPropagation();
-    if (onFavoriteToggle) {
-      onFavoriteToggle(listing.id, !isFavorited);
-    }
-  };
-
   return (
     <TouchableOpacity
       style={[styles.card, style]}
@@ -44,7 +35,7 @@ export default function ListingCard({
       activeOpacity={0.8}
       {...props}
     >
-      {/* Image */}
+      {/* Image Container - MUST be position: relative */}
       <View style={styles.imageContainer}>
         <Image
           source={
@@ -57,19 +48,10 @@ export default function ListingCard({
           key={imageUri}
         />
 
-        {/* Favorite Heart Button - ALWAYS SHOW FOR TESTING */}
-        <TouchableOpacity
-          style={styles.favoriteButton}
-          onPress={handleFavoritePress}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons
-            name={isFavorited ? "heart" : "heart-outline"}
-            size={24}
-            color={isFavorited ? "#E50914" : "#FFF"}
-            style={styles.favoriteIcon}
-          />
-        </TouchableOpacity>
+        {/* HEART ICON - ALWAYS VISIBLE */}
+        <View style={styles.favoriteButton}>
+          <Ionicons name="heart-outline" size={22} color="white" />
+        </View>
       </View>
 
       {/* Content */}
@@ -91,16 +73,17 @@ export default function ListingCard({
 
 const styles = StyleSheet.create({
   card: {
+    position: 'relative',
     backgroundColor: PREMIUM_COLORS.card,
     borderRadius: PREMIUM_RADIUS.lg,
     overflow: 'hidden',
     ...PREMIUM_SHADOWS.card,
   },
   imageContainer: {
+    position: 'relative',
     width: '100%',
     height: 130,
     backgroundColor: '#F3F4F6',
-    position: 'relative',
   },
   image: {
     width: '100%',
@@ -110,18 +93,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 50,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 999,
+    padding: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 10,
-  },
-  favoriteIcon: {
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   content: {
     padding: PREMIUM_SPACING.md,
