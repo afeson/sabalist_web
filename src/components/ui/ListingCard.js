@@ -3,7 +3,7 @@ import { View, Image, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PREMIUM_COLORS, PREMIUM_RADIUS, PREMIUM_SPACING, PREMIUM_SHADOWS } from '../../theme/premiumTheme';
 
-// v1.2.0 - HEART ICON VISIBILITY FIX
+// v1.3.0 - HEART ICON FIX - NO OVERFLOW CLIPPING
 export default function ListingCard({
   listing,
   onPress,
@@ -35,8 +35,8 @@ export default function ListingCard({
       activeOpacity={0.8}
       {...props}
     >
-      {/* Image Container - MUST be position: relative */}
-      <View style={styles.imageContainer}>
+      {/* Image with heart overlay - position relative wrapper */}
+      <View style={styles.imageWrapper}>
         <Image
           source={
             imageUri
@@ -48,10 +48,10 @@ export default function ListingCard({
           key={imageUri}
         />
 
-        {/* HEART ICON - ALWAYS VISIBLE */}
-        <View style={styles.favoriteButton}>
+        {/* HEART ICON - ALWAYS VISIBLE - INSIDE IMAGE WRAPPER */}
+        <TouchableOpacity style={styles.favoriteIcon}>
           <Ionicons name="heart-outline" size={22} color="white" />
-        </View>
+        </TouchableOpacity>
       </View>
 
       {/* Content */}
@@ -73,13 +73,12 @@ export default function ListingCard({
 
 const styles = StyleSheet.create({
   card: {
-    position: 'relative',
     backgroundColor: PREMIUM_COLORS.card,
     borderRadius: PREMIUM_RADIUS.lg,
     overflow: 'hidden',
     ...PREMIUM_SHADOWS.card,
   },
-  imageContainer: {
+  imageWrapper: {
     position: 'relative',
     width: '100%',
     height: 130,
@@ -89,11 +88,11 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  favoriteButton: {
+  favoriteIcon: {
     position: 'absolute',
     top: 8,
     right: 8,
-    zIndex: 50,
+    zIndex: 999,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderRadius: 999,
     padding: 6,
