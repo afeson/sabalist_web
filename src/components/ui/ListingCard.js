@@ -57,21 +57,19 @@ export default function ListingCard({
           key={imageUri}
         />
 
-        {/* Favorite Heart Button */}
-        {onFavoriteToggle && (
-          <TouchableOpacity
-            style={styles.favoriteButton}
-            onPress={handleFavoritePress}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons
-              name={isFavorited ? "heart" : "heart-outline"}
-              size={24}
-              color={isFavorited ? "#E50914" : "#FFF"}
-              style={styles.favoriteIcon}
-            />
-          </TouchableOpacity>
-        )}
+        {/* Favorite Heart Button - ALWAYS SHOW FOR TESTING */}
+        <TouchableOpacity
+          style={styles.favoriteButton}
+          onPress={handleFavoritePress}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons
+            name={isFavorited ? "heart" : "heart-outline"}
+            size={24}
+            color={isFavorited ? "#E50914" : "#FFF"}
+            style={styles.favoriteIcon}
+          />
+        </TouchableOpacity>
       </View>
 
       {/* Content */}
