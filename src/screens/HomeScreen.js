@@ -32,8 +32,10 @@ if (Platform.OS === 'web') {
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { SearchBar, CategoryPill, ListingCard, IconButton } from '../components/ui';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import LocationSelector from '../components/LocationSelector';
 import { useAuth } from '../contexts/AuthContext';
 import { subscribeToFavorites, addToFavorites, removeFromFavorites } from '../services/favoritesService';
+import { getUserLocation } from '../services/locationService';
 
 const CATEGORIES = ['All', 'Electronics', 'Vehicles', 'Real Estate', 'Fashion', 'Services'];
 
@@ -49,6 +51,8 @@ export default function HomeScreen({ route }) {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showLanguage, setShowLanguage] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState([]);
+  const [userLocation, setUserLocation] = useState(null);
+  const [showLocationSelector, setShowLocationSelector] = useState(false);
 
   const loadListings = useCallback(async () => {
     try {
@@ -101,6 +105,27 @@ export default function HomeScreen({ route }) {
       loadListings();
     }
   }, [searchText]);
+
+  // Load user location
+  useEffect(() => {
+    if (!user?.uid) {
+      setUserLocation(null);
+      return;
+    }
+
+    const loadLocation = async () => {
+      const location = await getUserLocation(user.uid);
+      console.log('📍 User location:', location);
+      setUserLocation(location);
+
+      // Show location selector if no location set
+      if (!location) {
+        setShowLocationSelector(true);
+      }
+    };
+
+    loadLocation();
+  }, [user?.uid]);
 
   // Subscribe to user favorites
   useEffect(() => {
@@ -243,6 +268,20 @@ export default function HomeScreen({ route }) {
           </View>
         )}
 
+        {/* Location Button */}
+        {user && (
+          <TouchableOpacity
+            style={styles.locationButton}
+            onPress={() => setShowLocationSelector(true)}
+          >
+            <Ionicons name="location" size={16} color={COLORS.primary} />
+            <Text style={styles.locationText}>
+              {userLocation ? `${userLocation.city}, ${userLocation.state}` : 'Set Location'}
+            </Text>
+            <Ionicons name="chevron-down" size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        )}
+
         {/* Search Bar */}
         <SearchBar
           value={searchText}
@@ -272,8 +311,8 @@ export default function HomeScreen({ route }) {
         columnWrapperStyle={styles.listingRow}
         contentContainerStyle={styles.listingContent}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
+          <RefreshControl
+            refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={COLORS.primary}
             colors={[COLORS.primary]}
@@ -281,6 +320,18 @@ export default function HomeScreen({ route }) {
         }
         ListEmptyComponent={renderEmptyState}
         showsVerticalScrollIndicator={false}
+      />
+
+      {/* Location Selector Modal */}
+      <LocationSelector
+        visible={showLocationSelector}
+        onClose={() => setShowLocationSelector(false)}
+        onLocationSelected={(location) => {
+          console.log('📍 Location selected:', location);
+          setUserLocation(location);
+          setShowLocationSelector(false);
+        }}
+        userId={user?.uid}
       />
     </SafeAreaView>
   );
@@ -331,6 +382,22 @@ const styles = StyleSheet.create({
   },
   languageContainer: {
     marginBottom: SPACING.md,
+  },
+  locationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: `${COLORS.primary}10`,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.md,
+  },
+  locationText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textDark,
+    flex: 1,
   },
   searchBar: {
     marginBottom: SPACING.md,
