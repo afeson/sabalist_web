@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Migrate CategoryId - Sabalist Admin</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; margin-top: 0; }
+        button {
+            background: #E50914;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover { background: #c00813; }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .log {
+            background: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        .log div { margin: 5px 0; }
+        .success { color: #00a000; }
+        .error { color: #d00; }
+        .info { color: #0066cc; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Migrate CategoryId to Existing Listings</h1>
+        <p>This will add <code>categoryId</code> field to all existing listings that don't have it.</p>
+
+        <button id="migrateBtn" onclick="migrateListings()">Start Migration</button>
+        <button onclick="checkStatus()">Check Status</button>
+
+        <div class="log" id="log"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getFirestore, collection, getDocs, doc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB-kqYRxQw9dV9pFJq7VsOHLNGQn9KxWEo",
+            authDomain: "sabalist.firebaseapp.com",
+            projectId: "sabalist",
+            storageBucket: "sabalist.firebasestorage.app",
+            messagingSenderId: "1039836473397",
+            appId: "1:1039836473397:web:5aff75f9f13e5c5f5b8b0a"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        window.db = db;
+
+        const CATEGORY_MAP = {
+            'Electronics': 'electronics',
+            'Vehicles': 'vehicles',
+            'Furniture': 'furniture',
+            'Home Appliances': 'home-appliances',
+            'Construction Equipment': 'construction-equipment',
+            'Art & Collectibles': 'art-collectibles',
+            'Fashion': 'fashion',
+            'Services': 'services',
+            'Jobs': 'jobs',
+            'Real Estate': 'real-estate',
+        };
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const line = document.createElement('div');
+            line.className = type;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(line);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        window.migrateListings = async function() {
+            const btn = document.getElementById('migrateBtn');
+            btn.disabled = true;
+            log('Starting migration...', 'info');
+
+            try {
+                const listingsRef = collection(db, 'listings');
+                const snapshot = await getDocs(listingsRef);
+                log(`Found ${snapshot.size} total listings`, 'info');
+
+                let updated = 0;
+                let skipped = 0;
+                let errors = 0;
+
+                for (const docSnap of snapshot.docs) {
+                    const data = docSnap.data();
+
+                    // Skip if already has categoryId
+                    if (data.categoryId) {
+                        skipped++;
+                        continue;
+                    }
+
+                    // Get categoryId from category name
+                    const categoryId = CATEGORY_MAP[data.category];
+
+                    if (!categoryId) {
+                        log(`❌ Unknown category: ${data.category} (${docSnap.id})`, 'error');
+                        errors++;
+                        continue;
+                    }
+
+                    try {
+                        await updateDoc(doc(db, 'listings', docSnap.id), {
+                            categoryId: categoryId
+                        });
+                        log(`✅ Updated ${docSnap.id}: ${data.category} → ${categoryId}`, 'success');
+                        updated++;
+                    } catch (err) {
+                        log(`❌ Failed ${docSnap.id}: ${err.message}`, 'error');
+                        errors++;
+                    }
+                }
+
+                log('', 'info');
+                log(`✅ Migration complete!`, 'success');
+                log(`   Updated: ${updated}`, 'success');
+                log(`   Skipped: ${skipped}`, 'info');
+                log(`   Errors: ${errors}`, errors > 0 ? 'error' : 'info');
+            } catch (error) {
+                log(`❌ Migration failed: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        };
+
+        window.checkStatus = async function() {
+            log('Checking status...', 'info');
+
+            try {
+                const listingsRef = collection(db, 'listings');
+                const snapshot = await getDocs(listingsRef);
+
+                let withCategoryId = 0;
+                let withoutCategoryId = 0;
+
+                snapshot.docs.forEach(doc => {
+                    if (doc.data().categoryId) {
+                        withCategoryId++;
+                    } else {
+                        withoutCategoryId++;
+                    }
+                });
+
+                log(`Total: ${snapshot.size} listings`, 'info');
+                log(`With categoryId: ${withCategoryId}`, 'success');
+                log(`Without categoryId: ${withoutCategoryId}`, withoutCategoryId > 0 ? 'error' : 'info');
+            } catch (error) {
+                log(`❌ Check failed: ${error.message}`, 'error');
+            }
+        };
+
+        // Auto-check on load
+        window.addEventListener('load', () => {
+            setTimeout(checkStatus, 500);
+        });
+    </script>
+</body>
+</html>

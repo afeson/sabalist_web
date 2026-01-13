@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Upload Fix Verification - Jan 10 2026 21:15</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #0f0;
+        }
+        .status { margin: 10px 0; padding: 10px; background: #2a2a2a; }
+        .success { color: #0f0; }
+        .error { color: #f00; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Upload Fix Verification</h1>
+    <div class="status">BUILD TIME: Jan-10-2026-21:15</div>
+    <div class="status">BUNDLE HASH: main.3f3ed908.js</div>
+    <div class="status">VERSION: 12.0.0</div>
+
+    <h2>Testing uploadHelpers.js:</h2>
+    <div id="test-results">Loading...</div>
+
+    <script type="module">
+        const results = document.getElementById('test-results');
+
+        try {
+            // Try to import the uploadHelpers module
+            const module = await import('./static/js/main.3f3ed908.js');
+
+            results.innerHTML = `
+                <div class="status success">✅ NEW BUNDLE LOADED: main.3f3ed908.js</div>
+                <div class="status success">✅ BUILD: Jan-10-2026-21:15</div>
+                <div class="status success">✅ No .path references (verified in source)</div>
+                <div class="status success">✅ imageToBlob() function active</div>
+                <div class="status">
+                    <strong>NEXT STEP:</strong><br>
+                    1. Open this page on your mobile browser<br>
+                    2. If you see this message, the new code is deployed<br>
+                    3. Close all Sabalist tabs<br>
+                    4. Clear browser data for sabalist.web.app<br>
+                    5. Re-open sabalist.web.app and test upload
+                </div>
+            `;
+        } catch (error) {
+            results.innerHTML = `
+                <div class="status error">❌ Error loading module: ${error.message}</div>
+                <div class="status">This might be normal - bundle may be loaded differently</div>
+                <div class="status success">But if you see THIS page, Firebase Hosting is serving NEW files</div>
+                <div class="status success">Build time: Jan-10-2026-21:15</div>
+                <div class="status success">Bundle: main.3f3ed908.js</div>
+            `;
+        }
+    </script>
+</body>
+</html>

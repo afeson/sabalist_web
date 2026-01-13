@@ -3,6 +3,7 @@ import { View, Image, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PREMIUM_COLORS, PREMIUM_RADIUS, PREMIUM_SPACING, PREMIUM_SHADOWS } from '../../theme/premiumTheme';
 
+// v1.1.0 - FAVORITES FEATURE ENABLED
 export default function ListingCard({
   listing,
   onPress,
@@ -11,7 +12,7 @@ export default function ListingCard({
   style,
   ...props
 }) {
-  console.log('🔴 ListingCard render:', listing.id, 'onFavoriteToggle:', !!onFavoriteToggle, 'isFavorited:', isFavorited);
+  console.log('🔴 ListingCard v1.1.0 render:', listing.id, 'onFavoriteToggle:', !!onFavoriteToggle, 'isFavorited:', isFavorited);
 
   const { title, price, currency = 'USD', location, coverImage, images, updatedAt, createdAt } = listing;
   let imageUri = coverImage || (images && images[0]);

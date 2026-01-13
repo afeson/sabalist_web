@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>Upload Test - Force Fresh Load</title>
+</head>
+<body>
+    <h1>Upload Test - VERSION 13.0.0</h1>
+    <input type="file" id="fileInput" multiple accept="image/*">
+    <button onclick="testUpload()">Test Upload</button>
+    <div id="output"></div>
+
+    <script type="module">
+        // Force fresh import with cache buster
+        const timestamp = Date.now();
+
+        // Dynamically import the module with cache buster
+        const module = await import(`../src/services/uploadHelpers.js?v=${timestamp}`);
+        const { imageToBlob } = module;
+
+        window.testUpload = async function() {
+            const files = document.getElementById('fileInput').files;
+            const output = document.getElementById('output');
+            output.innerHTML = '<p>Processing...</p>';
+
+            if (files.length === 0) {
+                output.innerHTML = '<p style="color:red">Please select images first</p>';
+                return;
+            }
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                output.innerHTML += `<p>Processing ${file.name}...</p>`;
+
+                try {
+                    // Convert file to data URL
+                    const dataUrl = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.readAsDataURL(file);
+                    });
+
+                    // Test imageToBlob
+                    const blob = await imageToBlob(dataUrl, i);
+                    output.innerHTML += `<p style="color:green">✅ ${file.name}: Blob created (${(blob.size / 1024).toFixed(2)} KB)</p>`;
+                } catch (error) {
+                    output.innerHTML += `<p style="color:red">❌ ${file.name}: ${error.message}</p>`;
+                    console.error('Upload error:', error);
+                }
+            }
+        };
+    </script>
+</body>
+</html>

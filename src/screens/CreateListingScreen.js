@@ -33,8 +33,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { useTranslation } from 'react-i18next';
 
-// Image upload helper - v12.0.0 COMPLETE REWRITE
-import { imageToBlob, withTimeout } from '../services/uploadHelpers';
+// Image upload helper - v14.0.0 UNIVERSAL
+import { imageToBlob } from '../services/uploadHelpers';
+import { detectUserLocation } from '../services/locationService';
+import { getCategoryId } from '../config/categoryMapping';
 import { useAuth } from '../contexts/AuthContext';
 import { getFirestore, collection, addDoc, updateDoc, doc, getDoc } from 'firebase/firestore';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -68,6 +70,7 @@ export default function CreateListingScreen({ navigation }) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [compressing, setCompressing] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(false);
 
   // Computed values
   const availableSubcategories = getSubCategories(category);
@@ -159,7 +162,7 @@ export default function CreateListingScreen({ navigation }) {
           let uploadBranch;
 
           if (Platform.OS === 'web') {
-            // Web: Convert to data URL (persistent, won't expire like blob URLs)
+            // Web: ALWAYS convert to data URL (persistent, won't expire like blob URLs)
             console.log('🖼️ Web image processing:', {
               hasBase64: !!compressed.base64,
               base64Length: compressed.base64?.length || 0,
@@ -168,15 +171,26 @@ export default function CreateListingScreen({ navigation }) {
             });
 
             if (compressed.base64) {
+              // Desktop web: manipulateAsync returns base64
               imageUri = `data:image/jpeg;base64,${compressed.base64}`;
               uploadBranch = 'base64';
               console.log('✅ Created data URL from base64, length:', imageUri.length);
             } else {
-              // Fallback: convert blob to data URL using FileReader
+              // Mobile web: manipulateAsync returns blob URL, convert to data URL
               uploadBranch = 'blob';
-              console.log('⚠️ No base64, using fallback blobToDataURL');
-              imageUri = await blobToDataURL(compressed.uri || asset.uri);
-              console.log('✅ Fallback conversion complete, length:', imageUri?.length || 0);
+              console.log('⚠️ Mobile web: Converting blob URL to data URL');
+              const blobUri = compressed.uri || asset.uri;
+
+              // Fetch the blob and convert to data URL
+              const response = await fetch(blobUri);
+              const blob = await response.blob();
+              imageUri = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              });
+              console.log('✅ Mobile web: Conversion complete, length:', imageUri?.length || 0);
             }
           } else {
             // Native: Use file URI directly (more efficient)
@@ -251,7 +265,7 @@ export default function CreateListingScreen({ navigation }) {
         // Platform-specific handling
         let imageUri;
         if (Platform.OS === 'web') {
-          // Web: Convert to data URL
+          // Web: ALWAYS convert to data URL
           console.log('📸 Camera web processing:', {
             hasBase64: !!compressed.base64,
             base64Length: compressed.base64?.length || 0,
@@ -259,12 +273,22 @@ export default function CreateListingScreen({ navigation }) {
           });
 
           if (compressed.base64) {
+            // Desktop web: base64 available
             imageUri = `data:image/jpeg;base64,${compressed.base64}`;
             console.log('✅ Camera: Created data URL, length:', imageUri.length);
           } else {
-            console.log('⚠️ Camera: No base64, using fallback');
-            imageUri = await blobToDataURL(compressed.uri || asset.uri);
-            console.log('✅ Camera: Fallback complete, length:', imageUri?.length || 0);
+            // Mobile web: convert blob URL to data URL
+            console.log('⚠️ Camera mobile web: Converting blob URL');
+            const blobUri = compressed.uri || asset.uri;
+            const response = await fetch(blobUri);
+            const blob = await response.blob();
+            imageUri = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+            console.log('✅ Camera mobile: Conversion complete, length:', imageUri?.length || 0);
           }
         } else {
           // Native: Use file URI directly
@@ -342,6 +366,31 @@ export default function CreateListingScreen({ navigation }) {
   };
 
   /**
+   * Auto-detect user location
+   */
+  const handleDetectLocation = async () => {
+    setDetectingLocation(true);
+    try {
+      const result = await detectUserLocation();
+
+      if (result.error) {
+        Alert.alert('Location Error', `Could not detect location: ${result.error}`);
+      } else if (result.city && result.country) {
+        const detectedLocation = `${result.city}, ${result.country}`;
+        setLocation(detectedLocation);
+        Alert.alert('Location Detected', detectedLocation);
+      } else {
+        Alert.alert('Location Error', 'Could not determine your location. Please enter manually.');
+      }
+    } catch (error) {
+      console.error('Location detection error:', error);
+      Alert.alert('Location Error', 'Failed to detect location. Please enter manually.');
+    } finally {
+      setDetectingLocation(false);
+    }
+  };
+
+  /**
    * STEP 3: Submit listing
    *
    * Flow:
@@ -412,11 +461,14 @@ export default function CreateListingScreen({ navigation }) {
 
       // Use ISO timestamp instead of serverTimestamp() to avoid potential Firestore connection issues
       const now = new Date().toISOString();
+      const categoryId = getCategoryId(category);
+
       const listingData = {
         title: title.trim(),
         description: description.trim(),
         price: parseFloat(price.trim()) || 0,
         category,
+        categoryId,
         subcategory: subcategory || '',
         currency: 'USD',
         location: location.trim(),
@@ -451,19 +503,11 @@ export default function CreateListingScreen({ navigation }) {
       });
 
       let listingRef;
-      const startTime = Date.now();
       try {
-        // Increased timeout to 60 seconds to see if operation just needs more time
-        listingRef = await withTimeout(
-          addDoc(collection(db, 'listings'), listingData),
-          60000,
-          'Firestore addDoc'
-        );
-        const elapsed = Date.now() - startTime;
-        console.log(`✅ Firestore addDoc completed in ${elapsed}ms`);
+        listingRef = await addDoc(collection(db, 'listings'), listingData);
+        console.log(`✅ Firestore addDoc completed`);
       } catch (error) {
-        const elapsed = Date.now() - startTime;
-        console.error(`❌ Firestore addDoc failed after ${elapsed}ms:`, error.code, error.message);
+        console.error(`❌ Firestore addDoc failed:`, error.code, error.message);
         throw new Error(`Failed to create listing: ${error.message}`);
       }
 
@@ -479,11 +523,12 @@ export default function CreateListingScreen({ navigation }) {
 
         for (let i = 0; i < images.length; i++) {
           setUploadProgress(`Uploading image ${i + 1} of ${images.length}...`);
-          console.log(`📤 Uploading image ${i + 1}`);
+          console.log(`📤 [${i + 1}/${images.length}] Starting upload`);
 
           try {
-            // Convert image to Blob (NEVER uses .path)
-            const blob = await imageToBlob(images[i], i);
+            // Convert to blob using universal helper
+            const imageUri = images[i];
+            const blob = await imageToBlob({ uri: imageUri });
 
             // Create storage reference
             const ref = storageRef(
@@ -496,14 +541,12 @@ export default function CreateListingScreen({ navigation }) {
 
             // Get download URL
             const url = await getDownloadURL(ref);
-
             imageUrls.push(url);
 
-            console.log(`✅ Image ${i + 1} uploaded: ${url.substring(0, 60)}...`);
+            console.log(`✅ [${i + 1}/${images.length}] Uploaded:`, url.substring(0, 60));
           } catch (error) {
-            console.error(`❌ UPLOAD ABORTED at image ${i + 1}/${images.length}`);
-            console.error(`❌ Error:`, error.message);
-            throw new Error(`Upload ABORTED at image ${i + 1}/${images.length}: ${error.message}`);
+            console.error(`❌ [${i + 1}/${images.length}] Upload failed:`, error.message);
+            throw new Error(`Image ${i + 1} upload failed: ${error.message}`);
           }
         }
 
@@ -562,11 +605,7 @@ export default function CreateListingScreen({ navigation }) {
           }
 
           console.log('📝 Calling updateDoc with data:', JSON.stringify(updateData, null, 2).substring(0, 500));
-          await withTimeout(
-            updateDoc(doc(db, 'listings', listingId), updateData),
-            30000,
-            'Firestore updateDoc'
-          );
+          await updateDoc(doc(db, 'listings', listingId), updateData);
           console.log('✅ Firestore document updated with', imageUrls.length, 'images');
 
           // Verify the update was successful by reading back the document
@@ -830,6 +869,20 @@ export default function CreateListingScreen({ navigation }) {
           value={location}
           onChangeText={setLocation}
         />
+        <TouchableOpacity
+          style={styles.detectLocationButton}
+          onPress={handleDetectLocation}
+          disabled={detectingLocation}
+        >
+          <Ionicons
+            name={detectingLocation ? "hourglass-outline" : "location-outline"}
+            size={18}
+            color={COLORS.primary}
+          />
+          <Text style={styles.detectLocationText}>
+            {detectingLocation ? 'Detecting...' : 'Auto-detect my location'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Phone Number */}
@@ -1272,5 +1325,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
     marginTop: SPACING.md,
+  },
+  detectLocationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: SPACING.sm,
+    padding: SPACING.sm,
+    backgroundColor: '#F0F4FF',
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderStyle: 'dashed',
+  },
+  detectLocationText: {
+    fontSize: 14,
+    color: COLORS.primary,
+    fontWeight: '600',
   },
 });
