@@ -250,7 +250,7 @@ export async function fetchListings(categoryFilter = null, limitCount = 20) {
     if (categoryFilter && categoryFilter !== "All") {
       q = query(
         collection(firestore, "listings"),
-        where("category", "==", categoryFilter),
+        where("categoryId", "==", categoryFilter),
         orderBy("createdAt", "desc"),
         firestoreLimit(limitCount)
       );
@@ -448,9 +448,9 @@ export async function getListing(listingId) {
 /**
  * Search listings (WEB VERSION)
  */
-export async function searchListings(searchText = "", category = null, minPrice = null, maxPrice = null, subcategoryId = null) {
+export async function searchListings(searchText = "", category = null, minPrice = null, maxPrice = null, subcategoryId = null, userLocation = null) {
   try {
-    console.log('searchListings called with:', { searchText, category, subcategoryId });
+    console.log('searchListings called with:', { searchText, category, subcategoryId, userLocation });
 
     // Only fetch active listings for marketplace
     const listings = await fetchListings(category, 50);
@@ -477,6 +477,31 @@ export async function searchListings(searchText = "", category = null, minPrice 
     }
     if (maxPrice !== null && maxPrice !== '') {
       activeListings = activeListings.filter(listing => listing.price <= parseFloat(maxPrice));
+    }
+
+    // Apply location filter if provided
+    if (userLocation && userLocation.city) {
+      console.log(`Filtering by location: ${userLocation.city}, ${userLocation.state}`);
+      activeListings = activeListings.filter(listing => {
+        // Include listings without location (graceful degradation)
+        if (!listing.location) return true;
+
+        const listingLocation = listing.location.toLowerCase();
+        const userCity = userLocation.city.toLowerCase();
+        const userState = userLocation.state?.toLowerCase() || '';
+        const userCountry = userLocation.country?.toLowerCase() || '';
+
+        // Match if listing contains city, state, or country
+        const matches = listingLocation.includes(userCity) ||
+                       listingLocation.includes(userState) ||
+                       listingLocation.includes(userCountry);
+
+        if (matches) {
+          console.log(`Location match: ${listing.title} at ${listing.location}`);
+        }
+        return matches;
+      });
+      console.log(`After location filter: ${activeListings.length} listings`);
     }
 
     // Apply text search
@@ -513,7 +538,7 @@ export function subscribeToListings(callback, categoryFilter = null, limitCount 
     if (categoryFilter && categoryFilter !== "All") {
       q = query(
         collection(firestore, "listings"),
-        where("category", "==", categoryFilter),
+        where("categoryId", "==", categoryFilter),
         orderBy("createdAt", "desc"),
         firestoreLimit(limitCount)
       );

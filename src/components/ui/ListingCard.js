@@ -49,8 +49,20 @@ export default function ListingCard({
         />
 
         {/* HEART ICON - ALWAYS VISIBLE - INSIDE IMAGE WRAPPER */}
-        <TouchableOpacity style={styles.favoriteIcon}>
-          <Ionicons name="heart-outline" size={22} color="white" />
+        <TouchableOpacity
+          style={styles.favoriteIcon}
+          onPress={(e) => {
+            e.stopPropagation(); // Prevent card onPress from firing
+            if (onFavoriteToggle) {
+              onFavoriteToggle(listing.id, !isFavorited);
+            }
+          }}
+        >
+          <Ionicons
+            name={isFavorited ? "heart" : "heart-outline"}
+            size={22}
+            color={isFavorited ? "#FF3B30" : "white"}
+          />
         </TouchableOpacity>
       </View>
 

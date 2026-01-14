@@ -103,7 +103,7 @@ export async function fetchListings({ category = null, maxResults = 50 } = {}) {
     if (category && category !== "All") {
       query = firestore()
         .collection("listings")
-        .where("category", "==", category)
+        .where("categoryId", "==", category)
         .orderBy("createdAt", "desc")
         .limit(maxResults);
     }
@@ -134,11 +134,13 @@ export async function fetchListings({ category = null, maxResults = 50 } = {}) {
  * @param {string} category - Category filter
  * @param {number} minPrice - Minimum price filter
  * @param {number} maxPrice - Maximum price filter
+ * @param {string} subcategoryId - Subcategory filter
+ * @param {Object} userLocation - User's location for filtering
  * @returns {Promise<Array>} - Filtered listings
  */
-export async function searchListings(searchText = "", category = null, minPrice = null, maxPrice = null, subcategoryId = null) {
+export async function searchListings(searchText = "", category = null, minPrice = null, maxPrice = null, subcategoryId = null, userLocation = null) {
   try {
-    console.log('searchListings called with:', { searchText, category, subcategoryId });
+    console.log('searchListings called with:', { searchText, category, subcategoryId, userLocation });
 
     // Only fetch active listings for marketplace
     const listings = await fetchListings({ category });
@@ -165,6 +167,31 @@ export async function searchListings(searchText = "", category = null, minPrice 
     }
     if (maxPrice !== null && maxPrice !== '') {
       activeListings = activeListings.filter(listing => listing.price <= parseFloat(maxPrice));
+    }
+
+    // Apply location filter if provided
+    if (userLocation && userLocation.city) {
+      console.log(`Filtering by location: ${userLocation.city}, ${userLocation.state}`);
+      activeListings = activeListings.filter(listing => {
+        // Include listings without location (graceful degradation)
+        if (!listing.location) return true;
+
+        const listingLocation = listing.location.toLowerCase();
+        const userCity = userLocation.city.toLowerCase();
+        const userState = userLocation.state?.toLowerCase() || '';
+        const userCountry = userLocation.country?.toLowerCase() || '';
+
+        // Match if listing contains city, state, or country
+        const matches = listingLocation.includes(userCity) ||
+                       listingLocation.includes(userState) ||
+                       listingLocation.includes(userCountry);
+
+        if (matches) {
+          console.log(`Location match: ${listing.title} at ${listing.location}`);
+        }
+        return matches;
+      });
+      console.log(`After location filter: ${activeListings.length} listings`);
     }
 
     // Apply text search

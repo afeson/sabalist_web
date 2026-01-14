@@ -18,6 +18,15 @@ import { useTranslation } from 'react-i18next';
 import { BUILD_VERSION } from '../config/buildVersion';
 import { PREMIUM_COLORS, PREMIUM_SPACING, PREMIUM_RADIUS, PREMIUM_SHADOWS } from '../theme/premiumTheme';
 import AppHeader from '../components/AppHeader';
+import { useAuth } from '../contexts/AuthContext';
+import {
+  subscribeToFavorites,
+  addToFavorites,
+  removeFromFavorites
+} from '../services/favoritesService';
+import { getCategoryId } from '../config/categoryMapping';
+import LocationSelector from '../components/LocationSelector';
+import { getUserLocation } from '../services/locationService';
 
 // Platform-aware listings imports
 let searchListings;
@@ -48,18 +57,31 @@ export default function HomeScreenSimple({ navigation }) {
     { id: 'Jobs', label: t('categories.jobs'), icon: 'briefcase' },
     { id: 'Real Estate', label: t('categories.realEstate'), icon: 'home' },
   ];
+  const { user } = useAuth();
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [favoriteIds, setFavoriteIds] = useState([]);
+  const [userLocation, setUserLocation] = useState(null);
+  const [showLocationSelector, setShowLocationSelector] = useState(false);
 
   const loadListings = useCallback(async (searchQuery = '') => {
     try {
       setLoading(true);
+      // Convert display name to normalized ID
+      const categoryId = selectedCategory === 'All'
+        ? null
+        : getCategoryId(selectedCategory);
+
       const items = await searchListings(
         searchQuery || searchText,
-        selectedCategory === 'All' ? null : selectedCategory
+        categoryId,
+        null,         // minPrice
+        null,         // maxPrice
+        null,         // subcategoryId
+        userLocation  // NEW: pass user location
       );
       setListings(items || []);
     } catch (err) {
@@ -69,11 +91,45 @@ export default function HomeScreenSimple({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [searchText, selectedCategory]);
+  }, [searchText, selectedCategory, userLocation]);
 
   useEffect(() => {
     loadListings();
   }, [selectedCategory]);
+
+  // Subscribe to favorites
+  useEffect(() => {
+    if (!user?.uid) {
+      setFavoriteIds([]);
+      return;
+    }
+    const unsubscribe = subscribeToFavorites(user.uid, setFavoriteIds);
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  // Load user location
+  useEffect(() => {
+    if (!user?.uid) {
+      setUserLocation(null);
+      return;
+    }
+    const loadLocation = async () => {
+      const location = await getUserLocation(user.uid);
+      setUserLocation(location);
+      // Auto-show selector if no location set
+      if (!location) {
+        setShowLocationSelector(true);
+      }
+    };
+    loadLocation();
+  }, [user?.uid]);
+
+  // Reload listings when location changes
+  useEffect(() => {
+    if (userLocation) {
+      loadListings();
+    }
+  }, [userLocation]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -82,6 +138,22 @@ export default function HomeScreenSimple({ navigation }) {
 
   const handleSearch = () => {
     loadListings(searchText);
+  };
+
+  const handleFavoriteToggle = async (listingId, newFavoritedState) => {
+    if (!user?.uid) {
+      navigation.navigate('Auth');
+      return;
+    }
+    try {
+      if (newFavoritedState) {
+        await addToFavorites(user.uid, listingId);
+      } else {
+        await removeFromFavorites(user.uid, listingId);
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    }
   };
 
   const renderCategory = ({ item }) => (
@@ -117,6 +189,8 @@ export default function HomeScreenSimple({ navigation }) {
       <ListingCard
         listing={item}
         onPress={() => navigation?.navigate('ListingDetail', { listingId: item.id })}
+        isFavorited={favoriteIds.includes(item.id)}
+        onFavoriteToggle={handleFavoriteToggle}
       />
     </View>
   );
@@ -174,6 +248,22 @@ export default function HomeScreenSimple({ navigation }) {
         </View>
       </View>
 
+      {/* Location Selector Button */}
+      {user && (
+        <TouchableOpacity
+          style={styles.locationButton}
+          onPress={() => setShowLocationSelector(true)}
+        >
+          <Ionicons name="location" size={16} color={PREMIUM_COLORS.accent} />
+          <Text style={styles.locationText}>
+            {userLocation
+              ? `${userLocation.city}, ${userLocation.state}`
+              : 'Set Location'}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color={PREMIUM_COLORS.muted} />
+        </TouchableOpacity>
+      )}
+
       {/* Category Pills */}
       <View style={styles.categorySection}>
         <FlatList
@@ -204,6 +294,17 @@ export default function HomeScreenSimple({ navigation }) {
       <View style={styles.buildVersion}>
         <Text style={styles.buildVersionText}>{BUILD_VERSION}</Text>
       </View>
+
+      {/* Location Selector Modal */}
+      <LocationSelector
+        visible={showLocationSelector}
+        onClose={() => setShowLocationSelector(false)}
+        onLocationSelected={(location) => {
+          setUserLocation(location);
+          setShowLocationSelector(false);
+        }}
+        userId={user?.uid}
+      />
     </View>
   );
 }
@@ -327,5 +428,24 @@ const styles = StyleSheet.create({
   buildVersionText: {
     fontSize: 10,
     color: PREMIUM_COLORS.muted,
+  },
+  locationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: PREMIUM_COLORS.card,
+    paddingHorizontal: PREMIUM_SPACING.md,
+    paddingVertical: PREMIUM_SPACING.sm,
+    borderRadius: PREMIUM_RADIUS.md,
+    marginHorizontal: PREMIUM_SPACING.xl,
+    marginBottom: PREMIUM_SPACING.md,
+    ...PREMIUM_SHADOWS.sm,
+  },
+  locationText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: PREMIUM_COLORS.text,
+    marginLeft: PREMIUM_SPACING.xs,
+    marginRight: PREMIUM_SPACING.xs,
+    flex: 1,
   },
 });
