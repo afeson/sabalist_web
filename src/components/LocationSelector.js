@@ -25,20 +25,25 @@ export default function LocationSelector({ visible, onClose, onLocationSelected,
 
   const countries = getCountries();
 
-  // Try to suggest location on mount
+  // Try to suggest location on mount (only once)
   useEffect(() => {
-    if (visible && !suggestedLocation) {
+    if (visible && !suggestedLocation && !loading) {
       detectLocation();
     }
   }, [visible]);
 
   const detectLocation = async () => {
     setLoading(true);
-    const location = await suggestLocationFromGPS();
-    if (location) {
-      setSuggestedLocation(location);
+    try {
+      const location = await suggestLocationFromGPS();
+      if (location) {
+        setSuggestedLocation(location);
+      }
+    } catch (error) {
+      console.log('Location detection error:', error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleUseSuggested = async () => {

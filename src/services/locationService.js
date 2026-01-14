@@ -61,39 +61,59 @@ export async function saveUserLocation(userId, locationData) {
  */
 export async function suggestLocationFromGPS() {
   try {
+    console.log('📍 Starting location detection...');
+
     // Request permission (non-blocking)
     const { status } = await Location.requestForegroundPermissionsAsync();
 
     if (status !== 'granted') {
-      console.log('Location permission denied - user will select manually');
+      console.log('❌ Location permission denied - user will select manually');
       return null;
     }
+
+    console.log('✅ Location permission granted');
 
     // Get current position
     const position = await Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.Balanced,
+      timeout: 5000,
     });
 
-    // Reverse geocode to get city/state
-    const addresses = await Location.reverseGeocodeAsync({
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-    });
+    console.log('📍 Coordinates:', position.coords.latitude, position.coords.longitude);
 
-    if (addresses.length > 0) {
-      const address = addresses[0];
-      return {
-        city: address.city || '',
-        state: address.region || '',
-        country: address.country || '',
+    // Try reverse geocoding
+    try {
+      const addresses = await Location.reverseGeocodeAsync({
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
-      };
+      });
+
+      console.log('📍 Reverse geocode result:', addresses);
+
+      if (addresses && addresses.length > 0) {
+        const address = addresses[0];
+
+        // Check if we got valid data
+        if (address.city || address.region || address.country) {
+          console.log('✅ Location detected:', address.city, address.region, address.country);
+          return {
+            city: address.city || address.subregion || 'Unknown City',
+            state: address.region || address.isoCountryCode || 'Unknown State',
+            country: address.country || 'Unknown Country',
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+        }
+      }
+    } catch (geocodeError) {
+      console.log('❌ Reverse geocoding failed:', geocodeError.message);
     }
 
+    // If reverse geocoding fails, return null (user will select manually)
+    console.log('❌ Location detection failed: No address found');
     return null;
   } catch (error) {
-    console.log('Could not detect location:', error.message);
+    console.log('❌ Could not detect location:', error.message);
     return null;
   }
 }
