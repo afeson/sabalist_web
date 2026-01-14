@@ -28,6 +28,8 @@ export default function ListingCard({
     return `${currency} ${Number(price).toLocaleString()}`;
   };
 
+  console.log('ListingCard rendering:', { id: listing.id, isFavorited, hasToggle: !!onFavoriteToggle });
+
   return (
     <TouchableOpacity
       style={[styles.card, style]}
@@ -49,21 +51,24 @@ export default function ListingCard({
         />
 
         {/* HEART ICON - ALWAYS VISIBLE - INSIDE IMAGE WRAPPER */}
-        <TouchableOpacity
-          style={styles.favoriteIcon}
-          onPress={(e) => {
-            e.stopPropagation(); // Prevent card onPress from firing
-            if (onFavoriteToggle) {
-              onFavoriteToggle(listing.id, !isFavorited);
-            }
-          }}
-        >
-          <Ionicons
-            name={isFavorited ? "heart" : "heart-outline"}
-            size={22}
-            color={isFavorited ? "#FF3B30" : "white"}
-          />
-        </TouchableOpacity>
+        <View style={styles.favoriteIcon}>
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation();
+              console.log('Heart pressed:', listing.id, !isFavorited);
+              if (onFavoriteToggle) {
+                onFavoriteToggle(listing.id, !isFavorited);
+              }
+            }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons
+              name={isFavorited ? "heart" : "heart-outline"}
+              size={24}
+              color={isFavorited ? "#FF3B30" : "white"}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Content */}
@@ -104,12 +109,17 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    zIndex: 999,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 999,
-    padding: 6,
+    zIndex: 9999,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 20,
+    padding: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
   },
   content: {
     padding: PREMIUM_SPACING.md,
