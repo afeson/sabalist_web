@@ -31,6 +31,7 @@ if (Platform.OS === 'web') {
   getUserListings = listingsNative.getUserListings;
   subscribeToUserListings = listingsNative.subscribeToUserListings;
 }
+import { subscribeToFavorites, addToFavorites, removeFromFavorites } from '../services/favoritesService';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { ListingCard } from '../components/ui';
 import AppHeader from '../components/AppHeader';
@@ -40,6 +41,7 @@ export default function MyListingsScreen({ navigation, route }) {
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [favoriteIds, setFavoriteIds] = useState([]);
 
   const loadMyListings = useCallback(async () => {
     try {
@@ -91,6 +93,27 @@ export default function MyListingsScreen({ navigation, route }) {
     };
   }, []); // Empty deps - only set up once
 
+  // Subscribe to user favorites
+  React.useEffect(() => {
+    const userId = Platform.OS === 'web' ? auth.currentUser?.uid : auth().currentUser?.uid;
+
+    if (!userId) {
+      setFavoriteIds([]);
+      return;
+    }
+
+    console.log('❤️ Setting up favorites listener for user:', userId);
+    const unsubscribe = subscribeToFavorites(userId, (ids) => {
+      console.log('❤️ Favorites updated:', ids.length, 'items');
+      setFavoriteIds(ids);
+    });
+
+    return () => {
+      console.log('❤️ Cleaning up favorites listener');
+      unsubscribe();
+    };
+  }, []);
+
   // Force refetch when screen receives focus with refresh parameter
   useFocusEffect(
     React.useCallback(() => {
@@ -108,11 +131,35 @@ export default function MyListingsScreen({ navigation, route }) {
     loadMyListings();
   };
 
+  const handleFavoriteToggle = async (listingId, newFavoritedState) => {
+    const userId = Platform.OS === 'web' ? auth.currentUser?.uid : auth().currentUser?.uid;
+
+    if (!userId) {
+      // Navigate to login if not authenticated
+      navigation.navigate('Auth');
+      return;
+    }
+
+    try {
+      if (newFavoritedState) {
+        console.log('➕ Adding to favorites:', listingId);
+        await addToFavorites(userId, listingId);
+      } else {
+        console.log('➖ Removing from favorites:', listingId);
+        await removeFromFavorites(userId, listingId);
+      }
+    } catch (error) {
+      console.error('❌ Error toggling favorite:', error);
+    }
+  };
+
   const renderListing = ({ item }) => (
     <View style={styles.listingCardWrapper}>
       <ListingCard
         listing={item}
         onPress={() => navigation?.navigate('ListingDetail', { listingId: item.id })}
+        isFavorited={favoriteIds.includes(item.id)}
+        onFavoriteToggle={handleFavoriteToggle}
       />
       {item.status === 'sold' && (
         <View style={styles.soldBadge}>

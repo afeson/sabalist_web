@@ -202,9 +202,9 @@ export default function AuthScreen() {
 
         let errorMessage = e.message;
         if (e.code === 'auth/invalid-action-code') {
-          errorMessage = 'The link has expired or been used already. Please request a new one.';
+          errorMessage = t('auth.linkExpired');
         } else if (e.code === 'auth/invalid-email') {
-          errorMessage = 'Invalid email address. Please try again.';
+          errorMessage = t('auth.pleaseEnterValidEmail');
         }
 
         Alert.alert(t('auth.signInFailed'), errorMessage);
@@ -317,17 +317,17 @@ export default function AuthScreen() {
       console.error('❌ Send magic link error:', e);
 
       let errorMessage = e.message;
-      let errorTitle = 'Error';
+      let errorTitle = t('common.error');
 
       if (e.code === 'auth/invalid-email') {
-        errorTitle = 'Invalid Email';
-        errorMessage = 'Please enter a valid email address';
+        errorTitle = t('auth.invalidEmail');
+        errorMessage = t('auth.pleaseEnterValidEmail');
       } else if (e.code === 'auth/missing-email') {
-        errorTitle = 'Email Required';
-        errorMessage = 'Please enter your email address';
+        errorTitle = t('auth.emailRequired');
+        errorMessage = t('auth.pleaseEnterEmail');
       } else if (e.code === 'auth/unauthorized-continue-uri') {
-        errorTitle = 'Configuration Error';
-        errorMessage = 'The app is not properly configured. Please contact support.';
+        errorTitle = t('auth.configError');
+        errorMessage = t('auth.configErrorMessage');
       }
 
       setError(`${e.code}: ${e.message}`);
@@ -394,12 +394,12 @@ export default function AuthScreen() {
         <Card style={styles.authCard}>
           <View style={styles.welcomeSection}>
             <Text style={styles.welcomeTitle}>
-              {emailSent ? '📧 Check your email' : t('auth.welcome')}
+              {emailSent ? t('auth.checkYourEmail') : t('auth.welcome')}
             </Text>
             <Text style={styles.welcomeText}>
               {emailSent
-                ? `We sent a login link to ${email}. Click the link to sign in.`
-                : 'Sign in with your email - no password needed!'
+                ? t('auth.linkSentTo', { email })
+                : t('auth.noPasswordNeeded')
               }
             </Text>
 
@@ -417,15 +417,15 @@ export default function AuthScreen() {
               <View style={styles.emailHint}>
                 <Ionicons name="mail" size={16} color={COLORS.info} />
                 <Text style={styles.hintText}>
-                  Enter your email and we'll send you a login link
+                  {t('auth.emailHint')}
                 </Text>
               </View>
 
               <Input
-                label="Email Address"
+                label={t('auth.emailLabel')}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="your@email.com"
+                placeholder={t('auth.emailPlaceholder')}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -434,7 +434,7 @@ export default function AuthScreen() {
               />
 
               <PrimaryButton
-                title="Send Login Link"
+                title={t('auth.sendLoginLink')}
                 onPress={sendMagicLink}
                 loading={loading}
                 disabled={loading}
@@ -446,13 +446,13 @@ export default function AuthScreen() {
                 <>
                   <View style={styles.divider}>
                     <View style={styles.dividerLine} />
-                    <Text style={styles.dividerText}>OR</Text>
+                    <Text style={styles.dividerText}>{t('auth.orDivider')}</Text>
                     <View style={styles.dividerLine} />
                   </View>
 
                   {/* Google Sign-In Button - web only */}
                   <PrimaryButton
-                    title="Continue with Google"
+                    title={t('auth.continueWithGoogle')}
                     onPress={signInWithGoogle}
                     variant="outline"
                     size="large"
@@ -468,22 +468,19 @@ export default function AuthScreen() {
               <View style={styles.successBox}>
                 <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
                 <Text style={styles.successText}>
-                  Login link sent to {email}
+                  {t('auth.loginLinkSentTo', { email })}
                 </Text>
               </View>
 
               <View style={styles.instructionsBox}>
-                <Text style={styles.instructionsTitle}>📱 Next steps:</Text>
+                <Text style={styles.instructionsTitle}>{t('auth.nextSteps')}</Text>
                 <Text style={styles.instructionsText}>
-                  1. Open your email app{'\n'}
-                  2. Find the email from Sabalist{'\n'}
-                  3. Click the "Sign In" link{'\n'}
-                  4. You'll be automatically signed in!
+                  {t('auth.nextStepsText')}
                 </Text>
               </View>
 
               <PrimaryButton
-                title="Send Another Link"
+                title={t('auth.sendAnotherLink')}
                 onPress={() => {
                   setEmailSent(false);
                   setEmail('');
@@ -500,20 +497,20 @@ export default function AuthScreen() {
         <View style={styles.featuresSection}>
           <FeatureItem
             icon="mail"
-            title="Passwordless Login"
-            description="No passwords to remember - just click a link"
+            title={t('auth.passwordlessLogin')}
+            description={t('auth.passwordlessDesc')}
             color={COLORS.success}
           />
           <FeatureItem
             icon="flash"
-            title="Fast & Free"
-            description="Sign in instantly without SMS costs"
+            title={t('auth.fastFree')}
+            description={t('auth.fastFreeDesc')}
             color={COLORS.accent}
           />
           <FeatureItem
             icon="shield-checkmark"
-            title="Secure & Private"
-            description="Email links are more secure than passwords"
+            title={t('auth.securePrivate')}
+            description={t('auth.securePrivateDesc')}
             color={COLORS.secondary}
           />
         </View>

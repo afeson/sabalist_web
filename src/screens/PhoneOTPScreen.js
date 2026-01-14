@@ -94,35 +94,35 @@ export default function PhoneOTPScreen() {
 
       // User-friendly error messages
       let errorMessage = e.message;
-      let errorTitle = 'Authentication Error';
+      let errorTitle = t('auth.authError');
 
       if (e.code === 'auth/invalid-phone-number') {
-        errorTitle = 'Invalid Phone Number';
-        errorMessage = 'Please enter a valid phone number with country code (e.g., +1 555 123 4567 for US)';
+        errorTitle = t('auth.invalidPhoneNumber');
+        errorMessage = t('auth.invalidPhoneMessage');
       } else if (e.code === 'auth/missing-phone-number') {
-        errorTitle = 'Phone Number Required';
-        errorMessage = 'Please enter your phone number';
+        errorTitle = t('auth.phoneRequiredTitle');
+        errorMessage = t('auth.phoneRequiredMessage');
       } else if (e.code === 'auth/quota-exceeded') {
-        errorTitle = 'SMS Quota Exceeded';
-        errorMessage = 'Too many SMS attempts. Please try again later or contact support.';
+        errorTitle = t('auth.smsQuotaExceeded');
+        errorMessage = t('auth.smsQuotaMessage');
       } else if (e.code === 'auth/captcha-check-failed') {
-        errorTitle = 'Verification Failed';
-        errorMessage = 'reCAPTCHA verification failed. Please refresh and try again.';
+        errorTitle = t('auth.verificationFailed');
+        errorMessage = t('auth.recaptchaFailed');
       } else if (e.code === 'auth/too-many-requests') {
-        errorTitle = 'Too Many Attempts';
-        errorMessage = 'Too many requests from this device. Please try again later.';
+        errorTitle = t('auth.tooManyAttempts');
+        errorMessage = t('auth.tooManyAttemptsMessage');
       } else if (e.code === 'auth/invalid-app-credential') {
-        errorTitle = 'Configuration Error';
+        errorTitle = t('auth.configError');
         if (Platform.OS === 'android') {
-          errorMessage = 'Android app not properly configured in Firebase. SHA-1 fingerprint and google-services.json are required. Please contact support.';
+          errorMessage = t('auth.androidConfigError');
         } else if (Platform.OS === 'ios') {
-          errorMessage = 'iOS app not properly configured in Firebase. GoogleService-Info.plist and APNs certificates are required. Please contact support.';
+          errorMessage = t('auth.iosConfigError');
         } else {
-          errorMessage = 'Firebase is not properly configured for this platform. Please contact support.';
+          errorMessage = t('auth.genericConfigError');
         }
       } else if (e.message.includes('reCAPTCHA')) {
-        errorTitle = 'reCAPTCHA Error';
-        errorMessage = 'Security verification failed. Please refresh the page and try again.';
+        errorTitle = t('auth.recaptchaError');
+        errorMessage = t('auth.recaptchaErrorMessage');
       }
 
       setError(`${e.code}: ${e.message}`);
@@ -131,8 +131,8 @@ export default function PhoneOTPScreen() {
         errorTitle,
         errorMessage + '\n\n' + `Error: ${e.code}`,
         [
-          { text: 'Copy Error', onPress: () => console.log('Error details:', e) },
-          { text: 'OK' }
+          { text: t('auth.copyError'), onPress: () => console.log('Error details:', e) },
+          { text: t('common.ok') }
         ]
       );
     }
@@ -169,18 +169,18 @@ export default function PhoneOTPScreen() {
         message: e.message,
       });
 
-      let errorMessage = 'Invalid verification code. Please try again.';
+      let errorMessage = t('auth.invalidCode');
 
       if (e.code === 'auth/invalid-verification-code') {
-        errorMessage = 'The code you entered is incorrect. Please check and try again.';
+        errorMessage = t('auth.incorrectCode');
       } else if (e.code === 'auth/code-expired') {
-        errorMessage = 'This code has expired. Please request a new one.';
+        errorMessage = t('auth.codeExpired');
       }
 
       setError(`${e.code}: ${e.message}`);
 
       Alert.alert(
-        'Verification Failed',
+        t('auth.verificationFailed'),
         errorMessage + '\n\n' + `Error: ${e.code}`
       );
     }
@@ -215,20 +215,20 @@ export default function PhoneOTPScreen() {
                 <Ionicons name="phone-portrait-outline" size={64} color={COLORS.textMuted} />
               </View>
               <Text style={styles.welcomeTitle}>
-                {isWeb ? 'Mobile App Required' : 'Platform Not Supported'}
+                {isWeb ? t('auth.mobileAppRequired') : t('auth.platformNotSupported')}
               </Text>
               <Text style={[styles.welcomeText, { textAlign: 'center', marginTop: SPACING.md }]}>
                 {isWeb
-                  ? 'Phone verification is only available on the mobile app.\n\nPlease download and install the Android app to continue.'
-                  : 'Phone authentication requires the Android app.\n\niOS support requires additional APNs configuration.'
+                  ? t('auth.mobileAppRequiredMessage')
+                  : t('auth.iosNotSupportedMessage')
                 }
               </Text>
               <View style={styles.infoBox}>
                 <Ionicons name="information-circle" size={20} color={COLORS.info} />
                 <Text style={styles.infoText}>
                   {isWeb
-                    ? 'Firebase Phone Authentication does not work in web browsers. Please use the Android app.'
-                    : 'See FIREBASE_PHONE_AUTH_SETUP.md for iOS setup instructions.'
+                    ? t('auth.webPhoneAuthNote')
+                    : t('auth.iosSetupNote')
                   }
                 </Text>
               </View>
@@ -261,7 +261,7 @@ export default function PhoneOTPScreen() {
                   <View style={styles.phoneHint}>
                     <Ionicons name="information-circle" size={16} color={COLORS.info} />
                     <Text style={styles.hintText}>
-                      Start with country code: +1 (US), +234 (Nigeria), +254 (Kenya), +251 (Ethiopia)
+                      {t('auth.phoneHint')}
                     </Text>
                   </View>
 
@@ -272,7 +272,7 @@ export default function PhoneOTPScreen() {
                       console.log('📱 Phone number changed:', text);
                       setPhone(text);
                     }}
-                    placeholder="Enter your phone number"
+                    placeholder={t('auth.phonePlaceholder')}
                     keyboardType="phone-pad"
                     showClear={true}
                     editable={!loading}
@@ -290,7 +290,7 @@ export default function PhoneOTPScreen() {
                   <View style={styles.successBox}>
                     <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
                     <Text style={styles.successText}>
-                      Code sent to {phone}
+                      {t('auth.codeSentToPhone', { phone })}
                     </Text>
                   </View>
 
@@ -298,7 +298,7 @@ export default function PhoneOTPScreen() {
                     label={t('auth.codeLabel')}
                     value={code}
                     onChangeText={setCode}
-                    placeholder="123456"
+                    placeholder={t('auth.codePlaceholder') || '123456'}
                     keyboardType="number-pad"
                     maxLength={6}
                   />

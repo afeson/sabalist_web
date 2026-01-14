@@ -324,7 +324,7 @@ export default function CreateListingScreen({ navigation }) {
   const pickVideo = async () => {
     try {
       if (video) {
-        Alert.alert('Video Already Added', 'You can only add one video per listing. Remove the current video first.');
+        Alert.alert(t('alerts.videoAlreadyAdded'), t('alerts.oneVideoMessage'));
         return;
       }
 
@@ -343,7 +343,7 @@ export default function CreateListingScreen({ navigation }) {
       // Check video size (max 50MB)
       if (asset.fileSize && asset.fileSize > 50 * 1024 * 1024) {
         const sizeMB = (asset.fileSize / (1024 * 1024)).toFixed(1);
-        Alert.alert('Video Too Large', `Video is ${sizeMB}MB. Maximum is 50MB.`);
+        Alert.alert(t('alerts.videoTooLarge'), t('alerts.videoSizeMessage', { size: sizeMB }));
         return;
       }
 
@@ -374,17 +374,17 @@ export default function CreateListingScreen({ navigation }) {
       const result = await detectUserLocation();
 
       if (result.error) {
-        Alert.alert('Location Error', `Could not detect location: ${result.error}`);
+        Alert.alert(t('alerts.locationError'), t('alerts.couldNotDetect', { error: result.error }));
       } else if (result.city && result.country) {
         const detectedLocation = `${result.city}, ${result.country}`;
         setLocation(detectedLocation);
-        Alert.alert('Location Detected', detectedLocation);
+        Alert.alert(t('alerts.locationDetected'), detectedLocation);
       } else {
-        Alert.alert('Location Error', 'Could not determine your location. Please enter manually.');
+        Alert.alert(t('alerts.locationError'), t('alerts.couldNotDetermine'));
       }
     } catch (error) {
       console.error('Location detection error:', error);
-      Alert.alert('Location Error', 'Failed to detect location. Please enter manually.');
+      Alert.alert(t('alerts.locationError'), t('alerts.failedDetect'));
     } finally {
       setDetectingLocation(false);
     }
@@ -420,7 +420,7 @@ export default function CreateListingScreen({ navigation }) {
 
     if (Platform.OS === 'web' && !navigator.onLine) {
       console.error('❌ No internet connection');
-      Alert.alert('No Internet', 'Please check your internet connection');
+      Alert.alert(t('alerts.noInternet'), t('alerts.checkConnection'));
       return;
     }
 
@@ -447,11 +447,11 @@ export default function CreateListingScreen({ navigation }) {
         setUploadProgress('');
 
         if (Platform.OS === 'web') {
-          alert('Please sign in first to create a listing. Redirecting to login...');
+          alert(t('alerts.pleaseSignInCreate'));
           navigation.navigate('Home');
         } else {
-          Alert.alert('Sign In Required', 'Please sign in to create a listing', [
-            { text: 'OK', onPress: () => navigation.navigate('Home') }
+          Alert.alert(t('alerts.signInRequired'), t('alerts.pleaseSignInCreate'), [
+            { text: t('common.ok'), onPress: () => navigation.navigate('Home') }
           ]);
         }
         return;
@@ -577,7 +577,7 @@ export default function CreateListingScreen({ navigation }) {
           console.log(`✅ Video uploaded: ${videoUrl.substring(0, 60)}...`);
         } catch (error) {
           console.error('❌ Video upload failed:', error.message);
-          Alert.alert('Warning', 'Failed to upload video. Listing will be created without video.');
+          Alert.alert(t('alerts.videoUploadWarning'), t('alerts.videoFailedMessage'));
         }
       }
 
@@ -659,7 +659,7 @@ export default function CreateListingScreen({ navigation }) {
         errorMessage = 'Invalid category selected. Please try again.';
       }
 
-      Alert.alert('Error', errorMessage);
+      Alert.alert(t('common.error'), errorMessage);
     } finally {
       console.log('🔚 Cleanup: Stopping spinner');
       setUploading(false);
@@ -726,7 +726,7 @@ export default function CreateListingScreen({ navigation }) {
             ) : (
               <>
                 <Ionicons name="images" size={32} color={COLORS.primary} />
-                <Text style={styles.addImageText}>Add Photos</Text>
+                <Text style={styles.addImageText}>{t('createListing.addMorePhotos')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -740,11 +740,11 @@ export default function CreateListingScreen({ navigation }) {
         disabled={compressing || images.length >= imageLimits.max}
       >
         <Ionicons name="camera" size={20} color="#FFF" />
-        <Text style={styles.cameraButtonText}>Take Photo</Text>
+        <Text style={styles.cameraButtonText}>{t('createListing.takePhoto')}</Text>
       </TouchableOpacity>
 
       {/* Video Section */}
-      <Text style={styles.sectionTitle}>Video (Optional)</Text>
+      <Text style={styles.sectionTitle}>{t('createListing.videoOptional')}</Text>
       {video ? (
         <View style={styles.videoPreview}>
           <View style={styles.videoInfo}>
@@ -761,7 +761,7 @@ export default function CreateListingScreen({ navigation }) {
           onPress={pickVideo}
         >
           <Ionicons name="videocam-outline" size={32} color={COLORS.secondary} />
-          <Text style={styles.addVideoText}>Add Video (Max 50MB)</Text>
+          <Text style={styles.addVideoText}>{t('createListing.addVideo')}</Text>
         </TouchableOpacity>
       )}
 
@@ -853,7 +853,7 @@ export default function CreateListingScreen({ navigation }) {
         <Text style={styles.label}>{t('createListing.price')} *</Text>
         <TextInput
           style={styles.input}
-          placeholder="0.00"
+          placeholder={t('createListing.pricePlaceholder')}
           value={price}
           onChangeText={setPrice}
           keyboardType="numeric"
@@ -880,7 +880,7 @@ export default function CreateListingScreen({ navigation }) {
             color={COLORS.primary}
           />
           <Text style={styles.detectLocationText}>
-            {detectingLocation ? 'Detecting...' : 'Auto-detect my location'}
+            {detectingLocation ? t('createListing.detecting') : t('createListing.detectLocation')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -890,7 +890,7 @@ export default function CreateListingScreen({ navigation }) {
         <Text style={styles.label}>{t('createListing.phoneNumber')} *</Text>
         <TextInput
           style={styles.input}
-          placeholder="+254712345678"
+          placeholder={t('createListing.phoneNumberPlaceholder')}
           value={phoneNumber}
           onChangeText={setPhoneNumber}
           keyboardType="phone-pad"

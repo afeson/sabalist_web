@@ -36,32 +36,32 @@ export default function EditProfileScreen({ navigation }) {
 
         {/* User Info Card */}
         <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>Account Information</Text>
+          <Text style={styles.sectionTitle}>{t('profile.accountInformation')}</Text>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Email / Phone</Text>
+            <Text style={styles.label}>{t('profile.emailPhone')}</Text>
             <View style={styles.readOnlyField}>
               <Text style={styles.readOnlyText}>
-                {user?.email || user?.phoneNumber || 'Not available'}
+                {user?.email || user?.phoneNumber || t('profile.notAvailable')}
               </Text>
             </View>
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Display Name</Text>
+            <Text style={styles.label}>{t('profile.displayName')}</Text>
             <TextInput
               style={[styles.input, styles.disabledInput]}
-              placeholder="Your display name"
+              placeholder={t('profile.displayNamePlaceholder')}
               placeholderTextColor={COLORS.textMuted}
               editable={false}
             />
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Bio</Text>
+            <Text style={styles.label}>{t('profile.bio')}</Text>
             <TextInput
               style={[styles.input, styles.textArea, styles.disabledInput]}
-              placeholder="Tell us about yourself"
+              placeholder={t('profile.bioPlaceholder')}
               placeholderTextColor={COLORS.textMuted}
               multiline
               numberOfLines={4}
@@ -74,13 +74,13 @@ export default function EditProfileScreen({ navigation }) {
         <View style={styles.notice}>
           <Ionicons name="information-circle" size={20} color={COLORS.info} />
           <Text style={styles.noticeText}>
-            Profile editing will be available in a future update
+            {t('profile.editingComingSoon')}
           </Text>
         </View>
 
         {/* Save Button (Disabled) */}
         <TouchableOpacity style={styles.saveButton} disabled>
-          <Text style={styles.saveButtonText}>Save Changes</Text>
+          <Text style={styles.saveButtonText}>{t('profile.saveChanges')}</Text>
         </TouchableOpacity>
 
         <View style={{ height: 100 }} />
