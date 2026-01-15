@@ -1,9 +1,8 @@
-import React from 'react';
 import { View, Image, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PREMIUM_COLORS, PREMIUM_RADIUS, PREMIUM_SPACING, PREMIUM_SHADOWS } from '../../theme/premiumTheme';
 
-// v1.3.0 - HEART ICON FIX - NO OVERFLOW CLIPPING
+// v1.4.0 - HEART ICON FIX - Moved outside imageWrapper to prevent overflow clipping
 export default function ListingCard({
   listing,
   onPress,
@@ -28,8 +27,6 @@ export default function ListingCard({
     return `${currency} ${Number(price).toLocaleString()}`;
   };
 
-  console.log('ListingCard rendering:', { id: listing.id, isFavorited, hasToggle: !!onFavoriteToggle });
-
   return (
     <TouchableOpacity
       style={[styles.card, style]}
@@ -37,7 +34,7 @@ export default function ListingCard({
       activeOpacity={0.8}
       {...props}
     >
-      {/* Image with heart overlay - position relative wrapper */}
+      {/* Image container with rounded corners */}
       <View style={styles.imageWrapper}>
         <Image
           source={
@@ -49,27 +46,27 @@ export default function ListingCard({
           resizeMode="cover"
           key={imageUri}
         />
-
-        {/* HEART ICON - ALWAYS VISIBLE - INSIDE IMAGE WRAPPER */}
-        <View style={styles.favoriteIcon}>
-          <TouchableOpacity
-            onPress={(e) => {
-              e.stopPropagation();
-              console.log('Heart pressed:', listing.id, !isFavorited);
-              if (onFavoriteToggle) {
-                onFavoriteToggle(listing.id, !isFavorited);
-              }
-            }}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons
-              name={isFavorited ? "heart" : "heart-outline"}
-              size={24}
-              color={isFavorited ? "#FF3B30" : "white"}
-            />
-          </TouchableOpacity>
-        </View>
       </View>
+
+      {/* HEART ICON - ALWAYS VISIBLE - POSITIONED OUTSIDE imageWrapper to avoid clipping */}
+      <TouchableOpacity
+        style={styles.favoriteIcon}
+        onPress={(e) => {
+          e.stopPropagation();
+          console.log('Heart pressed:', listing.id, !isFavorited);
+          if (onFavoriteToggle) {
+            onFavoriteToggle(listing.id, !isFavorited);
+          }
+        }}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        activeOpacity={0.7}
+      >
+        <Ionicons
+          name={isFavorited ? "heart" : "heart-outline"}
+          size={22}
+          color={isFavorited ? "#FF3B30" : "#FFFFFF"}
+        />
+      </TouchableOpacity>
 
       {/* Content */}
       <View style={styles.content}>
@@ -92,14 +89,16 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: PREMIUM_COLORS.card,
     borderRadius: PREMIUM_RADIUS.lg,
-    overflow: 'hidden',
+    position: 'relative',
     ...PREMIUM_SHADOWS.card,
   },
   imageWrapper: {
-    position: 'relative',
     width: '100%',
     height: 130,
     backgroundColor: '#F3F4F6',
+    borderTopLeftRadius: PREMIUM_RADIUS.lg,
+    borderTopRightRadius: PREMIUM_RADIUS.lg,
+    overflow: 'hidden',
   },
   image: {
     width: '100%',
@@ -109,17 +108,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    zIndex: 9999,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    borderRadius: 20,
-    padding: 8,
+    zIndex: 10,
+    elevation: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 18,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
   content: {
     padding: PREMIUM_SPACING.md,
