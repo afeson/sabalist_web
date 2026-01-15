@@ -2,7 +2,7 @@ import { View, Image, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PREMIUM_COLORS, PREMIUM_RADIUS, PREMIUM_SPACING, PREMIUM_SHADOWS } from '../../theme/premiumTheme';
 
-// v1.4.0 - HEART ICON FIX - Moved outside imageWrapper to prevent overflow clipping
+// v1.5.0 - HEART ICON FIX - Enhanced visibility and debug logging
 export default function ListingCard({
   listing,
   onPress,
@@ -11,6 +11,9 @@ export default function ListingCard({
   style,
   ...props
 }) {
+  // DEBUG: Log every render to confirm heart icon should appear
+  console.log('🔴 ListingCard RENDER:', listing?.id, 'isFavorited:', isFavorited);
+
   const { title, price, currency = 'USD', location, coverImage, images, updatedAt, createdAt } = listing;
   let imageUri = coverImage || (images && images[0]);
 
@@ -52,8 +55,9 @@ export default function ListingCard({
       <TouchableOpacity
         style={styles.favoriteIcon}
         onPress={(e) => {
-          e.stopPropagation();
-          console.log('Heart pressed:', listing.id, !isFavorited);
+          e.stopPropagation?.();
+          e.preventDefault?.();
+          console.log('❤️ Heart PRESSED:', listing.id, 'newState:', !isFavorited);
           if (onFavoriteToggle) {
             onFavoriteToggle(listing.id, !isFavorited);
           }
@@ -65,6 +69,7 @@ export default function ListingCard({
           name={isFavorited ? "heart" : "heart-outline"}
           size={22}
           color={isFavorited ? "#FF3B30" : "#FFFFFF"}
+          style={{ opacity: 1 }}
         />
       </TouchableOpacity>
 
@@ -108,9 +113,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    zIndex: 10,
-    elevation: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 100,
+    elevation: 100,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderRadius: 18,
     width: 36,
     height: 36,
@@ -118,8 +123,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.3,
     shadowRadius: 4,
+    // Web-specific styles for visibility
+    overflow: 'visible',
   },
   content: {
     padding: PREMIUM_SPACING.md,
