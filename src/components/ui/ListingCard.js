@@ -1,8 +1,8 @@
-import { View, Image, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Image, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PREMIUM_COLORS, PREMIUM_RADIUS, PREMIUM_SPACING, PREMIUM_SHADOWS } from '../../theme/premiumTheme';
 
-// v1.5.0 - HEART ICON FIX - Enhanced visibility and debug logging
+// v1.6.0 - HEART ICON FIX - View wrapper for proper positioning context
 export default function ListingCard({
   listing,
   onPress,
@@ -11,8 +11,8 @@ export default function ListingCard({
   style,
   ...props
 }) {
-  // DEBUG: Log every render to confirm heart icon should appear
-  console.log('🔴 ListingCard RENDER:', listing?.id, 'isFavorited:', isFavorited);
+  // DEBUG: Log every render
+  console.log('🔴 ListingCard RENDER:', listing?.id, 'isFavorited:', isFavorited, 'hasToggle:', !!onFavoriteToggle);
 
   const { title, price, currency = 'USD', location, coverImage, images, updatedAt, createdAt } = listing;
   let imageUri = coverImage || (images && images[0]);
@@ -30,38 +30,60 @@ export default function ListingCard({
     return `${currency} ${Number(price).toLocaleString()}`;
   };
 
-  return (
-    <TouchableOpacity
-      style={[styles.card, style]}
-      onPress={onPress}
-      activeOpacity={0.8}
-      {...props}
-    >
-      {/* Image container with rounded corners */}
-      <View style={styles.imageWrapper}>
-        <Image
-          source={
-            imageUri
-              ? { uri: imageUri, cache: 'reload' }
-              : require('../../../assets/sabalist_app_icon_1024.png')
-          }
-          style={styles.image}
-          resizeMode="cover"
-          key={imageUri}
-        />
-      </View>
+  const handleHeartPress = (e) => {
+    if (Platform.OS === 'web') {
+      e?.stopPropagation?.();
+      e?.preventDefault?.();
+    }
+    console.log('❤️ Heart PRESSED:', listing?.id, 'newState:', !isFavorited);
+    if (onFavoriteToggle) {
+      onFavoriteToggle(listing.id, !isFavorited);
+    }
+  };
 
-      {/* HEART ICON - ALWAYS VISIBLE - POSITIONED OUTSIDE imageWrapper to avoid clipping */}
+  // DEBUG: Log that heart JSX is being rendered
+  console.log('🔴 ListingCard rendering heart icon for:', listing?.id);
+
+  return (
+    <View style={[styles.cardWrapper, style]} {...props}>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={onPress}
+        activeOpacity={0.8}
+      >
+        {/* Image container */}
+        <View style={styles.imageWrapper}>
+          <Image
+            source={
+              imageUri
+                ? { uri: imageUri, cache: 'reload' }
+                : require('../../../assets/sabalist_app_icon_1024.png')
+            }
+            style={styles.image}
+            resizeMode="cover"
+            key={imageUri}
+          />
+        </View>
+
+        {/* Content */}
+        <View style={styles.content}>
+          <Text style={styles.price}>{formatPrice()}</Text>
+          <Text style={styles.title} numberOfLines={2}>
+            {title || 'Listing'}
+          </Text>
+          <View style={styles.meta}>
+            <Ionicons name="location-sharp" size={12} color={PREMIUM_COLORS.muted} />
+            <Text style={styles.location} numberOfLines={1}>
+              {location || 'Location'}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+
+      {/* HEART ICON - Outside TouchableOpacity, inside View wrapper for proper absolute positioning */}
       <TouchableOpacity
         style={styles.favoriteIcon}
-        onPress={(e) => {
-          e.stopPropagation?.();
-          e.preventDefault?.();
-          console.log('❤️ Heart PRESSED:', listing.id, 'newState:', !isFavorited);
-          if (onFavoriteToggle) {
-            onFavoriteToggle(listing.id, !isFavorited);
-          }
-        }}
+        onPress={handleHeartPress}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         activeOpacity={0.7}
       >
@@ -69,32 +91,19 @@ export default function ListingCard({
           name={isFavorited ? "heart" : "heart-outline"}
           size={22}
           color={isFavorited ? "#FF3B30" : "#FFFFFF"}
-          style={{ opacity: 1 }}
         />
       </TouchableOpacity>
-
-      {/* Content */}
-      <View style={styles.content}>
-        <Text style={styles.price}>{formatPrice()}</Text>
-        <Text style={styles.title} numberOfLines={2}>
-          {title || 'Listing'}
-        </Text>
-        <View style={styles.meta}>
-          <Ionicons name="location-sharp" size={12} color={PREMIUM_COLORS.muted} />
-          <Text style={styles.location} numberOfLines={1}>
-            {location || 'Location'}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  cardWrapper: {
+    position: 'relative',
+  },
   card: {
     backgroundColor: PREMIUM_COLORS.card,
     borderRadius: PREMIUM_RADIUS.lg,
-    position: 'relative',
     ...PREMIUM_SHADOWS.card,
   },
   imageWrapper: {
@@ -113,8 +122,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    zIndex: 100,
-    elevation: 100,
+    zIndex: 10,
+    elevation: 10,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderRadius: 18,
     width: 36,
@@ -125,8 +134,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
-    // Web-specific styles for visibility
-    overflow: 'visible',
   },
   content: {
     padding: PREMIUM_SPACING.md,
