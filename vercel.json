@@ -24,6 +24,22 @@
       "dest": "/favicon.ico"
     },
     {
+      "src": "/favicon-96x96.png",
+      "dest": "/favicon-96x96.png"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "dest": "/apple-touch-icon.png"
+    },
+    {
+      "src": "/web-app-manifest-(.*).png",
+      "dest": "/web-app-manifest-$1.png"
+    },
+    {
+      "src": "/site.webmanifest",
+      "dest": "/site.webmanifest"
+    },
+    {
       "src": "/pwa/(.*)",
       "dest": "/pwa/$1"
     },
