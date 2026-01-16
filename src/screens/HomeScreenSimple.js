@@ -184,16 +184,20 @@ export default function HomeScreenSimple({ navigation }) {
     </TouchableOpacity>
   );
 
-  const renderListing = ({ item }) => (
-    <View style={styles.listingCardWrapper}>
-      <ListingCard
-        listing={item}
-        onPress={() => navigation?.navigate('ListingDetail', { listingId: item.id })}
-        isFavorited={favoriteIds.includes(item.id)}
-        onFavoriteToggle={handleFavoriteToggle}
-      />
-    </View>
-  );
+  const renderListing = ({ item }) => {
+    // DEBUG: Confirm this code is running
+    console.log('🏠 HOME renderListing using ListingCard for:', item?.id);
+    return (
+      <View style={styles.listingCardWrapper}>
+        <ListingCard
+          listing={item}
+          onPress={() => navigation?.navigate('ListingDetail', { listingId: item.id })}
+          isFavorited={favoriteIds.includes(item.id)}
+          onFavoriteToggle={handleFavoriteToggle}
+        />
+      </View>
+    );
+  };
 
   const renderEmpty = () => {
     if (loading) {
