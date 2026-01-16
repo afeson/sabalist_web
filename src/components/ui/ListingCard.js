@@ -2,7 +2,7 @@ import { View, Image, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PREMIUM_COLORS, PREMIUM_RADIUS, PREMIUM_SPACING, PREMIUM_SHADOWS } from '../../theme/premiumTheme';
 
-// v1.8.0 - HEART ICON FIX - Heart as sibling to card, outside TouchableOpacity
+// v1.9.0 - HEART ICON ALWAYS VISIBLE
 export default function ListingCard({
   listing,
   onPress,
@@ -11,6 +11,9 @@ export default function ListingCard({
   style,
   ...props
 }) {
+  // DEBUG: Confirm heart will render
+  console.log('💛 ListingCard render:', listing?.id, 'fav:', isFavorited);
+
   const { title, price, currency = 'USD', location, coverImage, images, updatedAt, createdAt } = listing;
   let imageUri = coverImage || (images && images[0]);
 
@@ -68,17 +71,20 @@ export default function ListingCard({
         </View>
       </TouchableOpacity>
 
-      {/* HEART ICON - Sibling to card, not child */}
+      {/* HEART ICON - ALWAYS RENDERED - Sibling to card */}
       <TouchableOpacity
         style={styles.favoriteIcon}
         onPress={handleHeartPress}
         activeOpacity={0.7}
+        testID="heart-icon"
       >
-        <Ionicons
-          name={isFavorited ? "heart" : "heart-outline"}
-          size={20}
-          color={isFavorited ? "#FF3B30" : "#FFFFFF"}
-        />
+        <View style={styles.heartBackground}>
+          <Ionicons
+            name={isFavorited ? "heart" : "heart-outline"}
+            size={18}
+            color={isFavorited ? "#FF3B30" : "#FFFFFF"}
+          />
+        </View>
       </TouchableOpacity>
     </View>
   );
@@ -87,6 +93,7 @@ export default function ListingCard({
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
+    zIndex: 1,
   },
   card: {
     backgroundColor: PREMIUM_COLORS.card,
@@ -107,15 +114,20 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    zIndex: 99999,
-    elevation: 99999,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    zIndex: 10,
+    elevation: 10,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heartBackground: {
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: 16,
     width: 32,
     height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    pointerEvents: 'auto',
   },
   content: {
     padding: PREMIUM_SPACING.md,
