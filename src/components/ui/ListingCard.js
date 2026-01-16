@@ -4,7 +4,7 @@ import { PREMIUM_COLORS, PREMIUM_RADIUS, PREMIUM_SPACING, PREMIUM_SHADOWS } from
 
 const isWeb = Platform.OS === 'web';
 
-// v2.1.0 - HEART ICON FULLY VISIBLE ON WEB
+// v3.0.0 - WEB: Native HTML button for heart icon
 export default function ListingCard({
   listing,
   onPress,
@@ -32,24 +32,69 @@ export default function ListingCard({
     if (e) {
       e.stopPropagation();
       e.preventDefault();
-      if (e.nativeEvent) {
-        e.nativeEvent.stopImmediatePropagation?.();
-      }
     }
     if (onFavoriteToggle) {
       onFavoriteToggle(listing.id, !isFavorited);
     }
   };
 
+  // Web: Render native HTML heart button
+  const renderHeartButton = () => {
+    if (isWeb) {
+      return (
+        <div
+          onClick={handleHeartPress}
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            zIndex: 99999,
+            width: 32,
+            height: 32,
+            borderRadius: 16,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            border: 'none',
+            padding: 0,
+          }}
+        >
+          <Ionicons
+            name={isFavorited ? "heart" : "heart-outline"}
+            size={18}
+            color={isFavorited ? "#FF3B30" : "#FFFFFF"}
+          />
+        </div>
+      );
+    }
+
+    // Mobile: Use TouchableOpacity
+    return (
+      <TouchableOpacity
+        style={styles.favoriteButton}
+        onPress={handleHeartPress}
+        activeOpacity={0.7}
+      >
+        <View style={styles.heartCircle}>
+          <Ionicons
+            name={isFavorited ? "heart" : "heart-outline"}
+            size={18}
+            color={isFavorited ? "#FF3B30" : "#FFFFFF"}
+          />
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <View style={[styles.cardWrapper, style]} {...props}>
-      {/* Card content - pressable */}
       <TouchableOpacity
         style={styles.card}
         onPress={onPress}
         activeOpacity={0.8}
       >
-        {/* Image section */}
         <View style={styles.imageSection}>
           <Image
             source={
@@ -77,21 +122,7 @@ export default function ListingCard({
         </View>
       </TouchableOpacity>
 
-      {/* HEART ICON - Rendered OUTSIDE TouchableOpacity, positioned absolute over image */}
-      <TouchableOpacity
-        style={styles.favoriteButton}
-        onPress={handleHeartPress}
-        activeOpacity={0.7}
-        testID="heart-icon"
-      >
-        <View style={styles.heartCircle}>
-          <Ionicons
-            name={isFavorited ? "heart" : "heart-outline"}
-            size={18}
-            color={isFavorited ? "#FF3B30" : "#FFFFFF"}
-          />
-        </View>
-      </TouchableOpacity>
+      {renderHeartButton()}
     </View>
   );
 }
@@ -121,10 +152,6 @@ const styles = StyleSheet.create({
     right: 8,
     zIndex: 9999,
     elevation: 10,
-    ...(isWeb && {
-      cursor: 'pointer',
-      pointerEvents: 'auto',
-    }),
   },
   heartCircle: {
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
