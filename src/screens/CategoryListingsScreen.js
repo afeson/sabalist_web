@@ -209,6 +209,8 @@ const styles = StyleSheet.create({
   },
   listingCardWrapper: {
     width: '48%',
+    overflow: 'visible',
+    zIndex: 1,
   },
   centerContainer: {
     flex: 1,

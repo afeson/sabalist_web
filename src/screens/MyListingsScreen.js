@@ -303,6 +303,8 @@ const styles = StyleSheet.create({
   listingCardWrapper: {
     width: '48%',
     position: 'relative',
+    overflow: 'visible',
+    zIndex: 1,
   },
   soldBadge: {
     position: 'absolute',
