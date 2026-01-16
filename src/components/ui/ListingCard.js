@@ -1,8 +1,10 @@
-import { View, Image, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Image, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PREMIUM_COLORS, PREMIUM_RADIUS, PREMIUM_SPACING, PREMIUM_SHADOWS } from '../../theme/premiumTheme';
 
-// v1.9.0 - HEART ICON ALWAYS VISIBLE
+const isWeb = Platform.OS === 'web';
+
+// v2.1.0 - HEART ICON FULLY VISIBLE ON WEB
 export default function ListingCard({
   listing,
   onPress,
@@ -11,9 +13,6 @@ export default function ListingCard({
   style,
   ...props
 }) {
-  // DEBUG: Confirm heart will render
-  console.log('💛 ListingCard render:', listing?.id, 'fav:', isFavorited);
-
   const { title, price, currency = 'USD', location, coverImage, images, updatedAt, createdAt } = listing;
   let imageUri = coverImage || (images && images[0]);
 
@@ -30,21 +29,27 @@ export default function ListingCard({
   };
 
   const handleHeartPress = (e) => {
-    e?.stopPropagation?.();
-    e?.preventDefault?.();
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      if (e.nativeEvent) {
+        e.nativeEvent.stopImmediatePropagation?.();
+      }
+    }
     if (onFavoriteToggle) {
       onFavoriteToggle(listing.id, !isFavorited);
     }
   };
 
   return (
-    <View style={[styles.container, style]} {...props}>
-      {/* Card pressable area */}
+    <View style={[styles.cardWrapper, style]} {...props}>
+      {/* Card content - pressable */}
       <TouchableOpacity
         style={styles.card}
         onPress={onPress}
         activeOpacity={0.8}
       >
+        {/* Image section */}
         <View style={styles.imageSection}>
           <Image
             source={
@@ -57,6 +62,7 @@ export default function ListingCard({
             key={imageUri}
           />
         </View>
+
         <View style={styles.content}>
           <Text style={styles.price}>{formatPrice()}</Text>
           <Text style={styles.title} numberOfLines={2}>
@@ -71,14 +77,14 @@ export default function ListingCard({
         </View>
       </TouchableOpacity>
 
-      {/* HEART ICON - ALWAYS RENDERED - Sibling to card */}
+      {/* HEART ICON - Rendered OUTSIDE TouchableOpacity, positioned absolute over image */}
       <TouchableOpacity
-        style={styles.favoriteIcon}
+        style={styles.favoriteButton}
         onPress={handleHeartPress}
         activeOpacity={0.7}
         testID="heart-icon"
       >
-        <View style={styles.heartBackground}>
+        <View style={styles.heartCircle}>
           <Ionicons
             name={isFavorited ? "heart" : "heart-outline"}
             size={18}
@@ -91,9 +97,8 @@ export default function ListingCard({
 }
 
 const styles = StyleSheet.create({
-  container: {
+  cardWrapper: {
     position: 'relative',
-    zIndex: 1,
   },
   card: {
     backgroundColor: PREMIUM_COLORS.card,
@@ -110,18 +115,18 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  favoriteIcon: {
+  favoriteButton: {
     position: 'absolute',
     top: 8,
     right: 8,
-    zIndex: 10,
+    zIndex: 9999,
     elevation: 10,
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
+    ...(isWeb && {
+      cursor: 'pointer',
+      pointerEvents: 'auto',
+    }),
   },
-  heartBackground: {
+  heartCircle: {
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: 16,
     width: 32,
