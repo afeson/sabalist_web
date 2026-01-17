@@ -732,3 +732,18 @@ export function getCountries() {
 export function getCitiesForCountry(country) {
   return POPULAR_CITIES[country] || [];
 }
+
+/**
+ * Detect user location (alias for suggestLocationFromGPS with error handling)
+ */
+export async function detectUserLocation() {
+  try {
+    const location = await suggestLocationFromGPS();
+    if (location) {
+      return { success: true, ...location };
+    }
+    return { success: false, error: 'Could not detect location' };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
