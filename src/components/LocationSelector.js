@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { PREMIUM_COLORS, PREMIUM_SPACING, PREMIUM_RADIUS } from '../theme/premiumTheme';
 import {
   suggestLocationFromGPS,
@@ -18,12 +19,18 @@ import {
 } from '../services/locationService';
 
 export default function LocationSelector({ visible, onClose, onLocationSelected, userId }) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [suggestedLocation, setSuggestedLocation] = useState(null);
   const [selectedCountry, setSelectedCountry] = useState(null);
-  const [selectedCity, setSelectedCity] = useState(null);
 
   const countries = getCountries();
+
+  // Helper to get translated country name
+  const getTranslatedCountryName = (countryKey) => {
+    const translated = t(`countries.${countryKey}`, { defaultValue: countryKey });
+    return translated;
+  };
 
   // Try to suggest location on mount (only once)
   useEffect(() => {
@@ -38,6 +45,10 @@ export default function LocationSelector({ visible, onClose, onLocationSelected,
       const location = await suggestLocationFromGPS();
       if (location) {
         setSuggestedLocation(location);
+        // Preselect country if it exists in our list
+        if (location.country && countries.includes(location.country)) {
+          setSelectedCountry(location.country);
+        }
       }
     } catch (error) {
       console.log('Location detection error:', error);
@@ -47,10 +58,11 @@ export default function LocationSelector({ visible, onClose, onLocationSelected,
   };
 
   const handleUseSuggested = async () => {
-    if (!suggestedLocation || !userId) return;
+    if (!suggestedLocation) return;
 
     setLoading(true);
     try {
+      // saveUserLocation now works with or without userId
       await saveUserLocation(userId, suggestedLocation);
       onLocationSelected(suggestedLocation);
       onClose();
@@ -61,7 +73,7 @@ export default function LocationSelector({ visible, onClose, onLocationSelected,
   };
 
   const handleSelectCity = async (city, state) => {
-    if (!userId || !selectedCountry) return;
+    if (!selectedCountry) return;
 
     setLoading(true);
     try {
@@ -70,6 +82,7 @@ export default function LocationSelector({ visible, onClose, onLocationSelected,
         state,
         country: selectedCountry,
       };
+      // saveUserLocation now works with or without userId
       await saveUserLocation(userId, locationData);
       onLocationSelected(locationData);
       onClose();
@@ -90,7 +103,7 @@ export default function LocationSelector({ visible, onClose, onLocationSelected,
         <View style={styles.container}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>Select Your Location</Text>
+            <Text style={styles.title}>{t('location.selectYourLocation')}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Ionicons name="close" size={24} color={PREMIUM_COLORS.text} />
             </TouchableOpacity>
@@ -101,7 +114,7 @@ export default function LocationSelector({ visible, onClose, onLocationSelected,
             {loading && !suggestedLocation && (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="small" color={PREMIUM_COLORS.accent} />
-                <Text style={styles.loadingText}>Detecting your location...</Text>
+                <Text style={styles.loadingText}>{t('location.detectingLocation')}</Text>
               </View>
             )}
 
@@ -109,7 +122,7 @@ export default function LocationSelector({ visible, onClose, onLocationSelected,
               <View style={styles.suggestedBox}>
                 <Ionicons name="location" size={24} color={PREMIUM_COLORS.accent} />
                 <View style={styles.suggestedText}>
-                  <Text style={styles.suggestedTitle}>Detected Location</Text>
+                  <Text style={styles.suggestedTitle}>{t('location.detectedLocation')}</Text>
                   <Text style={styles.suggestedCity}>
                     {suggestedLocation.city}, {suggestedLocation.state}
                   </Text>
@@ -119,7 +132,7 @@ export default function LocationSelector({ visible, onClose, onLocationSelected,
                   onPress={handleUseSuggested}
                   disabled={loading}
                 >
-                  <Text style={styles.useButtonText}>Use</Text>
+                  <Text style={styles.useButtonText}>{t('location.use')}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -127,21 +140,21 @@ export default function LocationSelector({ visible, onClose, onLocationSelected,
             {/* Divider */}
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or select manually</Text>
+              <Text style={styles.dividerText}>{t('location.orSelectManually')}</Text>
               <View style={styles.dividerLine} />
             </View>
 
             {/* Country Selection */}
             {!selectedCountry ? (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Select Country</Text>
+                <Text style={styles.sectionTitle}>{t('location.selectCountry')}</Text>
                 {countries.map((country) => (
                   <TouchableOpacity
                     key={country}
                     style={styles.listItem}
                     onPress={() => setSelectedCountry(country)}
                   >
-                    <Text style={styles.listItemText}>{country}</Text>
+                    <Text style={styles.listItemText}>{getTranslatedCountryName(country)}</Text>
                     <Ionicons name="chevron-forward" size={20} color={PREMIUM_COLORS.muted} />
                   </TouchableOpacity>
                 ))}
@@ -154,10 +167,10 @@ export default function LocationSelector({ visible, onClose, onLocationSelected,
                   onPress={() => setSelectedCountry(null)}
                 >
                   <Ionicons name="chevron-back" size={20} color={PREMIUM_COLORS.accent} />
-                  <Text style={styles.backButtonText}>Back to Countries</Text>
+                  <Text style={styles.backButtonText}>{t('location.backToCountries')}</Text>
                 </TouchableOpacity>
 
-                <Text style={styles.sectionTitle}>Select City in {selectedCountry}</Text>
+                <Text style={styles.sectionTitle}>{t('location.selectCityIn', { country: getTranslatedCountryName(selectedCountry) })}</Text>
                 {getCitiesForCountry(selectedCountry).map((location) => (
                   <TouchableOpacity
                     key={`${location.city}-${location.state}`}

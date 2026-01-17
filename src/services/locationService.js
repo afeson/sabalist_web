@@ -1,15 +1,31 @@
 /**
  * Location Service - Facebook Marketplace Style
- * User selects their city/state, stored in Firestore
+ * User selects their city/state, stored in Firestore and AsyncStorage
  */
 
 import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const LOCATION_STORAGE_KEY = '@sabalist:userLocation';
 
 /**
- * Get user's saved location from Firestore
+ * Get user's saved location from AsyncStorage first, then Firestore as fallback
  */
 export async function getUserLocation(userId) {
+  // First try AsyncStorage (faster)
+  try {
+    const storedLocation = await AsyncStorage.getItem(LOCATION_STORAGE_KEY);
+    if (storedLocation) {
+      const parsed = JSON.parse(storedLocation);
+      console.log('📍 Location loaded from AsyncStorage:', parsed);
+      return parsed;
+    }
+  } catch (error) {
+    console.warn('Error reading location from AsyncStorage:', error);
+  }
+
+  // Fall back to Firestore if user is logged in
   if (!userId) return null;
 
   try {
@@ -18,41 +34,53 @@ export async function getUserLocation(userId) {
     const docSnap = await getDoc(userRef);
 
     if (docSnap.exists()) {
-      return docSnap.data();
+      const location = docSnap.data();
+      // Cache in AsyncStorage
+      await AsyncStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(location));
+      return location;
     }
     return null;
   } catch (error) {
-    console.error('Error getting user location:', error);
+    console.error('Error getting user location from Firestore:', error);
     return null;
   }
 }
 
 /**
- * Save user's selected location to Firestore
+ * Save user's selected location to Firestore and AsyncStorage
  */
 export async function saveUserLocation(userId, locationData) {
-  if (!userId) {
-    throw new Error('userId is required');
-  }
+  const locationToSave = {
+    city: locationData.city,
+    state: locationData.state,
+    country: locationData.country,
+    latitude: locationData.latitude || null,
+    longitude: locationData.longitude || null,
+    updatedAt: new Date().toISOString(),
+  };
 
+  // Always save to AsyncStorage (works without login)
   try {
-    const db = getFirestore();
-    const userRef = doc(db, 'users', userId, 'settings', 'location');
-
-    await setDoc(userRef, {
-      city: locationData.city,
-      state: locationData.state,
-      country: locationData.country,
-      latitude: locationData.latitude || null,
-      longitude: locationData.longitude || null,
-      updatedAt: new Date().toISOString(),
-    });
-
-    return true;
+    await AsyncStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(locationToSave));
+    console.log('📍 Location saved to AsyncStorage:', locationToSave);
   } catch (error) {
-    console.error('Error saving user location:', error);
-    throw error;
+    console.warn('Error saving location to AsyncStorage:', error);
   }
+
+  // Also save to Firestore if user is logged in
+  if (userId) {
+    try {
+      const db = getFirestore();
+      const userRef = doc(db, 'users', userId, 'settings', 'location');
+      await setDoc(userRef, locationToSave);
+      console.log('📍 Location saved to Firestore');
+    } catch (error) {
+      console.error('Error saving user location to Firestore:', error);
+      // Don't throw - AsyncStorage save was successful
+    }
+  }
+
+  return true;
 }
 
 /**
