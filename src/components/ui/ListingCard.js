@@ -1,10 +1,10 @@
-import { View, Image, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Image, Text, StyleSheet, Platform, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PREMIUM_COLORS, PREMIUM_RADIUS, PREMIUM_SPACING, PREMIUM_SHADOWS } from '../../theme/premiumTheme';
 
 const isWeb = Platform.OS === 'web';
 
-// v3.0.0 - WEB: Native HTML button for heart icon
+// v3.1.0 - CLICKABLE heart icon on web + mobile
 export default function ListingCard({
   listing,
   onPress,
@@ -29,20 +29,70 @@ export default function ListingCard({
   };
 
   const handleHeartPress = (e) => {
+    // Stop all event propagation
     if (e) {
-      e.stopPropagation();
-      e.preventDefault();
+      e.stopPropagation && e.stopPropagation();
+      e.preventDefault && e.preventDefault();
+      e.nativeEvent && e.nativeEvent.stopImmediatePropagation && e.nativeEvent.stopImmediatePropagation();
     }
     if (onFavoriteToggle) {
       onFavoriteToggle(listing.id, !isFavorited);
     }
   };
 
-  // Web: Render native HTML heart button
-  const renderHeartButton = () => {
-    if (isWeb) {
-      return (
+  const handleCardPress = () => {
+    if (onPress) {
+      onPress();
+    }
+  };
+
+  // Web: Use native button element for guaranteed clickability
+  if (isWeb) {
+    return (
+      <div style={{ position: 'relative' }} {...props}>
+        {/* Card - clickable */}
         <div
+          onClick={handleCardPress}
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: 12,
+            overflow: 'hidden',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            cursor: 'pointer',
+          }}
+        >
+          {/* Image */}
+          <div style={{ width: '100%', height: 130, backgroundColor: '#F3F4F6', position: 'relative' }}>
+            <Image
+              source={
+                imageUri
+                  ? { uri: imageUri, cache: 'reload' }
+                  : require('../../../assets/sabalist_app_icon_1024.png')
+              }
+              style={{ width: '100%', height: '100%' }}
+              resizeMode="cover"
+              key={imageUri}
+            />
+          </div>
+
+          {/* Content */}
+          <View style={styles.content}>
+            <Text style={styles.price}>{formatPrice()}</Text>
+            <Text style={styles.title} numberOfLines={2}>
+              {title || 'Listing'}
+            </Text>
+            <View style={styles.meta}>
+              <Ionicons name="location-sharp" size={12} color={PREMIUM_COLORS.muted} />
+              <Text style={styles.location} numberOfLines={1}>
+                {location || 'Location'}
+              </Text>
+            </View>
+          </View>
+        </div>
+
+        {/* Heart button - native HTML button */}
+        <button
+          type="button"
           onClick={handleHeartPress}
           style={{
             position: 'absolute',
@@ -59,6 +109,7 @@ export default function ListingCard({
             cursor: 'pointer',
             border: 'none',
             padding: 0,
+            outline: 'none',
           }}
         >
           <Ionicons
@@ -66,34 +117,17 @@ export default function ListingCard({
             size={18}
             color={isFavorited ? "#FF3B30" : "#FFFFFF"}
           />
-        </div>
-      );
-    }
-
-    // Mobile: Use TouchableOpacity
-    return (
-      <TouchableOpacity
-        style={styles.favoriteButton}
-        onPress={handleHeartPress}
-        activeOpacity={0.7}
-      >
-        <View style={styles.heartCircle}>
-          <Ionicons
-            name={isFavorited ? "heart" : "heart-outline"}
-            size={18}
-            color={isFavorited ? "#FF3B30" : "#FFFFFF"}
-          />
-        </View>
-      </TouchableOpacity>
+        </button>
+      </div>
     );
-  };
+  }
 
+  // Mobile: React Native components
   return (
     <View style={[styles.cardWrapper, style]} {...props}>
-      <TouchableOpacity
+      <Pressable
         style={styles.card}
-        onPress={onPress}
-        activeOpacity={0.8}
+        onPress={handleCardPress}
       >
         <View style={styles.imageSection}>
           <Image
@@ -120,9 +154,22 @@ export default function ListingCard({
             </Text>
           </View>
         </View>
-      </TouchableOpacity>
+      </Pressable>
 
-      {renderHeartButton()}
+      {/* Heart button - Pressable for mobile */}
+      <Pressable
+        style={styles.favoriteButton}
+        onPress={handleHeartPress}
+        hitSlop={10}
+      >
+        <View style={styles.heartCircle}>
+          <Ionicons
+            name={isFavorited ? "heart" : "heart-outline"}
+            size={18}
+            color={isFavorited ? "#FF3B30" : "#FFFFFF"}
+          />
+        </View>
+      </Pressable>
     </View>
   );
 }
