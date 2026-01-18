@@ -89,34 +89,43 @@ export async function saveUserLocation(userId, locationData) {
  */
 async function reverseGeocodeWithNominatim(latitude, longitude) {
   try {
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`,
-      {
-        headers: {
-          'User-Agent': 'Sabalist/1.0 (African Marketplace App)',
-        },
-      }
-    );
+    console.log('📍 Calling Nominatim API for:', latitude, longitude);
+
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`;
+    console.log('📍 Nominatim URL:', url);
+
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Sabalist/1.0 (African Marketplace App)',
+        'Accept': 'application/json',
+      },
+    });
+
+    console.log('📍 Nominatim response status:', response.status);
 
     if (!response.ok) {
       throw new Error(`Nominatim API error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('📍 Nominatim result:', data);
+    console.log('📍 Nominatim result:', JSON.stringify(data, null, 2));
 
     if (data && data.address) {
       const addr = data.address;
-      return {
-        city: addr.city || addr.town || addr.village || addr.municipality || addr.county || 'Unknown City',
-        state: addr.state || addr.province || addr.region || 'Unknown State',
+      const result = {
+        city: addr.city || addr.town || addr.village || addr.municipality || addr.county || addr.suburb || 'Unknown City',
+        state: addr.state || addr.province || addr.region || addr.county || 'Unknown State',
         country: addr.country || 'Unknown Country',
       };
+      console.log('📍 Parsed Nominatim address:', result);
+      return result;
     }
 
+    console.log('📍 Nominatim returned no address data');
     return null;
   } catch (error) {
     console.log('❌ Nominatim reverse geocoding failed:', error.message);
+    console.log('❌ Full error:', error);
     return null;
   }
 }
