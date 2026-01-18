@@ -86,46 +86,52 @@ export async function saveUserLocation(userId, locationData) {
 /**
  * Reverse geocode using Nominatim (OpenStreetMap) - free, no API key required
  * Used as fallback when expo-location's reverse geocoding fails (common on web)
+ * Note: Nominatim has CORS enabled, so should work in browsers
  */
 async function reverseGeocodeWithNominatim(latitude, longitude) {
   try {
-    console.log('📍 Calling Nominatim API for:', latitude, longitude);
+    console.log('📍 [v2.1] Calling Nominatim API for:', latitude, longitude);
 
     const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`;
-    console.log('📍 Nominatim URL:', url);
+    console.log('📍 [v2.1] Nominatim URL:', url);
 
+    // Nominatim requires a valid User-Agent, but browsers may override it
+    // The API still works from browsers due to CORS support
     const response = await fetch(url, {
+      method: 'GET',
       headers: {
-        'User-Agent': 'Sabalist/1.0 (African Marketplace App)',
         'Accept': 'application/json',
       },
     });
 
-    console.log('📍 Nominatim response status:', response.status);
+    console.log('📍 [v2.1] Nominatim response status:', response.status);
 
     if (!response.ok) {
-      throw new Error(`Nominatim API error: ${response.status}`);
+      const errorText = await response.text();
+      console.log('❌ [v2.1] Nominatim error response:', errorText);
+      throw new Error(`Nominatim API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    console.log('📍 Nominatim result:', JSON.stringify(data, null, 2));
+    console.log('📍 [v2.1] Nominatim result:', JSON.stringify(data, null, 2));
 
     if (data && data.address) {
       const addr = data.address;
       const result = {
-        city: addr.city || addr.town || addr.village || addr.municipality || addr.county || addr.suburb || 'Unknown City',
-        state: addr.state || addr.province || addr.region || addr.county || 'Unknown State',
+        city: addr.city || addr.town || addr.village || addr.municipality || addr.county || addr.suburb || addr.locality || addr.hamlet || 'Unknown City',
+        state: addr.state || addr.province || addr.region || addr.state_district || 'Unknown State',
         country: addr.country || 'Unknown Country',
       };
-      console.log('📍 Parsed Nominatim address:', result);
+      console.log('📍 [v2.1] Parsed Nominatim address:', result);
       return result;
     }
 
-    console.log('📍 Nominatim returned no address data');
+    console.log('📍 [v2.1] Nominatim returned no address data');
     return null;
   } catch (error) {
-    console.log('❌ Nominatim reverse geocoding failed:', error.message);
-    console.log('❌ Full error:', error);
+    console.log('❌ [v2.1] Nominatim reverse geocoding failed:', error.message);
+    console.log('❌ [v2.1] Error type:', error.name);
+    console.log('❌ [v2.1] Full error:', error);
     return null;
   }
 }
@@ -136,17 +142,17 @@ async function reverseGeocodeWithNominatim(latitude, longitude) {
  */
 export async function suggestLocationFromGPS() {
   try {
-    console.log('📍 Starting location detection...');
+    console.log('📍 [v2.1] Starting location detection...');
 
     // Request permission (non-blocking)
     const { status } = await Location.requestForegroundPermissionsAsync();
 
     if (status !== 'granted') {
-      console.log('❌ Location permission denied - user will select manually');
+      console.log('❌ [v2.1] Location permission denied - user will select manually');
       return null;
     }
 
-    console.log('✅ Location permission granted');
+    console.log('✅ [v2.1] Location permission granted');
 
     // Get current position
     const position = await Location.getCurrentPositionAsync({
@@ -155,7 +161,7 @@ export async function suggestLocationFromGPS() {
     });
 
     const { latitude, longitude } = position.coords;
-    console.log('📍 Coordinates:', latitude, longitude);
+    console.log('📍 [v2.1] Coordinates:', latitude, longitude);
 
     // Try expo-location reverse geocoding first (works better on native)
     try {
@@ -164,14 +170,14 @@ export async function suggestLocationFromGPS() {
         longitude,
       });
 
-      console.log('📍 Expo reverse geocode result:', addresses);
+      console.log('📍 [v2.1] Expo reverse geocode result:', addresses);
 
       if (addresses && addresses.length > 0) {
         const address = addresses[0];
 
         // Check if we got valid data
         if (address.city || address.region || address.country) {
-          console.log('✅ Location detected via Expo:', address.city, address.region, address.country);
+          console.log('✅ [v2.1] Location detected via Expo:', address.city, address.region, address.country);
           return {
             city: address.city || address.subregion || 'Unknown City',
             state: address.region || address.isoCountryCode || 'Unknown State',
@@ -182,15 +188,15 @@ export async function suggestLocationFromGPS() {
         }
       }
     } catch (geocodeError) {
-      console.log('⚠️ Expo reverse geocoding failed:', geocodeError.message);
+      console.log('⚠️ [v2.1] Expo reverse geocoding failed:', geocodeError.message);
     }
 
     // Fallback: Use Nominatim (OpenStreetMap) for web/when expo fails
-    console.log('📍 Trying Nominatim fallback...');
+    console.log('📍 [v2.1] Trying Nominatim fallback...');
     const nominatimResult = await reverseGeocodeWithNominatim(latitude, longitude);
 
     if (nominatimResult) {
-      console.log('✅ Location detected via Nominatim:', nominatimResult);
+      console.log('✅ [v2.1] Location detected via Nominatim:', nominatimResult);
       return {
         ...nominatimResult,
         latitude,
@@ -199,10 +205,12 @@ export async function suggestLocationFromGPS() {
     }
 
     // If all geocoding fails, return null (user will select manually)
-    console.log('❌ Location detection failed: No address found from any source');
+    console.log('❌ [v2.1] Location detection failed: No address found from any source');
+    console.log('💡 Coordinates were obtained but reverse geocoding failed for both Expo and Nominatim');
     return null;
   } catch (error) {
-    console.log('❌ Could not detect location:', error.message);
+    console.log('❌ [v2.1] Could not detect location:', error.message);
+    console.log('❌ Full error object:', error);
     return null;
   }
 }
