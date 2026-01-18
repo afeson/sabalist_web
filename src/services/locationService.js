@@ -84,6 +84,44 @@ export async function saveUserLocation(userId, locationData) {
 }
 
 /**
+ * Reverse geocode using Nominatim (OpenStreetMap) - free, no API key required
+ * Used as fallback when expo-location's reverse geocoding fails (common on web)
+ */
+async function reverseGeocodeWithNominatim(latitude, longitude) {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`,
+      {
+        headers: {
+          'User-Agent': 'Sabalist/1.0 (African Marketplace App)',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Nominatim API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('📍 Nominatim result:', data);
+
+    if (data && data.address) {
+      const addr = data.address;
+      return {
+        city: addr.city || addr.town || addr.village || addr.municipality || addr.county || 'Unknown City',
+        state: addr.state || addr.province || addr.region || 'Unknown State',
+        country: addr.country || 'Unknown Country',
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.log('❌ Nominatim reverse geocoding failed:', error.message);
+    return null;
+  }
+}
+
+/**
  * Suggest location using browser geolocation (optional)
  * Returns null if permission denied or error
  */
@@ -104,41 +142,55 @@ export async function suggestLocationFromGPS() {
     // Get current position
     const position = await Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.Balanced,
-      timeout: 5000,
+      timeout: 10000,
     });
 
-    console.log('📍 Coordinates:', position.coords.latitude, position.coords.longitude);
+    const { latitude, longitude } = position.coords;
+    console.log('📍 Coordinates:', latitude, longitude);
 
-    // Try reverse geocoding
+    // Try expo-location reverse geocoding first (works better on native)
     try {
       const addresses = await Location.reverseGeocodeAsync({
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
+        latitude,
+        longitude,
       });
 
-      console.log('📍 Reverse geocode result:', addresses);
+      console.log('📍 Expo reverse geocode result:', addresses);
 
       if (addresses && addresses.length > 0) {
         const address = addresses[0];
 
         // Check if we got valid data
         if (address.city || address.region || address.country) {
-          console.log('✅ Location detected:', address.city, address.region, address.country);
+          console.log('✅ Location detected via Expo:', address.city, address.region, address.country);
           return {
             city: address.city || address.subregion || 'Unknown City',
             state: address.region || address.isoCountryCode || 'Unknown State',
             country: address.country || 'Unknown Country',
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
+            latitude,
+            longitude,
           };
         }
       }
     } catch (geocodeError) {
-      console.log('❌ Reverse geocoding failed:', geocodeError.message);
+      console.log('⚠️ Expo reverse geocoding failed:', geocodeError.message);
     }
 
-    // If reverse geocoding fails, return null (user will select manually)
-    console.log('❌ Location detection failed: No address found');
+    // Fallback: Use Nominatim (OpenStreetMap) for web/when expo fails
+    console.log('📍 Trying Nominatim fallback...');
+    const nominatimResult = await reverseGeocodeWithNominatim(latitude, longitude);
+
+    if (nominatimResult) {
+      console.log('✅ Location detected via Nominatim:', nominatimResult);
+      return {
+        ...nominatimResult,
+        latitude,
+        longitude,
+      };
+    }
+
+    // If all geocoding fails, return null (user will select manually)
+    console.log('❌ Location detection failed: No address found from any source');
     return null;
   } catch (error) {
     console.log('❌ Could not detect location:', error.message);
