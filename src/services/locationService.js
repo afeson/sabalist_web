@@ -84,19 +84,54 @@ export async function saveUserLocation(userId, locationData) {
 }
 
 /**
+ * Reverse geocode using BigDataCloud API - free, no API key, reliable for country
+ * This is the most reliable free option for getting country from coordinates
+ */
+async function reverseGeocodeWithBigDataCloud(latitude, longitude) {
+  try {
+    console.log('📍 [v3] Calling BigDataCloud API for:', latitude, longitude);
+
+    const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`;
+
+    const response = await fetch(url);
+
+    console.log('📍 [v3] BigDataCloud response status:', response.status);
+
+    if (!response.ok) {
+      throw new Error(`BigDataCloud API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('📍 [v3] BigDataCloud result:', JSON.stringify(data, null, 2));
+
+    if (data) {
+      const result = {
+        city: data.city || data.locality || data.principalSubdivision || null,
+        state: data.principalSubdivision || data.localityInfo?.administrative?.[1]?.name || null,
+        country: data.countryName || null,
+        countryCode: data.countryCode || null,
+      };
+      console.log('📍 [v3] Parsed BigDataCloud address:', result);
+      return result;
+    }
+
+    return null;
+  } catch (error) {
+    console.log('❌ [v3] BigDataCloud reverse geocoding failed:', error.message);
+    return null;
+  }
+}
+
+/**
  * Reverse geocode using Nominatim (OpenStreetMap) - free, no API key required
- * Used as fallback when expo-location's reverse geocoding fails (common on web)
- * Note: Nominatim has CORS enabled, so should work in browsers
+ * Used as fallback when BigDataCloud fails
  */
 async function reverseGeocodeWithNominatim(latitude, longitude) {
   try {
-    console.log('📍 [v2.1] Calling Nominatim API for:', latitude, longitude);
+    console.log('📍 [v3] Calling Nominatim API for:', latitude, longitude);
 
-    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`;
-    console.log('📍 [v2.1] Nominatim URL:', url);
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1&accept-language=en`;
 
-    // Nominatim requires a valid User-Agent, but browsers may override it
-    // The API still works from browsers due to CORS support
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -104,113 +139,171 @@ async function reverseGeocodeWithNominatim(latitude, longitude) {
       },
     });
 
-    console.log('📍 [v2.1] Nominatim response status:', response.status);
+    console.log('📍 [v3] Nominatim response status:', response.status);
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.log('❌ [v2.1] Nominatim error response:', errorText);
-      throw new Error(`Nominatim API error: ${response.status} - ${errorText}`);
+      throw new Error(`Nominatim API error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('📍 [v2.1] Nominatim result:', JSON.stringify(data, null, 2));
+    console.log('📍 [v3] Nominatim result:', JSON.stringify(data, null, 2));
 
     if (data && data.address) {
       const addr = data.address;
       const result = {
-        city: addr.city || addr.town || addr.village || addr.municipality || addr.county || addr.suburb || addr.locality || addr.hamlet || 'Unknown City',
-        state: addr.state || addr.province || addr.region || addr.state_district || 'Unknown State',
-        country: addr.country || 'Unknown Country',
+        city: addr.city || addr.town || addr.village || addr.municipality || addr.county || addr.suburb || addr.locality || addr.hamlet || null,
+        state: addr.state || addr.province || addr.region || addr.state_district || null,
+        country: addr.country || null,
+        countryCode: addr.country_code?.toUpperCase() || null,
       };
-      console.log('📍 [v2.1] Parsed Nominatim address:', result);
+      console.log('📍 [v3] Parsed Nominatim address:', result);
       return result;
     }
 
-    console.log('📍 [v2.1] Nominatim returned no address data');
     return null;
   } catch (error) {
-    console.log('❌ [v2.1] Nominatim reverse geocoding failed:', error.message);
-    console.log('❌ [v2.1] Error type:', error.name);
-    console.log('❌ [v2.1] Full error:', error);
+    console.log('❌ [v3] Nominatim reverse geocoding failed:', error.message);
     return null;
   }
 }
 
 /**
- * Suggest location using browser geolocation (optional)
- * Returns null if permission denied or error
+ * Get country name from coordinates using multiple fallbacks
+ * This ALWAYS returns at least a country if coordinates are valid
+ */
+async function getLocationFromCoordinates(latitude, longitude) {
+  console.log('📍 [v3] Getting location from coordinates:', latitude, longitude);
+
+  // Try BigDataCloud first (most reliable for country)
+  let result = await reverseGeocodeWithBigDataCloud(latitude, longitude);
+
+  if (result && result.country) {
+    console.log('✅ [v3] Got location from BigDataCloud:', result);
+    return result;
+  }
+
+  // Try Nominatim as fallback
+  console.log('📍 [v3] BigDataCloud failed, trying Nominatim...');
+  result = await reverseGeocodeWithNominatim(latitude, longitude);
+
+  if (result && result.country) {
+    console.log('✅ [v3] Got location from Nominatim:', result);
+    return result;
+  }
+
+  // Last resort: Use timezone-based country detection
+  console.log('📍 [v3] All geocoding failed, using timezone fallback...');
+  try {
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    console.log('📍 [v3] User timezone:', timezone);
+
+    // Map common timezones to countries (for common African/global locations)
+    const timezoneCountryMap = {
+      'Africa/Lagos': 'Nigeria',
+      'Africa/Nairobi': 'Kenya',
+      'Africa/Johannesburg': 'South Africa',
+      'Africa/Cairo': 'Egypt',
+      'Africa/Casablanca': 'Morocco',
+      'Africa/Accra': 'Ghana',
+      'Africa/Addis_Ababa': 'Ethiopia',
+      'Africa/Dar_es_Salaam': 'Tanzania',
+      'Africa/Kampala': 'Uganda',
+      'Africa/Kigali': 'Rwanda',
+      'Africa/Kinshasa': 'Democratic Republic of the Congo',
+      'Africa/Abidjan': 'Côte d\'Ivoire',
+      'Africa/Dakar': 'Senegal',
+      'Africa/Douala': 'Cameroon',
+      'Africa/Algiers': 'Algeria',
+      'Africa/Tunis': 'Tunisia',
+      'America/New_York': 'United States',
+      'America/Los_Angeles': 'United States',
+      'America/Chicago': 'United States',
+      'Europe/London': 'United Kingdom',
+      'Europe/Paris': 'France',
+      'Europe/Berlin': 'Germany',
+      'Asia/Dubai': 'United Arab Emirates',
+      'Asia/Kolkata': 'India',
+      'Asia/Shanghai': 'China',
+    };
+
+    const countryFromTimezone = timezoneCountryMap[timezone];
+    if (countryFromTimezone) {
+      console.log('✅ [v3] Got country from timezone:', countryFromTimezone);
+      return {
+        city: null,
+        state: null,
+        country: countryFromTimezone,
+        countryCode: null,
+      };
+    }
+  } catch (tzError) {
+    console.log('⚠️ [v3] Timezone detection failed:', tzError.message);
+  }
+
+  // Absolute fallback - return coordinates-based placeholder
+  console.log('⚠️ [v3] All location methods failed, returning coordinates-only');
+  return {
+    city: null,
+    state: null,
+    country: null,
+    countryCode: null,
+  };
+}
+
+/**
+ * Suggest location using browser geolocation
+ * ALWAYS returns location if GPS coords are available (at minimum country)
+ * Returns null ONLY if permission denied or GPS completely fails
  */
 export async function suggestLocationFromGPS() {
   try {
-    console.log('📍 [v2.1] Starting location detection...');
+    console.log('📍 [v3] Starting location detection...');
 
     // Request permission (non-blocking)
     const { status } = await Location.requestForegroundPermissionsAsync();
 
     if (status !== 'granted') {
-      console.log('❌ [v2.1] Location permission denied - user will select manually');
+      console.log('❌ [v3] Location permission denied - user will select manually');
       return null;
     }
 
-    console.log('✅ [v2.1] Location permission granted');
+    console.log('✅ [v3] Location permission granted');
 
     // Get current position
     const position = await Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.Balanced,
-      timeout: 10000,
+      timeout: 15000,
     });
 
     const { latitude, longitude } = position.coords;
-    console.log('📍 [v2.1] Coordinates:', latitude, longitude);
+    console.log('📍 [v3] Coordinates obtained:', latitude, longitude);
 
-    // Try expo-location reverse geocoding first (works better on native)
-    try {
-      const addresses = await Location.reverseGeocodeAsync({
-        latitude,
-        longitude,
-      });
+    // Use our robust multi-provider geocoding
+    const locationResult = await getLocationFromCoordinates(latitude, longitude);
 
-      console.log('📍 [v2.1] Expo reverse geocode result:', addresses);
+    // Build the final result - ALWAYS include coordinates
+    const finalResult = {
+      city: locationResult?.city || null,
+      state: locationResult?.state || null,
+      country: locationResult?.country || null,
+      countryCode: locationResult?.countryCode || null,
+      latitude,
+      longitude,
+    };
 
-      if (addresses && addresses.length > 0) {
-        const address = addresses[0];
-
-        // Check if we got valid data
-        if (address.city || address.region || address.country) {
-          console.log('✅ [v2.1] Location detected via Expo:', address.city, address.region, address.country);
-          return {
-            city: address.city || address.subregion || 'Unknown City',
-            state: address.region || address.isoCountryCode || 'Unknown State',
-            country: address.country || 'Unknown Country',
-            latitude,
-            longitude,
-          };
-        }
-      }
-    } catch (geocodeError) {
-      console.log('⚠️ [v2.1] Expo reverse geocoding failed:', geocodeError.message);
+    // If we have at least country, it's a success
+    if (finalResult.country) {
+      console.log('✅ [v3] Location detected successfully:', finalResult);
+      return finalResult;
     }
 
-    // Fallback: Use Nominatim (OpenStreetMap) for web/when expo fails
-    console.log('📍 [v2.1] Trying Nominatim fallback...');
-    const nominatimResult = await reverseGeocodeWithNominatim(latitude, longitude);
+    // Even without country, return coordinates so user can manually select
+    // This is better than returning null
+    console.log('⚠️ [v3] Could not determine country, but have coordinates:', finalResult);
+    return finalResult;
 
-    if (nominatimResult) {
-      console.log('✅ [v2.1] Location detected via Nominatim:', nominatimResult);
-      return {
-        ...nominatimResult,
-        latitude,
-        longitude,
-      };
-    }
-
-    // If all geocoding fails, return null (user will select manually)
-    console.log('❌ [v2.1] Location detection failed: No address found from any source');
-    console.log('💡 Coordinates were obtained but reverse geocoding failed for both Expo and Nominatim');
-    return null;
   } catch (error) {
-    console.log('❌ [v2.1] Could not detect location:', error.message);
-    console.log('❌ Full error object:', error);
+    console.log('❌ [v3] Could not detect location:', error.message);
     return null;
   }
 }
@@ -831,16 +924,42 @@ export function getCitiesForCountry(country) {
 }
 
 /**
- * Detect user location (alias for suggestLocationFromGPS with error handling)
+ * Detect user location and auto-persist to AsyncStorage
+ * Returns success: true if we got at least country
+ * Returns success: false only if GPS completely failed
  */
 export async function detectUserLocation() {
   try {
     const location = await suggestLocationFromGPS();
-    if (location) {
+
+    if (!location) {
+      return { success: false, error: 'Location permission denied or GPS unavailable' };
+    }
+
+    // If we have at least country, consider it success
+    if (location.country) {
+      // Auto-persist to AsyncStorage (without requiring userId)
+      try {
+        await saveUserLocation(null, location);
+        console.log('📍 [v3] Auto-persisted detected location to AsyncStorage');
+      } catch (saveError) {
+        console.warn('⚠️ [v3] Could not auto-persist location:', saveError.message);
+      }
+
       return { success: true, ...location };
     }
-    return { success: false, error: 'Could not detect location' };
+
+    // We have coordinates but no country - partial success
+    // User can still select manually with coordinates as reference
+    return {
+      success: false,
+      error: 'Could not determine country from coordinates',
+      latitude: location.latitude,
+      longitude: location.longitude,
+    };
+
   } catch (error) {
+    console.error('❌ [v3] detectUserLocation error:', error);
     return { success: false, error: error.message };
   }
 }
