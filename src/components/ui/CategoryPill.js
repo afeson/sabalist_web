@@ -25,17 +25,20 @@ const CATEGORY_COLORS = {
 
 /**
  * Category pill with icon
+ * @param {string} category - The category key (e.g., 'Electronics', 'All')
+ * @param {string} label - The translated display label (if not provided, uses category)
  */
-export default function CategoryPill({ 
-  category, 
-  active = false, 
+export default function CategoryPill({
+  category,
+  label,
+  active = false,
   onPress,
   style,
-  ...props 
+  ...props
 }) {
   const icon = CATEGORY_ICONS[category] || 'pricetag';
   const color = CATEGORY_COLORS[category] || COLORS.categoryOther;
-  
+
   const containerStyle = [
     styles.pill,
     active && styles.pillActive,
@@ -43,26 +46,29 @@ export default function CategoryPill({
     !active && { backgroundColor: `${color}15` }, // 15% opacity
     style,
   ];
-  
+
   const textStyle = [
     styles.text,
     active ? styles.textActive : { color },
   ];
 
+  // Use provided label or fall back to category key
+  const displayLabel = label || category;
+
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={containerStyle}
       onPress={onPress}
       activeOpacity={0.7}
       {...props}
     >
-      <Ionicons 
-        name={icon} 
-        size={16} 
+      <Ionicons
+        name={icon}
+        size={16}
         color={active ? COLORS.card : color}
         style={styles.icon}
       />
-      <Text style={textStyle}>{category}</Text>
+      <Text style={textStyle}>{displayLabel}</Text>
     </TouchableOpacity>
   );
 }

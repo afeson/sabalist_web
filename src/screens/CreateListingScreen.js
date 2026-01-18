@@ -42,11 +42,12 @@ import { getFirestore, collection, addDoc, updateDoc, doc, getDoc } from 'fireba
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getImageLimits, GLOBAL_IMAGE_LIMITS } from '../config/categoryLimits';
 import { getSubCategories } from '../config/categories';
+import { getTranslatedCategoryLabel } from '../utils/categoryI18n';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { PrimaryButton, Card } from '../components/ui';
 
-// Constants
-const CATEGORIES = ['Electronics', 'Vehicles', 'Real Estate', 'Fashion', 'Services'];
+// Category keys - these are stored in DB, NOT translated
+const CATEGORY_KEYS = ['Electronics', 'Vehicles', 'Real Estate', 'Fashion', 'Services'];
 
 export default function CreateListingScreen({ navigation }) {
   const { t } = useTranslation();
@@ -490,7 +491,7 @@ export default function CreateListingScreen({ navigation }) {
         imageCount: images.length,
       });
 
-      if (!CATEGORIES.includes(category)) {
+      if (!CATEGORY_KEYS.includes(category)) {
         throw new Error(`Invalid category: ${category}`);
       }
 
@@ -798,7 +799,7 @@ export default function CreateListingScreen({ navigation }) {
       <View style={styles.formGroup}>
         <Text style={styles.label}>{t('createListing.category')} *</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {CATEGORIES.map((cat) => (
+          {CATEGORY_KEYS.map((cat) => (
             <TouchableOpacity
               key={cat}
               style={[styles.categoryChip, category === cat && styles.categoryChipActive]}
@@ -813,7 +814,7 @@ export default function CreateListingScreen({ navigation }) {
                   category === cat && styles.categoryChipTextActive,
                 ]}
               >
-                {cat}
+                {getTranslatedCategoryLabel(cat, t)}
               </Text>
             </TouchableOpacity>
           ))}

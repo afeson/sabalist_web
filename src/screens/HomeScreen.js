@@ -36,8 +36,10 @@ import LocationSelector from '../components/LocationSelector';
 import { useAuth } from '../contexts/AuthContext';
 import { subscribeToFavorites, addToFavorites, removeFromFavorites } from '../services/favoritesService';
 import { getUserLocation } from '../services/locationService';
+import { getTranslatedCategoryLabel } from '../utils/categoryI18n';
 
-const CATEGORIES = ['All', 'Electronics', 'Vehicles', 'Real Estate', 'Fashion', 'Services'];
+// Category keys - these are stored in DB, NOT translated
+const CATEGORY_KEYS = ['All', 'Electronics', 'Vehicles', 'Real Estate', 'Fashion', 'Services'];
 
 export default function HomeScreen({ route }) {
   console.log('🔥 HOMESCREEN.JS IS RENDERING 🔥');
@@ -191,6 +193,7 @@ export default function HomeScreen({ route }) {
     <CategoryPill
       key={cat}
       category={cat}
+      label={getTranslatedCategoryLabel(cat, t)}
       active={selectedCategory === cat}
       onPress={() => setSelectedCategory(cat)}
     />
@@ -298,7 +301,7 @@ export default function HomeScreen({ route }) {
           style={styles.categoryScroll}
           contentContainerStyle={styles.categoryScrollContent}
         >
-          {CATEGORIES.map(renderCategory)}
+          {CATEGORY_KEYS.map(renderCategory)}
         </ScrollView>
       </View>
 

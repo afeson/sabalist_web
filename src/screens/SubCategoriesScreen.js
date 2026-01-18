@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { getSubCategories, getCategoryIcon } from '../config/categories';
+import { getTranslatedCategoryLabel } from '../utils/categoryI18n';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 
 export default function SubCategoriesScreen({ route, navigation }) {
@@ -54,7 +55,7 @@ export default function SubCategoriesScreen({ route, navigation }) {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Ionicons name={getCategoryIcon(category)} size={24} color={COLORS.primary} />
-          <Text style={styles.headerTitle}>{t(`categories.${category.toLowerCase().replace(/ /g, '').replace(/&/g, '')}`)}</Text>
+          <Text style={styles.headerTitle}>{getTranslatedCategoryLabel(category, t)}</Text>
         </View>
         <View style={{ width: 24 }} />
       </View>
@@ -78,7 +79,7 @@ export default function SubCategoriesScreen({ route, navigation }) {
           <View style={styles.headerSection}>
             <Text style={styles.sectionTitle}>{t('subCategories.selectCategory')}</Text>
             <Text style={styles.sectionSubtitle}>
-              {t('subCategories.browseBy', { category: t(`categories.${category.toLowerCase().replace(/ /g, '').replace(/&/g, '')}`) })}
+              {t('subCategories.browseBy', { category: getTranslatedCategoryLabel(category, t) })}
             </Text>
           </View>
         }
