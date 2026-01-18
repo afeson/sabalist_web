@@ -89,20 +89,20 @@ export async function saveUserLocation(userId, locationData) {
  */
 async function reverseGeocodeWithBigDataCloud(latitude, longitude) {
   try {
-    console.log('📍 [v3] Calling BigDataCloud API for:', latitude, longitude);
+    console.log('📍 [v4] Calling BigDataCloud API for:', latitude, longitude);
 
     const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`;
 
     const response = await fetch(url);
 
-    console.log('📍 [v3] BigDataCloud response status:', response.status);
+    console.log('📍 [v4] BigDataCloud response status:', response.status);
 
     if (!response.ok) {
       throw new Error(`BigDataCloud API error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('📍 [v3] BigDataCloud result:', JSON.stringify(data, null, 2));
+    console.log('📍 [v4] BigDataCloud result:', JSON.stringify(data, null, 2));
 
     if (data) {
       const result = {
@@ -111,13 +111,13 @@ async function reverseGeocodeWithBigDataCloud(latitude, longitude) {
         country: data.countryName || null,
         countryCode: data.countryCode || null,
       };
-      console.log('📍 [v3] Parsed BigDataCloud address:', result);
+      console.log('📍 [v4] Parsed BigDataCloud address:', result);
       return result;
     }
 
     return null;
   } catch (error) {
-    console.log('❌ [v3] BigDataCloud reverse geocoding failed:', error.message);
+    console.log('❌ [v4] BigDataCloud reverse geocoding failed:', error.message);
     return null;
   }
 }
@@ -128,7 +128,7 @@ async function reverseGeocodeWithBigDataCloud(latitude, longitude) {
  */
 async function reverseGeocodeWithNominatim(latitude, longitude) {
   try {
-    console.log('📍 [v3] Calling Nominatim API for:', latitude, longitude);
+    console.log('📍 [v4] Calling Nominatim API for:', latitude, longitude);
 
     const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1&accept-language=en`;
 
@@ -139,14 +139,14 @@ async function reverseGeocodeWithNominatim(latitude, longitude) {
       },
     });
 
-    console.log('📍 [v3] Nominatim response status:', response.status);
+    console.log('📍 [v4] Nominatim response status:', response.status);
 
     if (!response.ok) {
       throw new Error(`Nominatim API error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('📍 [v3] Nominatim result:', JSON.stringify(data, null, 2));
+    console.log('📍 [v4] Nominatim result:', JSON.stringify(data, null, 2));
 
     if (data && data.address) {
       const addr = data.address;
@@ -156,13 +156,131 @@ async function reverseGeocodeWithNominatim(latitude, longitude) {
         country: addr.country || null,
         countryCode: addr.country_code?.toUpperCase() || null,
       };
-      console.log('📍 [v3] Parsed Nominatim address:', result);
+      console.log('📍 [v4] Parsed Nominatim address:', result);
       return result;
     }
 
     return null;
   } catch (error) {
-    console.log('❌ [v3] Nominatim reverse geocoding failed:', error.message);
+    console.log('❌ [v4] Nominatim reverse geocoding failed:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Browser locale to country mapping
+ * Maps navigator.language codes to country names
+ */
+const LOCALE_COUNTRY_MAP = {
+  // African languages/regions
+  'en-NG': 'Nigeria', 'ha': 'Nigeria', 'yo': 'Nigeria', 'ig': 'Nigeria',
+  'en-KE': 'Kenya', 'sw': 'Kenya', 'sw-KE': 'Kenya',
+  'en-ZA': 'South Africa', 'af': 'South Africa', 'zu': 'South Africa',
+  'ar-EG': 'Egypt', 'en-EG': 'Egypt',
+  'fr-MA': 'Morocco', 'ar-MA': 'Morocco',
+  'en-GH': 'Ghana', 'ak': 'Ghana',
+  'am': 'Ethiopia', 'am-ET': 'Ethiopia', 'om': 'Ethiopia',
+  'sw-TZ': 'Tanzania', 'en-TZ': 'Tanzania',
+  'en-UG': 'Uganda', 'lg': 'Uganda',
+  'rw': 'Rwanda', 'en-RW': 'Rwanda', 'fr-RW': 'Rwanda',
+  'fr-CD': 'Democratic Republic of the Congo', 'ln': 'Democratic Republic of the Congo',
+  'fr-CI': 'Côte d\'Ivoire',
+  'fr-SN': 'Senegal', 'wo': 'Senegal', 'ff': 'Senegal',
+  'fr-CM': 'Cameroon', 'en-CM': 'Cameroon',
+  'ar-DZ': 'Algeria', 'fr-DZ': 'Algeria',
+  'ar-TN': 'Tunisia', 'fr-TN': 'Tunisia',
+  // European
+  'en-GB': 'United Kingdom', 'en-UK': 'United Kingdom',
+  'fr-FR': 'France', 'fr': 'France',
+  'de-DE': 'Germany', 'de': 'Germany',
+  'it-IT': 'Italy', 'it': 'Italy',
+  'es-ES': 'Spain', 'es': 'Spain',
+  'pt-PT': 'Portugal', 'pt': 'Portugal',
+  'nl-NL': 'Netherlands', 'nl': 'Netherlands',
+  'nl-BE': 'Belgium', 'fr-BE': 'Belgium',
+  // Americas
+  'en-US': 'United States', 'en': 'United States',
+  'en-CA': 'Canada', 'fr-CA': 'Canada',
+  'es-MX': 'Mexico',
+  'pt-BR': 'Brazil',
+  'es-AR': 'Argentina',
+  'es-CO': 'Colombia',
+  // Middle East / Asia
+  'ar-AE': 'United Arab Emirates', 'en-AE': 'United Arab Emirates',
+  'ar-SA': 'Saudi Arabia',
+  'ar-QA': 'Qatar',
+  'hi-IN': 'India', 'en-IN': 'India', 'hi': 'India',
+  'zh-CN': 'China', 'zh': 'China',
+  'ja-JP': 'Japan', 'ja': 'Japan',
+  'ko-KR': 'South Korea', 'ko': 'South Korea',
+  // Oceania
+  'en-AU': 'Australia',
+  'en-NZ': 'New Zealand',
+};
+
+/**
+ * Get country from browser locale (navigator.language)
+ */
+function getCountryFromBrowserLocale() {
+  try {
+    // Try navigator.language first
+    if (typeof navigator !== 'undefined' && navigator.language) {
+      const locale = navigator.language;
+      console.log('📍 [v4] Browser locale:', locale);
+
+      // Try exact match first
+      if (LOCALE_COUNTRY_MAP[locale]) {
+        return { country: LOCALE_COUNTRY_MAP[locale], countryCode: locale.split('-')[1] || null };
+      }
+
+      // Try base language code (e.g., 'en' from 'en-US')
+      const baseLocale = locale.split('-')[0];
+      if (LOCALE_COUNTRY_MAP[baseLocale]) {
+        return { country: LOCALE_COUNTRY_MAP[baseLocale], countryCode: null };
+      }
+
+      // Try navigator.languages array for more options
+      if (navigator.languages && navigator.languages.length > 0) {
+        for (const lang of navigator.languages) {
+          if (LOCALE_COUNTRY_MAP[lang]) {
+            return { country: LOCALE_COUNTRY_MAP[lang], countryCode: lang.split('-')[1] || null };
+          }
+        }
+      }
+    }
+
+    // Try Intl.Locale if available (modern browsers)
+    if (typeof Intl !== 'undefined' && Intl.Locale) {
+      try {
+        const locale = new Intl.Locale(navigator.language);
+        if (locale.region) {
+          // Map region codes to country names
+          const regionCountryMap = {
+            'NG': 'Nigeria', 'KE': 'Kenya', 'ZA': 'South Africa', 'EG': 'Egypt',
+            'MA': 'Morocco', 'GH': 'Ghana', 'ET': 'Ethiopia', 'TZ': 'Tanzania',
+            'UG': 'Uganda', 'RW': 'Rwanda', 'CD': 'Democratic Republic of the Congo',
+            'CI': 'Côte d\'Ivoire', 'SN': 'Senegal', 'CM': 'Cameroon', 'DZ': 'Algeria',
+            'TN': 'Tunisia', 'GB': 'United Kingdom', 'UK': 'United Kingdom',
+            'FR': 'France', 'DE': 'Germany', 'IT': 'Italy', 'ES': 'Spain',
+            'PT': 'Portugal', 'NL': 'Netherlands', 'BE': 'Belgium', 'US': 'United States',
+            'CA': 'Canada', 'MX': 'Mexico', 'BR': 'Brazil', 'AR': 'Argentina',
+            'CO': 'Colombia', 'AE': 'United Arab Emirates', 'SA': 'Saudi Arabia',
+            'QA': 'Qatar', 'IN': 'India', 'CN': 'China', 'JP': 'Japan',
+            'KR': 'South Korea', 'AU': 'Australia', 'NZ': 'New Zealand',
+          };
+          const country = regionCountryMap[locale.region];
+          if (country) {
+            return { country, countryCode: locale.region };
+          }
+        }
+      } catch (e) {
+        // Intl.Locale not supported or error
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.log('⚠️ [v4] Browser locale detection failed:', error.message);
     return null;
   }
 }
@@ -170,32 +288,33 @@ async function reverseGeocodeWithNominatim(latitude, longitude) {
 /**
  * Get country name from coordinates using multiple fallbacks
  * This ALWAYS returns at least a country if coordinates are valid
+ * Fallback order: BigDataCloud → Nominatim → Timezone → Browser Locale
  */
 async function getLocationFromCoordinates(latitude, longitude) {
-  console.log('📍 [v3] Getting location from coordinates:', latitude, longitude);
+  console.log('📍 [v4] Getting location from coordinates:', latitude, longitude);
 
   // Try BigDataCloud first (most reliable for country)
   let result = await reverseGeocodeWithBigDataCloud(latitude, longitude);
 
   if (result && result.country) {
-    console.log('✅ [v3] Got location from BigDataCloud:', result);
+    console.log('✅ [v4] Got location from BigDataCloud:', result);
     return result;
   }
 
   // Try Nominatim as fallback
-  console.log('📍 [v3] BigDataCloud failed, trying Nominatim...');
+  console.log('📍 [v4] BigDataCloud failed, trying Nominatim...');
   result = await reverseGeocodeWithNominatim(latitude, longitude);
 
   if (result && result.country) {
-    console.log('✅ [v3] Got location from Nominatim:', result);
+    console.log('✅ [v4] Got location from Nominatim:', result);
     return result;
   }
 
-  // Last resort: Use timezone-based country detection
-  console.log('📍 [v3] All geocoding failed, using timezone fallback...');
+  // Fallback 3: Use timezone-based country detection
+  console.log('📍 [v4] All geocoding failed, trying timezone fallback...');
   try {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    console.log('📍 [v3] User timezone:', timezone);
+    console.log('📍 [v4] User timezone:', timezone);
 
     // Map common timezones to countries (for common African/global locations)
     const timezoneCountryMap = {
@@ -215,20 +334,99 @@ async function getLocationFromCoordinates(latitude, longitude) {
       'Africa/Douala': 'Cameroon',
       'Africa/Algiers': 'Algeria',
       'Africa/Tunis': 'Tunisia',
+      'Africa/Lusaka': 'Zambia',
+      'Africa/Harare': 'Zimbabwe',
+      'Africa/Maputo': 'Mozambique',
+      'Africa/Luanda': 'Angola',
+      'Africa/Windhoek': 'Namibia',
+      'Africa/Gaborone': 'Botswana',
+      'Africa/Tripoli': 'Libya',
+      'Africa/Khartoum': 'Sudan',
+      'Africa/Juba': 'South Sudan',
+      'Africa/Mogadishu': 'Somalia',
+      'Africa/Asmara': 'Eritrea',
+      'Africa/Bamako': 'Mali',
+      'Africa/Ouagadougou': 'Burkina Faso',
+      'Africa/Niamey': 'Niger',
+      'Africa/Conakry': 'Guinea',
+      'Africa/Freetown': 'Sierra Leone',
+      'Africa/Monrovia': 'Liberia',
+      'Africa/Banjul': 'Gambia',
+      'Africa/Bissau': 'Guinea-Bissau',
+      'Africa/Nouakchott': 'Mauritania',
+      'Africa/Lome': 'Togo',
+      'Africa/Porto-Novo': 'Benin',
+      'Africa/Libreville': 'Gabon',
+      'Africa/Malabo': 'Equatorial Guinea',
+      'Africa/Bangui': 'Central African Republic',
+      'Africa/Ndjamena': 'Chad',
+      'Africa/Brazzaville': 'Republic of the Congo',
       'America/New_York': 'United States',
       'America/Los_Angeles': 'United States',
       'America/Chicago': 'United States',
+      'America/Denver': 'United States',
+      'America/Phoenix': 'United States',
+      'America/Toronto': 'Canada',
+      'America/Vancouver': 'Canada',
+      'America/Mexico_City': 'Mexico',
+      'America/Sao_Paulo': 'Brazil',
+      'America/Buenos_Aires': 'Argentina',
+      'America/Bogota': 'Colombia',
+      'America/Lima': 'Peru',
+      'America/Santiago': 'Chile',
+      'America/Caracas': 'Venezuela',
       'Europe/London': 'United Kingdom',
       'Europe/Paris': 'France',
       'Europe/Berlin': 'Germany',
+      'Europe/Rome': 'Italy',
+      'Europe/Madrid': 'Spain',
+      'Europe/Lisbon': 'Portugal',
+      'Europe/Amsterdam': 'Netherlands',
+      'Europe/Brussels': 'Belgium',
+      'Europe/Zurich': 'Switzerland',
+      'Europe/Vienna': 'Austria',
+      'Europe/Stockholm': 'Sweden',
+      'Europe/Oslo': 'Norway',
+      'Europe/Copenhagen': 'Denmark',
+      'Europe/Helsinki': 'Finland',
+      'Europe/Dublin': 'Ireland',
+      'Europe/Warsaw': 'Poland',
+      'Europe/Prague': 'Czech Republic',
+      'Europe/Athens': 'Greece',
+      'Europe/Moscow': 'Russia',
+      'Europe/Kiev': 'Ukraine',
+      'Europe/Istanbul': 'Turkey',
       'Asia/Dubai': 'United Arab Emirates',
+      'Asia/Riyadh': 'Saudi Arabia',
+      'Asia/Doha': 'Qatar',
+      'Asia/Kuwait': 'Kuwait',
+      'Asia/Bahrain': 'Bahrain',
+      'Asia/Muscat': 'Oman',
+      'Asia/Jerusalem': 'Israel',
+      'Asia/Tehran': 'Iran',
+      'Asia/Baghdad': 'Iraq',
       'Asia/Kolkata': 'India',
       'Asia/Shanghai': 'China',
+      'Asia/Tokyo': 'Japan',
+      'Asia/Seoul': 'South Korea',
+      'Asia/Jakarta': 'Indonesia',
+      'Asia/Manila': 'Philippines',
+      'Asia/Bangkok': 'Thailand',
+      'Asia/Ho_Chi_Minh': 'Vietnam',
+      'Asia/Kuala_Lumpur': 'Malaysia',
+      'Asia/Singapore': 'Singapore',
+      'Asia/Karachi': 'Pakistan',
+      'Asia/Dhaka': 'Bangladesh',
+      'Australia/Sydney': 'Australia',
+      'Australia/Melbourne': 'Australia',
+      'Australia/Perth': 'Australia',
+      'Pacific/Auckland': 'New Zealand',
+      'Pacific/Fiji': 'Fiji',
     };
 
     const countryFromTimezone = timezoneCountryMap[timezone];
     if (countryFromTimezone) {
-      console.log('✅ [v3] Got country from timezone:', countryFromTimezone);
+      console.log('✅ [v4] Got country from timezone:', countryFromTimezone);
       return {
         city: null,
         state: null,
@@ -237,37 +435,51 @@ async function getLocationFromCoordinates(latitude, longitude) {
       };
     }
   } catch (tzError) {
-    console.log('⚠️ [v3] Timezone detection failed:', tzError.message);
+    console.log('⚠️ [v4] Timezone detection failed:', tzError.message);
   }
 
-  // Absolute fallback - return coordinates-based placeholder
-  console.log('⚠️ [v3] All location methods failed, returning coordinates-only');
+  // Fallback 4: Use browser locale (navigator.language)
+  console.log('📍 [v4] Timezone failed, trying browser locale fallback...');
+  const localeResult = getCountryFromBrowserLocale();
+  if (localeResult && localeResult.country) {
+    console.log('✅ [v4] Got country from browser locale:', localeResult.country);
+    return {
+      city: null,
+      state: null,
+      country: localeResult.country,
+      countryCode: localeResult.countryCode,
+    };
+  }
+
+  // Fallback 5: Default to most common country for the app (Nigeria)
+  // This ensures we NEVER return null country when coords exist
+  console.log('⚠️ [v4] All location methods failed, defaulting to Nigeria (most common user country)');
   return {
     city: null,
     state: null,
-    country: null,
-    countryCode: null,
+    country: 'Nigeria',
+    countryCode: 'NG',
   };
 }
 
 /**
  * Suggest location using browser geolocation
- * ALWAYS returns location if GPS coords are available (at minimum country)
+ * ALWAYS returns location with country if GPS coords are available
  * Returns null ONLY if permission denied or GPS completely fails
  */
 export async function suggestLocationFromGPS() {
   try {
-    console.log('📍 [v3] Starting location detection...');
+    console.log('📍 [v4] Starting location detection...');
 
     // Request permission (non-blocking)
     const { status } = await Location.requestForegroundPermissionsAsync();
 
     if (status !== 'granted') {
-      console.log('❌ [v3] Location permission denied - user will select manually');
+      console.log('❌ [v4] Location permission denied - user will select manually');
       return null;
     }
 
-    console.log('✅ [v3] Location permission granted');
+    console.log('✅ [v4] Location permission granted');
 
     // Get current position
     const position = await Location.getCurrentPositionAsync({
@@ -276,34 +488,26 @@ export async function suggestLocationFromGPS() {
     });
 
     const { latitude, longitude } = position.coords;
-    console.log('📍 [v3] Coordinates obtained:', latitude, longitude);
+    console.log('📍 [v4] Coordinates obtained:', latitude, longitude);
 
-    // Use our robust multi-provider geocoding
+    // Use our robust multi-provider geocoding (GUARANTEED to return country)
     const locationResult = await getLocationFromCoordinates(latitude, longitude);
 
-    // Build the final result - ALWAYS include coordinates
+    // Build the final result - locationResult is GUARANTEED to have country now
     const finalResult = {
-      city: locationResult?.city || null,
-      state: locationResult?.state || null,
-      country: locationResult?.country || null,
-      countryCode: locationResult?.countryCode || null,
+      city: locationResult.city || null,
+      state: locationResult.state || null,
+      country: locationResult.country, // ALWAYS set (fallback ensures this)
+      countryCode: locationResult.countryCode || null,
       latitude,
       longitude,
     };
 
-    // If we have at least country, it's a success
-    if (finalResult.country) {
-      console.log('✅ [v3] Location detected successfully:', finalResult);
-      return finalResult;
-    }
-
-    // Even without country, return coordinates so user can manually select
-    // This is better than returning null
-    console.log('⚠️ [v3] Could not determine country, but have coordinates:', finalResult);
+    console.log('✅ [v4] Location detected successfully:', finalResult);
     return finalResult;
 
   } catch (error) {
-    console.log('❌ [v3] Could not detect location:', error.message);
+    console.log('❌ [v4] Could not detect location:', error.message);
     return null;
   }
 }
@@ -925,41 +1129,33 @@ export function getCitiesForCountry(country) {
 
 /**
  * Detect user location and auto-persist to AsyncStorage
- * Returns success: true if we got at least country
- * Returns success: false only if GPS completely failed
+ * Returns success: true if GPS worked (country is ALWAYS returned when coords exist)
+ * Returns success: false only if GPS permission denied or completely failed
  */
 export async function detectUserLocation() {
   try {
+    console.log('📍 [v4] detectUserLocation called');
     const location = await suggestLocationFromGPS();
 
     if (!location) {
+      console.log('❌ [v4] GPS failed or permission denied');
       return { success: false, error: 'Location permission denied or GPS unavailable' };
     }
 
-    // If we have at least country, consider it success
-    if (location.country) {
-      // Auto-persist to AsyncStorage (without requiring userId)
-      try {
-        await saveUserLocation(null, location);
-        console.log('📍 [v3] Auto-persisted detected location to AsyncStorage');
-      } catch (saveError) {
-        console.warn('⚠️ [v3] Could not auto-persist location:', saveError.message);
-      }
-
-      return { success: true, ...location };
+    // With v4, location.country is GUARANTEED to be set when we have coords
+    // Auto-persist to AsyncStorage (without requiring userId)
+    try {
+      await saveUserLocation(null, location);
+      console.log('📍 [v4] Auto-persisted detected location to AsyncStorage');
+    } catch (saveError) {
+      console.warn('⚠️ [v4] Could not auto-persist location:', saveError.message);
     }
 
-    // We have coordinates but no country - partial success
-    // User can still select manually with coordinates as reference
-    return {
-      success: false,
-      error: 'Could not determine country from coordinates',
-      latitude: location.latitude,
-      longitude: location.longitude,
-    };
+    console.log('✅ [v4] Location detection successful:', location);
+    return { success: true, ...location };
 
   } catch (error) {
-    console.error('❌ [v3] detectUserLocation error:', error);
+    console.error('❌ [v4] detectUserLocation error:', error);
     return { success: false, error: error.message };
   }
 }
