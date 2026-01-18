@@ -5,6 +5,13 @@
   "framework": null,
   "routes": [
     {
+      "src": "/static/js/(.*)",
+      "dest": "/static/js/$1",
+      "headers": {
+        "Cache-Control": "public, max-age=0, must-revalidate"
+      }
+    },
+    {
       "src": "/static/(.*)",
       "dest": "/static/$1",
       "headers": {
