@@ -14,7 +14,7 @@
  * - Clear error messages
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -55,7 +55,12 @@ export default function CreateListingScreen({ navigation }) {
   const { user } = useAuth(); // Get authenticated user from AuthContext
   const [, forceUpdate] = useState(0);
 
-  // Force re-render when screen comes into focus (handles language changes)
+  // Force re-render when language changes (even if screen is already focused)
+  useEffect(() => {
+    forceUpdate(n => n + 1);
+  }, [i18n.language]);
+
+  // Also re-render when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       forceUpdate(n => n + 1);

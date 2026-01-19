@@ -46,7 +46,12 @@ export default function HomeScreenSimple({ navigation }) {
   const { t, i18n } = useTranslation();
   const [, forceUpdate] = useState(0);
 
-  // Force re-render when screen comes into focus (handles language changes)
+  // Force re-render when language changes (even if screen is already focused)
+  useEffect(() => {
+    forceUpdate(n => n + 1);
+  }, [i18n.language]);
+
+  // Also re-render when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       forceUpdate(n => n + 1);

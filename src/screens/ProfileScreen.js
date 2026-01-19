@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,7 +20,13 @@ export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
   const [, forceUpdate] = useState(0);
 
-  // Force re-render when screen comes into focus (handles language changes)
+  // Force re-render when language changes (even if screen is already focused)
+  useEffect(() => {
+    console.log('📱 ProfileScreen language changed to:', i18n.language);
+    forceUpdate(n => n + 1);
+  }, [i18n.language]);
+
+  // Also re-render when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       console.log('📱 ProfileScreen focused, language:', i18n.language);
