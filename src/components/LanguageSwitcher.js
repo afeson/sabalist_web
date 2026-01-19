@@ -77,8 +77,8 @@ export default function LanguageSwitcher({ onClose, disableScroll = false }) {
       // Show confirmation
       Alert.alert(
         '✅ ' + (selectedLang?.nativeName || languageCode.toUpperCase()),
-        'Language changed to ' + (selectedLang?.name || languageCode) + '!',
-        [{ text: 'OK', onPress: () => {} }]
+        t('language.changed', { language: selectedLang?.name || languageCode }),
+        [{ text: t('common.ok'), onPress: () => {} }]
       );
 
       // Close modal after a brief delay
@@ -89,7 +89,7 @@ export default function LanguageSwitcher({ onClose, disableScroll = false }) {
         }, 500);
       }
     } else {
-      Alert.alert('Error', 'Failed to change language');
+      Alert.alert(t('language.error'), t('language.changeFailed'));
       setChanging(false);
     }
   };
@@ -115,12 +115,12 @@ export default function LanguageSwitcher({ onClose, disableScroll = false }) {
               <Text style={styles.languageEnglishName}>{language.name}</Text>
               {language.rtl && (
                 <View style={styles.rtlBadge}>
-                  <Text style={styles.rtlBadgeText}>RTL</Text>
+                  <Text style={styles.rtlBadgeText}>{t('language.rtl')}</Text>
                 </View>
               )}
               {isSelected && (
                 <View style={[styles.activeBadge, { backgroundColor: COLORS.success }]}>
-                  <Text style={styles.activeBadgeText}>ACTIVE</Text>
+                  <Text style={styles.activeBadgeText}>{t('language.active')}</Text>
                 </View>
               )}
             </View>

@@ -84,10 +84,10 @@ export default function LanguageModal({ isVisible, onClose }) {
             <View style={styles.headerContent}>
               <View style={styles.headerTextContainer}>
                 <Text style={styles.title}>
-                  {t('profile.selectLanguage') || 'Select Language'}
+                  {t('profile.selectLanguage')}
                 </Text>
                 <Text style={styles.subtitle}>
-                  Current: {i18n.language.toUpperCase()}
+                  {t('language.current', { language: i18n.language.toUpperCase() })}
                 </Text>
               </View>
               <TouchableOpacity
@@ -132,7 +132,7 @@ export default function LanguageModal({ isVisible, onClose }) {
                     </Text>
                     {language.rtl && (
                       <View style={styles.rtlBadge}>
-                        <Text style={styles.rtlBadgeText}>RTL</Text>
+                        <Text style={styles.rtlBadgeText}>{t('language.rtl')}</Text>
                       </View>
                     )}
                     {isSelected && (
@@ -142,7 +142,7 @@ export default function LanguageModal({ isVisible, onClose }) {
                           { backgroundColor: COLORS.success },
                         ]}
                       >
-                        <Text style={styles.activeBadgeText}>ACTIVE</Text>
+                        <Text style={styles.activeBadgeText}>{t('language.active')}</Text>
                       </View>
                     )}
                   </View>

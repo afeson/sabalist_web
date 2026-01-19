@@ -33,22 +33,22 @@ export default function HelpSupportScreen({ navigation }) {
           <View style={styles.iconHeader}>
             <Ionicons name="help-circle" size={48} color={COLORS.primary} />
           </View>
-          <Text style={styles.cardTitle}>Need Help?</Text>
+          <Text style={styles.cardTitle}>{t('help.needHelp')}</Text>
           <Text style={styles.cardDescription}>
-            Our support team is here to assist you with any questions or issues you may have.
+            {t('help.needHelpDesc')}
           </Text>
         </Card>
 
         {/* Email Support */}
         <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>Contact Us</Text>
+          <Text style={styles.sectionTitle}>{t('help.contactUs')}</Text>
 
           <TouchableOpacity style={styles.contactItem} onPress={handleEmailPress}>
             <View style={styles.contactIcon}>
               <Ionicons name="mail" size={24} color={COLORS.primary} />
             </View>
             <View style={styles.contactInfo}>
-              <Text style={styles.contactLabel}>Email Support</Text>
+              <Text style={styles.contactLabel}>{t('help.emailSupport')}</Text>
               <Text style={styles.contactValue}>{supportEmail}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
@@ -57,52 +57,52 @@ export default function HelpSupportScreen({ navigation }) {
 
         {/* Common Questions */}
         <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>Common Questions</Text>
+          <Text style={styles.sectionTitle}>{t('help.commonQuestions')}</Text>
 
           <View style={styles.faqItem}>
-            <Text style={styles.faqQuestion}>How do I create a listing?</Text>
+            <Text style={styles.faqQuestion}>{t('help.faq1Question')}</Text>
             <Text style={styles.faqAnswer}>
-              Tap the "+" button in the center of the navigation bar to start creating a new listing.
+              {t('help.faq1Answer')}
             </Text>
           </View>
 
           <View style={styles.divider} />
 
           <View style={styles.faqItem}>
-            <Text style={styles.faqQuestion}>How do I contact a seller?</Text>
+            <Text style={styles.faqQuestion}>{t('help.faq2Question')}</Text>
             <Text style={styles.faqAnswer}>
-              Open any listing and tap the "Contact Seller" button to send a message or call directly.
+              {t('help.faq2Answer')}
             </Text>
           </View>
 
           <View style={styles.divider} />
 
           <View style={styles.faqItem}>
-            <Text style={styles.faqQuestion}>How do I edit my listings?</Text>
+            <Text style={styles.faqQuestion}>{t('help.faq3Question')}</Text>
             <Text style={styles.faqAnswer}>
-              Go to "My Listings", find the item you want to edit, and tap the edit icon.
+              {t('help.faq3Answer')}
             </Text>
           </View>
 
           <View style={styles.divider} />
 
           <View style={styles.faqItem}>
-            <Text style={styles.faqQuestion}>Is Sabalist free to use?</Text>
+            <Text style={styles.faqQuestion}>{t('help.faq4Question')}</Text>
             <Text style={styles.faqAnswer}>
-              Yes! Creating listings and browsing is completely free. We're building Africa's marketplace together.
+              {t('help.faq4Answer')}
             </Text>
           </View>
         </Card>
 
         {/* Guidelines */}
         <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>Community Guidelines</Text>
+          <Text style={styles.sectionTitle}>{t('help.communityGuidelines')}</Text>
           <Text style={styles.guidelinesText}>
-            • Be honest and accurate in your listings{'\n'}
-            • Respect other users{'\n'}
-            • No prohibited items{'\n'}
-            • Use clear photos{'\n'}
-            • Respond promptly to messages
+            • {t('help.guideline1')}{'\n'}
+            • {t('help.guideline2')}{'\n'}
+            • {t('help.guideline3')}{'\n'}
+            • {t('help.guideline4')}{'\n'}
+            • {t('help.guideline5')}
           </Text>
         </Card>
 

@@ -84,7 +84,7 @@ export default function NotificationsScreen({ navigation }) {
       console.error('❌ Error loading notification settings:', error);
       console.error('❌ Error code:', error.code);
       console.error('❌ Error message:', error.message);
-      Alert.alert('Error', `Failed to load notification settings: ${error.message}`);
+      Alert.alert(t('common.error'), t('notifications.loadFailed', { message: error.message }));
     } finally {
       setLoading(false);
     }
@@ -92,7 +92,7 @@ export default function NotificationsScreen({ navigation }) {
 
   const updateSetting = async (key, value) => {
     if (!user?.uid) {
-      Alert.alert('Error', 'Please sign in to update settings');
+      Alert.alert(t('common.error'), t('notifications.signInToUpdate'));
       return;
     }
 
@@ -123,7 +123,7 @@ export default function NotificationsScreen({ navigation }) {
 
       // Revert UI state on error
       setSettings(prev => ({ ...prev, [key]: !value }));
-      Alert.alert('Error', `Failed to update setting: ${error.message}`);
+      Alert.alert(t('common.error'), t('notifications.updateFailed', { message: error.message }));
     } finally {
       setSaving(false);
     }
@@ -134,7 +134,7 @@ export default function NotificationsScreen({ navigation }) {
       <View style={[styles.container, styles.centerContent]}>
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>
-          {authLoading ? 'Authenticating...' : 'Loading settings...'}
+          {authLoading ? t('notifications.authenticating') : t('notifications.loadingSettings')}
         </Text>
       </View>
     );
@@ -143,12 +143,12 @@ export default function NotificationsScreen({ navigation }) {
   if (!user) {
     return (
       <View style={[styles.container, styles.centerContent]}>
-        <Text style={styles.errorText}>Please sign in to view notification settings</Text>
+        <Text style={styles.errorText}>{t('notifications.signInRequired')}</Text>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.backButtonText}>Go Back</Text>
+          <Text style={styles.backButtonText}>{t('notifications.goBack')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -173,7 +173,7 @@ export default function NotificationsScreen({ navigation }) {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Notification Settings */}
         <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>Notification Preferences</Text>
+          <Text style={styles.sectionTitle}>{t('notifications.preferences')}</Text>
 
           <View style={styles.settingItem}>
             <View style={styles.settingInfo}>
@@ -181,9 +181,9 @@ export default function NotificationsScreen({ navigation }) {
                 <Ionicons name="mail-outline" size={24} color={COLORS.primary} />
               </View>
               <View style={styles.settingText}>
-                <Text style={styles.settingTitle}>Email Notifications</Text>
+                <Text style={styles.settingTitle}>{t('notifications.email')}</Text>
                 <Text style={styles.settingDescription}>
-                  Receive updates about your listings via email
+                  {t('notifications.emailDesc')}
                 </Text>
               </View>
             </View>
@@ -203,9 +203,9 @@ export default function NotificationsScreen({ navigation }) {
                 <Ionicons name="notifications-outline" size={24} color={COLORS.secondary} />
               </View>
               <View style={styles.settingText}>
-                <Text style={styles.settingTitle}>Push Notifications</Text>
+                <Text style={styles.settingTitle}>{t('notifications.push')}</Text>
                 <Text style={styles.settingDescription}>
-                  Get instant alerts on your device
+                  {t('notifications.pushDesc')}
                 </Text>
               </View>
             </View>
@@ -225,9 +225,9 @@ export default function NotificationsScreen({ navigation }) {
                 <Ionicons name="chatbubble-outline" size={24} color={COLORS.accent} />
               </View>
               <View style={styles.settingText}>
-                <Text style={styles.settingTitle}>Message Notifications</Text>
+                <Text style={styles.settingTitle}>{t('notifications.messages')}</Text>
                 <Text style={styles.settingDescription}>
-                  Alerts when buyers contact you
+                  {t('notifications.messagesDesc')}
                 </Text>
               </View>
             </View>
@@ -247,9 +247,9 @@ export default function NotificationsScreen({ navigation }) {
                 <Ionicons name="pricetag-outline" size={24} color={COLORS.info} />
               </View>
               <View style={styles.settingText}>
-                <Text style={styles.settingTitle}>Listing Updates</Text>
+                <Text style={styles.settingTitle}>{t('notifications.listingUpdates')}</Text>
                 <Text style={styles.settingDescription}>
-                  Status changes on your listings
+                  {t('notifications.listingUpdatesDesc')}
                 </Text>
               </View>
             </View>
@@ -266,7 +266,7 @@ export default function NotificationsScreen({ navigation }) {
         <View style={styles.notice}>
           <Ionicons name="information-circle" size={20} color={COLORS.info} />
           <Text style={styles.noticeText}>
-            Changes are saved automatically
+            {t('notifications.autoSave')}
           </Text>
         </View>
 

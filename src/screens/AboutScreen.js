@@ -29,34 +29,34 @@ export default function AboutScreen({ navigation }) {
             style={styles.appIcon}
             resizeMode="contain"
           />
-          <Text style={styles.appName}>Sabalist</Text>
+          <Text style={styles.appName}>{t('about.appName')}</Text>
           <Text style={styles.tagline}>{t('tagline')}</Text>
-          <Text style={styles.version}>Version 1.1.0</Text>
+          <Text style={styles.version}>{t('about.version')}</Text>
         </View>
 
         {/* About Card */}
         <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>About Sabalist</Text>
+          <Text style={styles.sectionTitle}>{t('about.aboutTitle')}</Text>
           <Text style={styles.paragraph}>
-            Sabalist is Africa's premier community marketplace, connecting buyers and sellers across the continent. We're building a trusted platform where people can buy, sell, and trade with confidence.
+            {t('about.aboutDesc1')}
           </Text>
           <Text style={styles.paragraph}>
-            Our mission is to empower African entrepreneurs and make commerce accessible to everyone, from local artisans to growing businesses.
+            {t('about.aboutDesc2')}
           </Text>
         </Card>
 
         {/* Features Card */}
         <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>What We Offer</Text>
+          <Text style={styles.sectionTitle}>{t('about.whatWeOffer')}</Text>
 
           <View style={styles.featureItem}>
             <View style={styles.featureIcon}>
               <Ionicons name="shield-checkmark" size={24} color={COLORS.primary} />
             </View>
             <View style={styles.featureText}>
-              <Text style={styles.featureTitle}>Safe & Secure</Text>
+              <Text style={styles.featureTitle}>{t('about.safeSecure')}</Text>
               <Text style={styles.featureDescription}>
-                Your safety is our priority. We verify users and monitor listings.
+                {t('about.safeSecureDesc')}
               </Text>
             </View>
           </View>
@@ -66,9 +66,9 @@ export default function AboutScreen({ navigation }) {
               <Ionicons name="flash" size={24} color={COLORS.secondary} />
             </View>
             <View style={styles.featureText}>
-              <Text style={styles.featureTitle}>Fast & Easy</Text>
+              <Text style={styles.featureTitle}>{t('about.fastEasy')}</Text>
               <Text style={styles.featureDescription}>
-                Create listings in minutes. Connect with buyers instantly.
+                {t('about.fastEasyDesc')}
               </Text>
             </View>
           </View>
@@ -78,9 +78,9 @@ export default function AboutScreen({ navigation }) {
               <Ionicons name="people" size={24} color={COLORS.accent} />
             </View>
             <View style={styles.featureText}>
-              <Text style={styles.featureTitle}>Community-Driven</Text>
+              <Text style={styles.featureTitle}>{t('about.communityDriven')}</Text>
               <Text style={styles.featureDescription}>
-                Built by Africans, for Africans. Join thousands of active users.
+                {t('about.communityDrivenDesc')}
               </Text>
             </View>
           </View>
@@ -90,9 +90,9 @@ export default function AboutScreen({ navigation }) {
               <Ionicons name="pricetag" size={24} color={COLORS.info} />
             </View>
             <View style={styles.featureText}>
-              <Text style={styles.featureTitle}>Free to Use</Text>
+              <Text style={styles.featureTitle}>{t('about.freeToUse')}</Text>
               <Text style={styles.featureDescription}>
-                No listing fees. No hidden charges. Just pure marketplace access.
+                {t('about.freeToUseDesc')}
               </Text>
             </View>
           </View>
@@ -100,41 +100,41 @@ export default function AboutScreen({ navigation }) {
 
         {/* Tech Stack Card */}
         <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>Technology</Text>
+          <Text style={styles.sectionTitle}>{t('about.technology')}</Text>
           <Text style={styles.paragraph}>
-            Built with modern, reliable technology:
+            {t('about.techDesc')}
           </Text>
-          <Text style={styles.techItem}>• React Native for cross-platform mobile</Text>
-          <Text style={styles.techItem}>• Firebase for real-time data & auth</Text>
-          <Text style={styles.techItem}>• Expo for streamlined development</Text>
-          <Text style={styles.techItem}>• Optimized for African networks</Text>
+          <Text style={styles.techItem}>• {t('about.tech1')}</Text>
+          <Text style={styles.techItem}>• {t('about.tech2')}</Text>
+          <Text style={styles.techItem}>• {t('about.tech3')}</Text>
+          <Text style={styles.techItem}>• {t('about.tech4')}</Text>
         </Card>
 
         {/* Contact Card */}
         <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>Get in Touch</Text>
+          <Text style={styles.sectionTitle}>{t('about.getInTouch')}</Text>
           <Text style={styles.paragraph}>
-            We'd love to hear from you!
+            {t('about.getInTouchDesc')}
           </Text>
 
           <View style={styles.contactRow}>
             <Ionicons name="mail" size={20} color={COLORS.primary} />
-            <Text style={styles.contactText}>support@sabalist.com</Text>
+            <Text style={styles.contactText}>{t('about.supportEmail')}</Text>
           </View>
 
           <View style={styles.contactRow}>
             <Ionicons name="globe" size={20} color={COLORS.primary} />
-            <Text style={styles.contactText}>www.sabalist.com</Text>
+            <Text style={styles.contactText}>{t('about.website')}</Text>
           </View>
         </Card>
 
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Made with ❤️ in Africa
+            {t('about.madeWithLove')}
           </Text>
           <Text style={styles.copyrightText}>
-            © 2024 Sabalist. All rights reserved.
+            {t('about.copyright')}
           </Text>
         </View>
 

@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { COLORS, SPACING } from '../theme';
 
 // Screens
@@ -30,6 +31,8 @@ function CenterTabButton({ children, onPress }) {
 
 // Bottom Tab Navigator
 function TabNavigator() {
+  const { t } = useTranslation();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -55,22 +58,22 @@ function TabNavigator() {
         },
       })}
     >
-      <Tab.Screen 
-        name="Home" 
+      <Tab.Screen
+        name="Home"
         component={HomeScreen}
         options={{
-          tabBarLabel: 'Home',
+          tabBarLabel: t('tabs.home'),
         }}
       />
-      <Tab.Screen 
-        name="MyListings" 
+      <Tab.Screen
+        name="MyListings"
         component={MyListingsScreen}
         options={{
-          tabBarLabel: 'My Listings',
+          tabBarLabel: t('tabs.myListings'),
         }}
       />
-      <Tab.Screen 
-        name="CreateListing" 
+      <Tab.Screen
+        name="CreateListing"
         component={CreateListingScreen}
         options={{
           tabBarLabel: '',
@@ -80,11 +83,11 @@ function TabNavigator() {
           ),
         }}
       />
-      <Tab.Screen 
-        name="Profile" 
+      <Tab.Screen
+        name="Profile"
         component={ProfileScreen}
         options={{
-          tabBarLabel: 'Profile',
+          tabBarLabel: t('tabs.profile'),
         }}
       />
     </Tab.Navigator>
@@ -93,6 +96,8 @@ function TabNavigator() {
 
 // Main App Navigator with Stack
 export default function AppNavigator() {
+  const { t } = useTranslation();
+
   return (
     <NavigationContainer>
       <Stack.Navigator
@@ -101,23 +106,23 @@ export default function AppNavigator() {
         }}
       >
         <Stack.Screen name="MainTabs" component={TabNavigator} />
-        <Stack.Screen 
-          name="ListingDetail" 
+        <Stack.Screen
+          name="ListingDetail"
           component={ListingDetailScreen}
           options={{
             headerShown: true,
-            headerTitle: 'Listing Details',
-            headerBackTitle: 'Back',
+            headerTitle: t('navigation.listingDetails'),
+            headerBackTitle: t('navigation.back'),
             headerTintColor: COLORS.primary,
           }}
         />
-        <Stack.Screen 
-          name="EditListing" 
+        <Stack.Screen
+          name="EditListing"
           component={EditListingScreen}
           options={{
             headerShown: true,
-            headerTitle: 'Edit Listing',
-            headerBackTitle: 'Back',
+            headerTitle: t('navigation.editListing'),
+            headerBackTitle: t('navigation.back'),
             headerTintColor: COLORS.primary,
           }}
         />

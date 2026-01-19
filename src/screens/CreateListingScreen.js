@@ -98,7 +98,7 @@ export default function CreateListingScreen({ navigation }) {
       if (remainingSlots <= 0) {
         Alert.alert(
           t('validation.maximumReached'),
-          `Maximum ${imageLimits.max} images for ${category}`
+          t('validation.maxImagesForCategory', { max: imageLimits.max, category: t(`categories.${category.toLowerCase()}`) || category })
         );
         return;
       }
@@ -135,7 +135,7 @@ export default function CreateListingScreen({ navigation }) {
             const sizeMB = (asset.fileSize / (1024 * 1024)).toFixed(1);
             Alert.alert(
               t('validation.imageTooLarge'),
-              `Image is ${sizeMB}MB. Maximum is 10MB.`
+              t('validation.imageSizeDetails', { size: sizeMB })
             );
             continue;
           }
@@ -232,7 +232,7 @@ export default function CreateListingScreen({ navigation }) {
       if (images.length >= imageLimits.max) {
         Alert.alert(
           t('validation.maximumReached'),
-          `Maximum ${imageLimits.max} images for ${category}`
+          t('validation.maxImagesForCategory', { max: imageLimits.max, category: t(`categories.${category.toLowerCase()}`) || category })
         );
         return;
       }
@@ -426,14 +426,14 @@ export default function CreateListingScreen({ navigation }) {
     }
 
     setUploading(true);
-    setUploadProgress('Initializing...');
+    setUploadProgress(t('upload.initializing'));
 
     try {
       // Get Firestore and Storage instances
       const db = getFirestore();
       const storage = getStorage();
 
-      setUploadProgress('Checking authentication...');
+      setUploadProgress(t('upload.checkingAuth'));
       const userId = user?.uid;
 
       console.log('🔍 Auth check:', {
@@ -495,7 +495,7 @@ export default function CreateListingScreen({ navigation }) {
         throw new Error(`Invalid category: ${category}`);
       }
 
-      setUploadProgress('Creating listing document...');
+      setUploadProgress(t('upload.creatingDocument'));
       console.log('📝 Calling Firestore addDoc...');
       console.log('📝 Firestore instance:', {
         type: typeof db,
@@ -523,7 +523,7 @@ export default function CreateListingScreen({ navigation }) {
         const storage = getStorage();
 
         for (let i = 0; i < images.length; i++) {
-          setUploadProgress(`Uploading image ${i + 1} of ${images.length}...`);
+          setUploadProgress(t('upload.uploadingImage', { current: i + 1, total: images.length }));
           console.log(`📤 [${i + 1}/${images.length}] Starting upload`);
 
           try {
@@ -557,7 +557,7 @@ export default function CreateListingScreen({ navigation }) {
       // Upload video if present
       let videoUrl = '';
       if (video && video.uri) {
-        setUploadProgress('Uploading video...');
+        setUploadProgress(t('upload.uploadingVideo'));
         console.log(`📹 Starting video upload...`);
 
         try {
@@ -584,7 +584,7 @@ export default function CreateListingScreen({ navigation }) {
 
       // Update Firestore with media URLs
       if (imageUrls.length > 0 || videoUrl) {
-        setUploadProgress('Finalizing listing...');
+        setUploadProgress(t('upload.finalizing'));
         console.log('📝 Updating Firestore with media URLs...');
         console.log('📝 Image URLs array length:', imageUrls.length);
         console.log('📝 Image URLs:', imageUrls.map((url, i) => `[${i}]: ${url.substring(0, 60)}...`));

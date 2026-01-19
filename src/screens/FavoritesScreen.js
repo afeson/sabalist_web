@@ -4,6 +4,7 @@ import {
   FlatList, ActivityIndicator, Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { COLORS, SPACING, RADIUS } from '../theme';
 import { ListingCard } from '../components/ui';
 import { useAuth } from '../contexts/AuthContext';
@@ -22,6 +23,7 @@ if (Platform.OS === 'web') {
 }
 
 export default function FavoritesScreen({ navigation }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [favorites, setFavorites] = useState([]);
   const [favoriteIds, setFavoriteIds] = useState([]);
@@ -97,9 +99,9 @@ export default function FavoritesScreen({ navigation }) {
           <View style={styles.iconContainer}>
             <Ionicons name="heart-outline" size={80} color={COLORS.primary} />
           </View>
-          <Text style={styles.emptyTitle}>No Favorites Yet</Text>
+          <Text style={styles.emptyTitle}>{t('favorites.noFavorites')}</Text>
           <Text style={styles.emptySubtitle}>
-            Tap the heart icon on listings to save them here
+            {t('favorites.noFavoritesDesc')}
           </Text>
         </View>
       </SafeAreaView>
