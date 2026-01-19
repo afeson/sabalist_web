@@ -1,10 +1,20 @@
+import { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, SHADOWS } from '../theme';
 
 export default function TermsPrivacyScreen({ navigation }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const [, forceUpdate] = useState(0);
+
+  // Force re-render when screen comes into focus (handles language changes)
+  useFocusEffect(
+    useCallback(() => {
+      forceUpdate(n => n + 1);
+    }, [i18n.language])
+  );
 
   return (
     <View style={styles.container}>
@@ -22,103 +32,103 @@ export default function TermsPrivacyScreen({ navigation }) {
       {/* Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Terms of Service</Text>
-          <Text style={styles.lastUpdated}>Last Updated: December 2024</Text>
+          <Text style={styles.sectionTitle}>{t('terms.termsOfService')}</Text>
+          <Text style={styles.lastUpdated}>{t('terms.lastUpdated')}</Text>
 
           <Text style={styles.paragraph}>
-            Welcome to Sabalist, Africa's community marketplace. By using our service, you agree to these terms.
+            {t('terms.termsIntro')}
           </Text>
 
-          <Text style={styles.subheading}>1. Acceptable Use</Text>
+          <Text style={styles.subheading}>{t('terms.acceptableUse')}</Text>
           <Text style={styles.paragraph}>
-            You agree to use Sabalist for lawful purposes only. You may not:
+            {t('terms.acceptableUseDesc')}
           </Text>
-          <Text style={styles.bulletPoint}>• Post false or misleading listings</Text>
-          <Text style={styles.bulletPoint}>• Sell prohibited or illegal items</Text>
-          <Text style={styles.bulletPoint}>• Harass or spam other users</Text>
-          <Text style={styles.bulletPoint}>• Violate intellectual property rights</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.acceptableUse1')}</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.acceptableUse2')}</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.acceptableUse3')}</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.acceptableUse4')}</Text>
 
-          <Text style={styles.subheading}>2. Listing Guidelines</Text>
+          <Text style={styles.subheading}>{t('terms.listingGuidelines')}</Text>
           <Text style={styles.paragraph}>
-            All listings must be accurate and include clear photos. Sellers are responsible for the accuracy of their listings and must honor all sales made through the platform.
+            {t('terms.listingGuidelinesDesc')}
           </Text>
 
-          <Text style={styles.subheading}>3. User Responsibilities</Text>
+          <Text style={styles.subheading}>{t('terms.userResponsibilities')}</Text>
           <Text style={styles.paragraph}>
-            Users are responsible for:
+            {t('terms.userResponsibilitiesDesc')}
           </Text>
-          <Text style={styles.bulletPoint}>• Maintaining account security</Text>
-          <Text style={styles.bulletPoint}>• Providing accurate information</Text>
-          <Text style={styles.bulletPoint}>• Communicating promptly with buyers/sellers</Text>
-          <Text style={styles.bulletPoint}>• Resolving disputes in good faith</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.responsibility1')}</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.responsibility2')}</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.responsibility3')}</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.responsibility4')}</Text>
 
-          <Text style={styles.subheading}>4. Payments and Fees</Text>
+          <Text style={styles.subheading}>{t('terms.paymentsFees')}</Text>
           <Text style={styles.paragraph}>
-            Sabalist is currently free to use. We reserve the right to introduce fees for premium features in the future with advance notice to users.
+            {t('terms.paymentsFeesDesc')}
           </Text>
         </View>
 
         <View style={styles.divider} />
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Privacy Policy</Text>
-          <Text style={styles.lastUpdated}>Last Updated: December 2024</Text>
+          <Text style={styles.sectionTitle}>{t('terms.privacyPolicy')}</Text>
+          <Text style={styles.lastUpdated}>{t('terms.lastUpdated')}</Text>
 
           <Text style={styles.paragraph}>
-            Your privacy is important to us. This policy explains how we collect, use, and protect your information.
+            {t('terms.privacyIntro')}
           </Text>
 
-          <Text style={styles.subheading}>Information We Collect</Text>
+          <Text style={styles.subheading}>{t('terms.infoWeCollect')}</Text>
           <Text style={styles.paragraph}>
-            We collect information you provide when:
+            {t('terms.infoWeCollectDesc')}
           </Text>
-          <Text style={styles.bulletPoint}>• Creating an account (email, phone number)</Text>
-          <Text style={styles.bulletPoint}>• Posting listings (photos, descriptions, contact info)</Text>
-          <Text style={styles.bulletPoint}>• Using the app (device info, usage data)</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.infoCollect1')}</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.infoCollect2')}</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.infoCollect3')}</Text>
 
-          <Text style={styles.subheading}>How We Use Your Information</Text>
+          <Text style={styles.subheading}>{t('terms.howWeUse')}</Text>
           <Text style={styles.paragraph}>
-            We use your information to:
+            {t('terms.howWeUseDesc')}
           </Text>
-          <Text style={styles.bulletPoint}>• Provide and improve our services</Text>
-          <Text style={styles.bulletPoint}>• Connect buyers and sellers</Text>
-          <Text style={styles.bulletPoint}>• Send important updates</Text>
-          <Text style={styles.bulletPoint}>• Prevent fraud and abuse</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.useInfo1')}</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.useInfo2')}</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.useInfo3')}</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.useInfo4')}</Text>
 
-          <Text style={styles.subheading}>Data Protection</Text>
+          <Text style={styles.subheading}>{t('terms.dataProtection')}</Text>
           <Text style={styles.paragraph}>
-            We implement security measures to protect your data. However, no method of transmission over the internet is 100% secure. We encourage users to use strong passwords and keep their login credentials confidential.
+            {t('terms.dataProtectionDesc')}
           </Text>
 
-          <Text style={styles.subheading}>Sharing Your Information</Text>
+          <Text style={styles.subheading}>{t('terms.sharingInfo')}</Text>
           <Text style={styles.paragraph}>
-            We do not sell your personal information. We may share your information:
+            {t('terms.sharingInfoDesc')}
           </Text>
-          <Text style={styles.bulletPoint}>• With other users when you post listings</Text>
-          <Text style={styles.bulletPoint}>• When required by law</Text>
-          <Text style={styles.bulletPoint}>• To prevent fraud or abuse</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.sharing1')}</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.sharing2')}</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.sharing3')}</Text>
 
-          <Text style={styles.subheading}>Your Rights</Text>
+          <Text style={styles.subheading}>{t('terms.yourRights')}</Text>
           <Text style={styles.paragraph}>
-            You have the right to:
+            {t('terms.yourRightsDesc')}
           </Text>
-          <Text style={styles.bulletPoint}>• Access your personal data</Text>
-          <Text style={styles.bulletPoint}>• Request data deletion</Text>
-          <Text style={styles.bulletPoint}>• Opt out of marketing communications</Text>
-          <Text style={styles.bulletPoint}>• Update your information</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.right1')}</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.right2')}</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.right3')}</Text>
+          <Text style={styles.bulletPoint}>• {t('terms.right4')}</Text>
 
-          <Text style={styles.subheading}>Contact Us</Text>
+          <Text style={styles.subheading}>{t('terms.contactUs')}</Text>
           <Text style={styles.paragraph}>
-            For questions about these terms or our privacy practices, contact us at support@sabalist.com
+            {t('terms.contactUsDesc')}
           </Text>
         </View>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Questions about our terms or privacy policy?
+            {t('terms.questions')}
           </Text>
           <Text style={styles.footerContact}>
-            Contact us at support@sabalist.com
+            {t('terms.contactSupport')}
           </Text>
         </View>
 

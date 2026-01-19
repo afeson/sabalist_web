@@ -1,11 +1,21 @@
+import { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { Card } from '../components/ui';
 
 export default function HelpSupportScreen({ navigation }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const [, forceUpdate] = useState(0);
+
+  // Force re-render when screen comes into focus (handles language changes)
+  useFocusEffect(
+    useCallback(() => {
+      forceUpdate(n => n + 1);
+    }, [i18n.language])
+  );
 
   const supportEmail = 'support@sabalist.com';
 

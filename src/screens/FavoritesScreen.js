@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, StatusBar,
   FlatList, ActivityIndicator, Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, RADIUS } from '../theme';
 import { ListingCard } from '../components/ui';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,11 +24,19 @@ if (Platform.OS === 'web') {
 }
 
 export default function FavoritesScreen({ navigation }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const [favorites, setFavorites] = useState([]);
   const [favoriteIds, setFavoriteIds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [, forceUpdate] = useState(0);
+
+  // Force re-render when screen comes into focus (handles language changes)
+  useFocusEffect(
+    useCallback(() => {
+      forceUpdate(n => n + 1);
+    }, [i18n.language])
+  );
 
   // Subscribe to favorite IDs and fetch full listing data
   useEffect(() => {
