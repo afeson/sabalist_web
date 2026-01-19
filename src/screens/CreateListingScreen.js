@@ -14,7 +14,7 @@
  * - Clear error messages
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -32,6 +32,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 
 // Image upload helper - v14.0.0 UNIVERSAL
 import { imageToBlob } from '../services/uploadHelpers';
@@ -50,8 +51,16 @@ import { PrimaryButton, Card } from '../components/ui';
 const CATEGORY_KEYS = ['Electronics', 'Vehicles', 'Real Estate', 'Fashion', 'Services'];
 
 export default function CreateListingScreen({ navigation }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth(); // Get authenticated user from AuthContext
+  const [, forceUpdate] = useState(0);
+
+  // Force re-render when screen comes into focus (handles language changes)
+  useFocusEffect(
+    useCallback(() => {
+      forceUpdate(n => n + 1);
+    }, [i18n.language])
+  );
 
   // Step state (1: Photos, 2: Details, 3: Review)
   const [step, setStep] = useState(1);

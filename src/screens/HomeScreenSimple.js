@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import { BUILD_VERSION } from '../config/buildVersion';
 import { PREMIUM_COLORS, PREMIUM_SPACING, PREMIUM_RADIUS, PREMIUM_SHADOWS } from '../theme/premiumTheme';
 import AppHeader from '../components/AppHeader';
@@ -42,7 +43,15 @@ import { ListingCard } from '../components/ui';
 export default function HomeScreenSimple({ navigation }) {
   console.log('BUILD_VERSION', BUILD_VERSION);
 
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const [, forceUpdate] = useState(0);
+
+  // Force re-render when screen comes into focus (handles language changes)
+  useFocusEffect(
+    useCallback(() => {
+      forceUpdate(n => n + 1);
+    }, [i18n.language])
+  );
 
   const CATEGORIES = [
     { id: 'All', label: t('categories.all'), icon: 'apps' },
