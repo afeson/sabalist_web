@@ -16,7 +16,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
-import { BUILD_VERSION } from '../config/buildVersion';
 import { PREMIUM_COLORS, PREMIUM_SPACING, PREMIUM_RADIUS, PREMIUM_SHADOWS } from '../theme/premiumTheme';
 import AppHeader from '../components/AppHeader';
 import { useAuth } from '../contexts/AuthContext';
@@ -41,8 +40,6 @@ if (Platform.OS === 'web') {
 import { ListingCard } from '../components/ui';
 
 export default function HomeScreenSimple({ navigation }) {
-  console.log('BUILD_VERSION', BUILD_VERSION);
-
   const { t, i18n } = useTranslation();
   const [, forceUpdate] = useState(0);
 
@@ -308,11 +305,6 @@ export default function HomeScreenSimple({ navigation }) {
         }
       />
 
-      {/* Build Version Watermark */}
-      <View style={styles.buildVersion}>
-        <Text style={styles.buildVersionText}>{BUILD_VERSION}</Text>
-      </View>
-
       {/* Location Selector Modal */}
       <LocationSelector
         visible={showLocationSelector}
@@ -437,16 +429,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 15,
-    color: PREMIUM_COLORS.muted,
-  },
-  buildVersion: {
-    position: 'absolute',
-    bottom: 80,
-    right: 10,
-    opacity: 0.4,
-  },
-  buildVersionText: {
-    fontSize: 10,
     color: PREMIUM_COLORS.muted,
   },
   locationButton: {

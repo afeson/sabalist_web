@@ -529,13 +529,6 @@ export default function AuthScreen() {
           />
         </View>
 
-        {/* Debug Info */}
-        <View style={styles.debugSection}>
-          <Text style={styles.debugTitle}>🔍 Debug Info:</Text>
-          <Text style={styles.debugText}>Auth: Email Magic Link (Firebase)</Text>
-          <Text style={styles.debugText}>Platform: {Platform.OS}</Text>
-          <Text style={styles.debugText}>Cost: FREE (no SMS)</Text>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -723,22 +716,5 @@ const styles = StyleSheet.create({
   featureDescription: {
     fontSize: 13,
     color: COLORS.textMuted,
-  },
-  debugSection: {
-    marginTop: SPACING.xl,
-    padding: SPACING.md,
-    backgroundColor: `${COLORS.textMuted}10`,
-    borderRadius: RADIUS.md,
-  },
-  debugTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.textDark,
-    marginBottom: SPACING.xs,
-  },
-  debugText: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    fontFamily: 'monospace',
   },
 });
