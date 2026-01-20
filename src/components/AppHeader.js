@@ -55,6 +55,7 @@ export default function AppHeader({ navigation }) {
           activeOpacity={0.7}
           testID="language-button"
         >
+          <Text style={styles.languageLabel}>Choose your language</Text>
           <Ionicons name="globe" size={22} color={PREMIUM_COLORS.accent} />
           <Text style={styles.languageCode}>{i18n.language.toUpperCase()}</Text>
         </TouchableOpacity>
@@ -113,6 +114,12 @@ const styles = StyleSheet.create({
     borderRadius: PREMIUM_RADIUS.full,
     borderWidth: 1,
     borderColor: PREMIUM_COLORS.border,
+  },
+  languageLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: PREMIUM_COLORS.text,
+    marginRight: PREMIUM_SPACING.xs,
   },
   languageCode: {
     fontSize: 13,
