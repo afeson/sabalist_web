@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import { PREMIUM_COLORS, PREMIUM_SPACING, PREMIUM_RADIUS, PREMIUM_SHADOWS } from '../theme/premiumTheme';
 import AppHeader from '../components/AppHeader';
 
@@ -42,13 +43,26 @@ if (Platform.OS === 'web') {
 const { width } = Dimensions.get('window');
 
 export default function ListingDetailScreen({ route, navigation }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { listingId } = route.params;
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
   const [viewerImageIndex, setViewerImageIndex] = useState(0);
+  const [, forceUpdate] = useState(0);
+
+  // Force re-render when language changes (even if screen is already focused)
+  useEffect(() => {
+    forceUpdate(n => n + 1);
+  }, [i18n.language]);
+
+  // Also re-render when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      forceUpdate(n => n + 1);
+    }, [i18n.language])
+  );
 
   const currentUser = Platform.OS === 'web' ? auth.currentUser : auth().currentUser;
   const isOwner = listing && currentUser && listing.userId === currentUser.uid;

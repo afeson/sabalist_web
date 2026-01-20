@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import { PREMIUM_COLORS, PREMIUM_SPACING, PREMIUM_RADIUS, PREMIUM_SHADOWS } from '../theme/premiumTheme';
 import { ListingCard } from '../components/ui';
 import { getCategoryIcon } from '../config/categories';
@@ -19,13 +20,26 @@ import { useAuth } from '../contexts/AuthContext';
 import { subscribeToFavorites, addToFavorites, removeFromFavorites } from '../services/favoritesService';
 
 export default function CategoryListingsScreen({ route, navigation }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { category, subcategoryId, title } = route.params;
 
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [favoriteIds, setFavoriteIds] = useState([]);
+  const [, forceUpdate] = useState(0);
+
+  // Force re-render when language changes (even if screen is already focused)
+  useEffect(() => {
+    forceUpdate(n => n + 1);
+  }, [i18n.language]);
+
+  // Also re-render when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      forceUpdate(n => n + 1);
+    }, [i18n.language])
+  );
 
   // Subscribe to listings
   useEffect(() => {

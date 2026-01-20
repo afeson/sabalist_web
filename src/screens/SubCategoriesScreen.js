@@ -1,16 +1,30 @@
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar, FlatList, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { getSubCategories, getCategoryIcon } from '../config/categories';
 import { getTranslatedCategoryLabel } from '../utils/categoryI18n';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 
 export default function SubCategoriesScreen({ route, navigation }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { category } = route.params;
   const subCategories = getSubCategories(category);
   const [refreshing, setRefreshing] = useState(false);
+  const [, forceUpdate] = useState(0);
+
+  // Force re-render when language changes (even if screen is already focused)
+  useEffect(() => {
+    forceUpdate(n => n + 1);
+  }, [i18n.language]);
+
+  // Also re-render when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      forceUpdate(n => n + 1);
+    }, [i18n.language])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
