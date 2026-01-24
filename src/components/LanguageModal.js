@@ -95,7 +95,7 @@ export default function LanguageModal({ isVisible, onClose }) {
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 style={styles.closeButton}
               >
-                <Ionicons name="close" size={28} color={COLORS.text} />
+                <Ionicons name="close" size={28} color={COLORS.textDark} />
               </TouchableOpacity>
             </View>
           </View>

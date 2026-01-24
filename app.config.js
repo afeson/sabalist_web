@@ -1,18 +1,22 @@
 module.exports = ({ config }) => {
-  // Base plugins that work on all platforms
-  const basePlugins = [];
+  // Only include native plugins for EAS builds (ios/android)
+  // For local dev (expo start), plugins aren't needed - prebuild handles them
+  // For web, plugins must be excluded entirely
+  const isNativeBuild =
+    process.env.EXPO_PLATFORM === 'ios' ||
+    process.env.EXPO_PLATFORM === 'android' ||
+    process.env.EAS_BUILD === 'true';
 
-  // Native-only plugins (exclude from web)
-  const nativePlugins = [
-    '@react-native-firebase/app',
-    '@react-native-firebase/auth',
-    '@react-native-google-signin/google-signin',
-  ];
+  // Native-only plugins (only for EAS builds)
+  const plugins = isNativeBuild
+    ? [
+        '@react-native-firebase/app',
+        '@react-native-firebase/auth',
+        '@react-native-google-signin/google-signin',
+      ]
+    : [];
 
-  // Determine which plugins to include based on platform
-  const plugins = process.env.EXPO_PLATFORM === 'web'
-    ? basePlugins
-    : [...basePlugins, ...nativePlugins];
+  console.log(`[app.config.js] isNativeBuild=${isNativeBuild}, plugins=${plugins.length}`);
 
   return {
     ...config,

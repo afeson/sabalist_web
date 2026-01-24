@@ -81,11 +81,6 @@
         }
       ]
     },
-    "plugins": [
-      "@react-native-firebase/app",
-      "@react-native-firebase/auth",
-      "@react-native-google-signin/google-signin"
-    ],
     "web": {
       "bundler": "webpack",
       "favicon": "./assets/branding/sabalist-icon-safe.png"

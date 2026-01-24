@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
     borderRadius: PREMIUM_RADIUS.md,
     marginHorizontal: PREMIUM_SPACING.xl,
     marginBottom: PREMIUM_SPACING.md,
-    ...PREMIUM_SHADOWS.sm,
+    ...PREMIUM_SHADOWS.card,
   },
   locationText: {
     fontSize: 14,
