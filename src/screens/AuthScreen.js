@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useFocusEffect } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -50,13 +49,6 @@ export default function AuthScreen() {
   useEffect(() => {
     forceUpdate(n => n + 1);
   }, [i18n.language]);
-
-  // Also re-render when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      forceUpdate(n => n + 1);
-    }, [i18n.language])
-  );
 
   // Handle incoming email link when user clicks it
   useEffect(() => {
