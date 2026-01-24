@@ -24,7 +24,7 @@ module.exports = ({ config }) => {
       name: 'Sabalist',
       slug: 'sabalist',
       owner: 'afrson',
-      version: '1.1.0',
+      version: '1.2.0',
       orientation: 'portrait',
       icon: './assets/branding/sabalist-icon-safe.png',
       userInterfaceStyle: 'light',
