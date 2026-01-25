@@ -1,10 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Platform, TouchableOpacity } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, SHADOWS } from '../theme';
 
@@ -29,7 +28,7 @@ const Stack = createNativeStackNavigator();
 // Custom center button
 function CenterButton({ onPress }) {
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.centerButton}
       onPress={onPress}
       activeOpacity={0.8}
@@ -46,11 +45,9 @@ function TabNavigator() {
   const [, forceUpdate] = useState(0);
 
   // Force re-render when language changes to update tab labels
-  useFocusEffect(
-    useCallback(() => {
-      forceUpdate(n => n + 1);
-    }, [i18n.language])
-  );
+  useEffect(() => {
+    forceUpdate(n => n + 1);
+  }, [i18n.language]);
 
   return (
     <Tab.Navigator
@@ -249,4 +246,3 @@ const styles = StyleSheet.create({
     ...SHADOWS.fab,
   },
 });
-
