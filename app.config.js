@@ -19,12 +19,10 @@ module.exports = ({ config }) => {
           {
             ios: {
               useFrameworks: 'static',
-              extraPodfileProperties: {
-                'CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES': 'YES',
-              },
             },
           },
         ],
+        './plugins/withFirebaseFix',
       ];
 
   console.log(`[app.config.js] isWebOnly=${isWebOnly}, plugins=${plugins.length}`);
