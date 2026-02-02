@@ -20,10 +20,10 @@ module.exports = ({ config }) => {
             ios: {
               useFrameworks: 'static',
               newArchEnabled: false,
+              deploymentTarget: '15.1',
             },
           },
         ],
-        './plugins/withFirebaseFix',
       ];
 
   console.log(`[app.config.js] isWebOnly=${isWebOnly}, plugins=${plugins.length}`);
