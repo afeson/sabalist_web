@@ -18,9 +18,7 @@ module.exports = ({ config }) => {
           'expo-build-properties',
           {
             ios: {
-              useFrameworks: 'static',
               deploymentTarget: '15.1',
-              newArchEnabled: false,
             },
           },
         ],

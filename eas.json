@@ -31,10 +31,7 @@
         "buildType": "app-bundle"
       },
       "ios": {
-        "resourceClass": "m-medium",
-        "env": {
-          "RCT_NEW_ARCH_ENABLED": "0"
-        }
+        "resourceClass": "m-medium"
       }
     }
   },
