@@ -19,6 +19,7 @@ module.exports = ({ config }) => {
           {
             ios: {
               useFrameworks: 'static',
+              newArchEnabled: false,
             },
           },
         ],
