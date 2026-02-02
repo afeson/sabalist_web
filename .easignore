@@ -1,0 +1,3 @@
+# Exclude android folder to force EAS to run clean prebuild
+# This ensures Firebase native modules are compiled in
+android/

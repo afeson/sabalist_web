@@ -139,12 +139,12 @@ function AppContent() {
 
   console.log('APP_RENDER: Rendering with user =', user ? 'AUTHENTICATED' : 'NULL');
 
-  return user ? (
-    <NavigationContainer key="authenticated" linking={linking}>
-      <MainTabNavigator />
+  // Single NavigationContainer wraps BOTH authenticated and unauthenticated states
+  // This fixes "Couldn't find a navigation object" error on web
+  return (
+    <NavigationContainer linking={linking}>
+      {user ? <MainTabNavigator /> : <AuthScreen />}
     </NavigationContainer>
-  ) : (
-    <AuthScreen key="unauthenticated" />
   );
 }
 
@@ -173,8 +173,9 @@ class AppErrorBoundary extends React.Component {
 }
 
 export default function App() {
-  console.log('🚀 APP: Component mounting - React is running!');
-  console.log('🚀 APP: Timestamp:', new Date().toISOString());
+  console.log('NATIVE BUILD v1.2.8 LOADED');
+  console.log('APP: Component mounting - React is running!');
+  console.log('APP: Timestamp:', new Date().toISOString());
 
   return (
     <AppErrorBoundary>
