@@ -14,6 +14,14 @@ module.exports = ({ config }) => {
         '@react-native-firebase/app',
         '@react-native-firebase/auth',
         '@react-native-google-signin/google-signin',
+        [
+          'expo-build-properties',
+          {
+            ios: {
+              useFrameworks: 'static',
+            },
+          },
+        ],
       ];
 
   console.log(`[app.config.js] isWebOnly=${isWebOnly}, plugins=${plugins.length}`);
