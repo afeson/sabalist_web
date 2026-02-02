@@ -38,7 +38,7 @@ module.exports = ({ config }) => {
       supportsTablet: true,
       bundleIdentifier: 'com.sabalist.app',
       icon: './assets/branding/sabalist-icon-safe.png',
-      googleServicesFile: './ios/GoogleService-Info.plist',
+      googleServicesFile: process.env.GOOGLE_SERVICES_PLIST || './ios/GoogleService-Info.plist',
       associatedDomains: [
         'applinks:sabalist.page.link',
         'applinks:sabalist.page.link',
