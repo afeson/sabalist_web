@@ -19,7 +19,6 @@ module.exports = ({ config }) => {
           {
             ios: {
               useFrameworks: 'static',
-              newArchEnabled: false,
               deploymentTarget: '15.1',
             },
           },
