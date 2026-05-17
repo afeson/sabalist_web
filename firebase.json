@@ -1,4 +1,7 @@
 {
+  "react-native": {
+    "google_app_id": "1:231273918004:ios:0020dcc14b7f52e3356461"
+  },
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
@@ -8,34 +11,57 @@
   },
   "hosting": {
     "public": "dist",
+    "cleanUrls": false,
     "ignore": [
       "firebase.json",
-      "**/.*",
       "**/node_modules/**"
     ],
     "headers": [
       {
-        "source": "**",
+        "source": "/static/**",
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "no-cache, no-store, must-revalidate"
-          },
+            "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      },
+      {
+        "source": "**/*.html",
+        "headers": [
           {
-            "key": "Pragma",
+            "key": "Cache-Control",
             "value": "no-cache"
-          },
+          }
+        ]
+      },
+      {
+        "source": "/robots.txt",
+        "headers": [
           {
-            "key": "Expires",
-            "value": "0"
+            "key": "Cache-Control",
+            "value": "public, max-age=86400"
+          }
+        ]
+      },
+      {
+        "source": "/sitemap.xml",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=86400"
           }
         ]
       }
     ],
     "rewrites": [
       {
-        "source": "!(test-*|check-*|quick-*).html",
-        "destination": "/index.html"
+        "source": "/privacy",
+        "destination": "/privacy.html"
+      },
+      {
+        "source": "/delete-account",
+        "destination": "/delete-account.html"
       },
       {
         "source": "**",

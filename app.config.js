@@ -15,13 +15,23 @@ module.exports = ({ config }) => {
         '@react-native-firebase/auth',
         '@react-native-google-signin/google-signin',
         [
+          'expo-image-picker',
+          {
+            cameraPermission: 'Allow Sabalist to access your camera to take photos for listings.',
+            photosPermission: 'Allow Sabalist to access your photo library to add images to listings.',
+          },
+        ],
+        [
           'expo-build-properties',
           {
             ios: {
               deploymentTarget: '15.1',
+              useFrameworks: 'static',
+              buildReactNativeFromSource: true,
             },
           },
         ],
+        './plugins/withIosPods',
       ];
 
   console.log(`[app.config.js] isWebOnly=${isWebOnly}, plugins=${plugins.length}`);
@@ -31,9 +41,9 @@ module.exports = ({ config }) => {
     name: 'Sabalist',
     slug: 'sabalist',
     owner: 'afrson',
-    version: '1.2.8',
+    version: '1.3.1',
     orientation: 'portrait',
-    icon: './assets/branding/sabalist-icon-safe.png',
+    icon: './assets/branding/sabalist-icon-square.png',
     userInterfaceStyle: 'light',
     scheme: 'sabalist',
     splash: {
@@ -45,22 +55,25 @@ module.exports = ({ config }) => {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.sabalist.app',
-      icon: './assets/branding/sabalist-icon-safe.png',
+      buildNumber: '6',
+      icon: './assets/branding/sabalist-icon-square.png',
       googleServicesFile: process.env.GOOGLE_SERVICES_PLIST || './ios/GoogleService-Info.plist',
       associatedDomains: [
-        'applinks:sabalist.page.link',
         'applinks:sabalist.page.link',
       ],
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
+        NSCameraUsageDescription: 'Allow Sabalist to access your camera to take photos for listings.',
+        NSPhotoLibraryUsageDescription: 'Allow Sabalist to access your photo library to add images to listings.',
+        NSMicrophoneUsageDescription: 'Allow Sabalist to access your microphone for video recordings.',
       },
     },
     android: {
       package: 'com.sabalist.app',
-      versionCode: 19,
-      icon: './assets/branding/sabalist-icon-safe.png',
+      versionCode: 21,
+      icon: './assets/branding/sabalist-icon-square.png',
       adaptiveIcon: {
-        foregroundImage: './assets/branding/sabalist-icon-safe.png',
+        foregroundImage: './assets/branding/sabalist-icon-square.png',
         backgroundColor: '#E50914',
       },
       googleServicesFile: './google-services.json',
@@ -102,7 +115,7 @@ module.exports = ({ config }) => {
     plugins,
     web: {
       bundler: 'webpack',
-      favicon: './assets/branding/sabalist-icon-safe.png',
+      favicon: './assets/branding/sabalist-icon-square.png',
     },
     extra: {
       eas: {

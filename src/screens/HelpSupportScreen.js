@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { Card } from '../components/ui';
+import SEO from '../components/SEO';
 
 export default function HelpSupportScreen({ navigation }) {
   const { t, i18n } = useTranslation();
@@ -30,6 +31,11 @@ export default function HelpSupportScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <SEO
+        title="Help & Support"
+        description="Get help with Sabalist. Contact our support team for assistance with buying, selling, and account issues."
+        canonicalUrl="/help"
+      />
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.card} />
 
       {/* Header */}

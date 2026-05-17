@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, SHADOWS } from '../theme';
+import SEO from '../components/SEO';
 
 export default function TermsPrivacyScreen({ navigation }) {
   const { t, i18n } = useTranslation();
@@ -23,6 +24,11 @@ export default function TermsPrivacyScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <SEO
+        title="Terms & Privacy"
+        description="Read Sabalist's terms of service and privacy policy. Learn how we protect your data and our platform rules."
+        canonicalUrl="/terms"
+      />
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.card} />
 
       {/* Header */}

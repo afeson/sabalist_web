@@ -41,7 +41,7 @@ export default function PrimaryButton({
       {loading ? (
         <ActivityIndicator color={variant === 'outline' ? COLORS.primary : COLORS.card} />
       ) : (
-        <Text style={textStyles}>{title}</Text>
+        <Text style={textStyles} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{title}</Text>
       )}
     </TouchableOpacity>
   );
@@ -82,8 +82,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
   },
   button_large: {
-    paddingVertical: SPACING.base,
+    paddingVertical: SPACING.lg,
     paddingHorizontal: SPACING.xl,
+    minHeight: 52,
   },
   
   buttonDisabled: {

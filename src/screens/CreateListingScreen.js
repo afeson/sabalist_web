@@ -42,13 +42,15 @@ import { useAuth } from '../contexts/AuthContext';
 import { getFirestore, collection, addDoc, updateDoc, doc, getDoc } from 'firebase/firestore';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getImageLimits, GLOBAL_IMAGE_LIMITS } from '../config/categoryLimits';
-import { getSubCategories } from '../config/categories';
-import { getTranslatedCategoryLabel } from '../utils/categoryI18n';
+import SEO from '../components/SEO';
+import { getSubCategories, CATEGORIES, getCategoryByKey, getCategoryIcon } from '../config/categories';
+import { getTranslatedCategoryLabel, getTranslatedSubCategoryLabel } from '../utils/categoryI18n';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { PrimaryButton, Card } from '../components/ui';
+import CategorySelector from '../components/CategorySelector';
 
-// Category keys - these are stored in DB, NOT translated
-const CATEGORY_KEYS = ['Electronics', 'Vehicles', 'Real Estate', 'Fashion', 'Services'];
+// All canonical category keys (source of truth in src/config/categories.js)
+const CATEGORY_KEYS = CATEGORIES.map((c) => c.key);
 
 export default function CreateListingScreen({ navigation }) {
   const { t, i18n } = useTranslation();
@@ -86,6 +88,7 @@ export default function CreateListingScreen({ navigation }) {
   const [uploadProgress, setUploadProgress] = useState('');
   const [compressing, setCompressing] = useState(false);
   const [detectingLocation, setDetectingLocation] = useState(false);
+  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
 
   // Computed values
   const availableSubcategories = getSubCategories(category);
@@ -247,6 +250,16 @@ export default function CreateListingScreen({ navigation }) {
         Alert.alert(
           t('validation.maximumReached'),
           t('validation.maxImagesForCategory', { max: imageLimits.max, category: t(`categories.${category.toLowerCase()}`) || category })
+        );
+        return;
+      }
+
+      // Request camera permission explicitly (required on iOS)
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          t('common.permissionRequired') || 'Permission Required',
+          t('common.cameraPermissionMessage') || 'Camera access is needed to take photos. Please enable it in Settings.',
         );
         return;
       }
@@ -812,27 +825,24 @@ export default function CreateListingScreen({ navigation }) {
       {/* Category */}
       <View style={styles.formGroup}>
         <Text style={styles.label}>{t('createListing.category')} *</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {CATEGORY_KEYS.map((cat) => (
-            <TouchableOpacity
-              key={cat}
-              style={[styles.categoryChip, category === cat && styles.categoryChipActive]}
-              onPress={() => {
-                setCategory(cat);
-                setSubcategory(null); // Reset subcategory when category changes
-              }}
-            >
-              <Text
-                style={[
-                  styles.categoryChipText,
-                  category === cat && styles.categoryChipTextActive,
-                ]}
-              >
-                {getTranslatedCategoryLabel(cat, t)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        <TouchableOpacity
+          style={styles.categoryPickerTile}
+          onPress={() => setCategoryPickerOpen(true)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.categoryPickerIcon}>
+            <Ionicons name={getCategoryIcon(category)} size={22} color={COLORS.primary} />
+          </View>
+          <View style={styles.categoryPickerLabelWrap}>
+            <Text style={styles.categoryPickerLabel} numberOfLines={1}>
+              {getTranslatedCategoryLabel(category, t)}
+            </Text>
+            <Text style={styles.categoryPickerHint}>
+              {t('categories.selectCategory') || 'Tap to change'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted || '#9CA3AF'} />
+        </TouchableOpacity>
       </View>
 
       {/* Subcategory */}
@@ -840,25 +850,28 @@ export default function CreateListingScreen({ navigation }) {
         <View style={styles.formGroup}>
           <Text style={styles.label}>{t('createListing.subcategory')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {availableSubcategories.map((subcat) => (
-              <TouchableOpacity
-                key={subcat.id}
-                style={[
-                  styles.categoryChip,
-                  subcategory === subcat.id && styles.categoryChipActive,
-                ]}
-                onPress={() => setSubcategory(subcat.id)}
-              >
-                <Text
-                  style={[
-                    styles.categoryChipText,
-                    subcategory === subcat.id && styles.categoryChipTextActive,
-                  ]}
+            {availableSubcategories.map((subcat) => {
+              const isActive = subcategory === subcat.id;
+              return (
+                <TouchableOpacity
+                  key={subcat.id}
+                  style={[styles.subChip, isActive && styles.subChipActive]}
+                  onPress={() => setSubcategory(subcat.id)}
                 >
-                  {t(subcat.labelKey)}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  {subcat.icon ? (
+                    <Ionicons
+                      name={subcat.icon}
+                      size={14}
+                      color={isActive ? '#FFFFFF' : COLORS.primary}
+                      style={{ marginRight: 6 }}
+                    />
+                  ) : null}
+                  <Text style={[styles.subChipText, isActive && styles.subChipTextActive]}>
+                    {getTranslatedSubCategoryLabel(subcat, t)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
       )}
@@ -962,12 +975,17 @@ export default function CreateListingScreen({ navigation }) {
         </View>
         <View style={styles.reviewRow}>
           <Text style={styles.reviewLabel}>{t('createListing.category')}:</Text>
-          <Text style={styles.reviewValue}>{category}</Text>
+          <Text style={styles.reviewValue}>{getTranslatedCategoryLabel(category, t)}</Text>
         </View>
         {subcategory && (
           <View style={styles.reviewRow}>
             <Text style={styles.reviewLabel}>{t('createListing.subcategory')}:</Text>
-            <Text style={styles.reviewValue}>{subcategory}</Text>
+            <Text style={styles.reviewValue}>
+              {(() => {
+                const sub = availableSubcategories.find((s) => s.id === subcategory);
+                return sub ? getTranslatedSubCategoryLabel(sub, t) : subcategory;
+              })()}
+            </Text>
           </View>
         )}
         <View style={styles.reviewRow}>
@@ -1047,6 +1065,7 @@ export default function CreateListingScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <SEO title="Create Listing" noIndex />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -1072,6 +1091,16 @@ export default function CreateListingScreen({ navigation }) {
       {step === 1 && renderPhotosStep()}
       {step === 2 && renderDetailsStep()}
       {step === 3 && renderReviewStep()}
+
+      <CategorySelector
+        visible={categoryPickerOpen}
+        selectedKey={category}
+        onClose={() => setCategoryPickerOpen(false)}
+        onSelect={(newKey) => {
+          setCategory(newKey);
+          setSubcategory(null);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -1280,6 +1309,63 @@ const styles = StyleSheet.create({
   categoryChipTextActive: {
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  categoryPickerTile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    gap: SPACING.md,
+    ...SHADOWS.small,
+  },
+  categoryPickerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F0F4FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryPickerLabelWrap: {
+    flex: 1,
+  },
+  categoryPickerLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  categoryPickerHint: {
+    fontSize: 12,
+    color: COLORS.textMuted || '#6B7280',
+    marginTop: 2,
+  },
+  subChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+    backgroundColor: '#F3F4F6',
+    marginRight: SPACING.sm,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  subChipActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  subChipText: {
+    fontSize: 13,
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+  subChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   buttonRow: {
     flexDirection: 'row',

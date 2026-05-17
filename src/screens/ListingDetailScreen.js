@@ -17,6 +17,11 @@ import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import { PREMIUM_COLORS, PREMIUM_SPACING, PREMIUM_RADIUS, PREMIUM_SHADOWS } from '../theme/premiumTheme';
 import AppHeader from '../components/AppHeader';
+import SEO from '../components/SEO';
+import { generateListingSchema, generateBreadcrumbSchema } from '../utils/seo';
+import { getCategoryId, canonicalCategoryName } from '../config/categoryMapping';
+import { findSubCategoryById } from '../config/categories';
+import { getTranslatedCategoryLabel, getTranslatedSubCategoryLabel } from '../utils/categoryI18n';
 
 // Platform-aware Firebase imports
 let auth, getListing, deleteListing, markListingAsSold, reactivateListing, incrementListingViews;
@@ -170,8 +175,37 @@ export default function ListingDetailScreen({ route, navigation }) {
   const images = listing.images || [];
   const hasImages = images.length > 0;
 
+  // Resolve category + subcategory labels (handles legacy stored values).
+  const canonicalCategory = canonicalCategoryName(listing.category);
+  const categoryLabel = listing.category
+    ? getTranslatedCategoryLabel(listing.category, t)
+    : t('categories.other') || 'General';
+  const subMatch = findSubCategoryById(listing.subcategory);
+  const subcategoryLabel = subMatch
+    ? getTranslatedSubCategoryLabel(subMatch.sub, t)
+    : (listing.subcategory || '');
+
   return (
     <View style={styles.container}>
+      <SEO
+        title={listing ? `${listing.title} for sale in ${listing.location || 'Africa'}` : 'Listing'}
+        description={listing ? `Buy ${listing.title} in ${listing.location || 'Africa'}. ${listing.currency || 'ETB'} ${listing.price}. Best price on Sabalist.` : ''}
+        canonicalUrl={`/listing/${listingId}`}
+        ogImage={listing?.coverImage || listing?.images?.[0]}
+        ogType="product"
+        jsonLd={listing ? [
+          generateListingSchema(listing),
+          generateBreadcrumbSchema([
+            { name: 'Home', url: '/' },
+            { name: canonicalCategory, url: `/category/${getCategoryId(canonicalCategory)}` },
+            ...(subMatch ? [{
+              name: subMatch.sub.fallback || subMatch.sub.id,
+              url: `/category/${getCategoryId(canonicalCategory)}/${subMatch.sub.id}`,
+            }] : []),
+            { name: listing.title, url: `/listing/${listingId}` },
+          ]),
+        ] : undefined}
+      />
       <AppHeader navigation={navigation} />
 
       {/* Action Header */}
@@ -226,6 +260,7 @@ export default function ListingDetailScreen({ route, navigation }) {
                       source={{ uri: imageUri, cache: 'reload' }}
                       style={styles.image}
                       key={imageUri}
+                      accessibilityLabel={`${listing?.title || 'Listing'} - image ${index + 1}`}
                     />
                   </TouchableOpacity>
                 );
@@ -259,15 +294,47 @@ export default function ListingDetailScreen({ route, navigation }) {
             <Text style={styles.title}>{listing.title}</Text>
 
             <View style={styles.metaRow}>
-              <View style={styles.metaItem}>
+              <TouchableOpacity
+                style={styles.metaItem}
+                onPress={() =>
+                  navigation.navigate('CategoryListings', { category: canonicalCategory })
+                }
+                activeOpacity={0.7}
+              >
                 <Ionicons name="pricetag" size={16} color={PREMIUM_COLORS.accent} />
-                <Text style={styles.metaText}>{listing.category || 'General'}</Text>
-              </View>
+                <Text style={[styles.metaText, styles.metaLink]}>{categoryLabel}</Text>
+              </TouchableOpacity>
               <View style={styles.metaItem}>
                 <Ionicons name="location" size={16} color={PREMIUM_COLORS.accent} />
                 <Text style={styles.metaText}>{listing.location || 'N/A'}</Text>
               </View>
             </View>
+
+            {subcategoryLabel ? (
+              <View style={styles.subcategoryRow}>
+                <TouchableOpacity
+                  style={styles.subcategoryChip}
+                  onPress={() =>
+                    subMatch
+                      ? navigation.navigate('CategoryListings', {
+                          category: canonicalCategory,
+                          subcategoryId: subMatch.sub.id,
+                          title: subcategoryLabel,
+                        })
+                      : null
+                  }
+                  activeOpacity={0.7}
+                  disabled={!subMatch}
+                >
+                  <Ionicons
+                    name={subMatch?.sub?.icon || 'grid-outline'}
+                    size={14}
+                    color={PREMIUM_COLORS.accent}
+                  />
+                  <Text style={styles.subcategoryChipText}>{subcategoryLabel}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
             <View style={styles.metaRow}>
               <View style={styles.metaItem}>
                 <Ionicons name="calendar" size={16} color={PREMIUM_COLORS.muted} />
@@ -353,6 +420,7 @@ export default function ListingDetailScreen({ route, navigation }) {
                 source={{ uri }}
                 style={styles.fullImage}
                 resizeMode="contain"
+                accessibilityLabel={`${listing?.title || 'Listing'} - full image ${index + 1}`}
               />
             ))}
           </ScrollView>
@@ -472,6 +540,32 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: 14,
     color: PREMIUM_COLORS.muted,
+  },
+  metaLink: {
+    color: PREMIUM_COLORS.text,
+    fontWeight: '600',
+  },
+  subcategoryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: PREMIUM_SPACING.xs,
+    marginBottom: PREMIUM_SPACING.sm,
+  },
+  subcategoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: PREMIUM_SPACING.md,
+    paddingVertical: 6,
+    borderRadius: PREMIUM_RADIUS.full,
+    backgroundColor: PREMIUM_COLORS.bg,
+    borderWidth: 1,
+    borderColor: PREMIUM_COLORS.border,
+  },
+  subcategoryChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: PREMIUM_COLORS.text,
   },
   descCard: {
     backgroundColor: PREMIUM_COLORS.card,

@@ -25,8 +25,14 @@ import {
   removeFromFavorites
 } from '../services/favoritesService';
 import { getCategoryId } from '../config/categoryMapping';
+import { CATEGORIES } from '../config/categories';
+import { getTranslatedCategoryLabel } from '../utils/categoryI18n';
+import CategorySelector from '../components/CategorySelector';
 import LocationSelector from '../components/LocationSelector';
 import { getUserLocation } from '../services/locationService';
+import SEO from '../components/SEO';
+import { generateWebsiteSchema } from '../utils/seo';
+import { SEO_COUNTRIES, SEO_CATEGORY_SLUGS } from '../config/cityRoutes';
 
 // Platform-aware listings imports
 let searchListings;
@@ -55,19 +61,21 @@ export default function HomeScreenSimple({ navigation }) {
     }, [i18n.language])
   );
 
-  const CATEGORIES = [
-    { id: 'All', label: t('categories.all'), icon: 'apps' },
-    { id: 'Electronics', label: t('categories.electronics'), icon: 'phone-portrait' },
-    { id: 'Vehicles', label: t('categories.vehicles'), icon: 'car' },
-    { id: 'Furniture', label: t('categories.furniture'), icon: 'bed' },
-    { id: 'Home Appliances', label: t('categories.homeAppliances'), icon: 'snow' },
-    { id: 'Construction Equipment', label: t('categories.constructionEquipment'), icon: 'hammer' },
-    { id: 'Art & Collectibles', label: t('categories.artCollectibles'), icon: 'color-palette' },
-    { id: 'Fashion', label: t('categories.fashion'), icon: 'shirt' },
-    { id: 'Services', label: t('categories.services'), icon: 'construct' },
-    { id: 'Jobs', label: t('categories.jobs'), icon: 'briefcase' },
-    { id: 'Real Estate', label: t('categories.realEstate'), icon: 'home' },
+  // Build the horizontal category strip from the source of truth.
+  // The pill at position 0 is a virtual 'All' filter; the rest mirror
+  // src/config/categories.js order. An 'All Categories' trailing pill opens
+  // the searchable modal for the long tail.
+  const CATEGORY_STRIP = [
+    { id: 'All', key: 'All', label: t('categories.all') || 'All', icon: 'apps' },
+    ...CATEGORIES.map((c) => ({
+      id: c.key,
+      key: c.key,
+      label: getTranslatedCategoryLabel(c.key, t),
+      icon: c.icon,
+    })),
+    { id: '__more__', key: '__more__', label: t('categories.allCategories') || 'All Categories', icon: 'grid' },
   ];
+  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const { user } = useAuth();
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -152,8 +160,15 @@ export default function HomeScreenSimple({ navigation }) {
   };
 
   const handleFavoriteToggle = async (listingId, newFavoritedState) => {
+    console.log('🟢 handleFavoriteToggle called:', { listingId, newFavoritedState, userId: user?.uid });
     if (!user?.uid) {
-      navigation.navigate('Auth');
+      console.warn('⚠️ No signed-in user; favorites require sign in.');
+      // 'Auth' is not a registered route in MainTabNavigator; signed-out
+      // users never reach this screen anyway (App.js shows AuthScreen).
+      // Surface the issue so it's not a silent fail.
+      if (Platform.OS === 'web') {
+        window.alert('Please sign in to save favorites.');
+      }
       return;
     }
     try {
@@ -162,38 +177,65 @@ export default function HomeScreenSimple({ navigation }) {
       } else {
         await removeFromFavorites(user.uid, listingId);
       }
+      console.log('✅ Favorite toggle succeeded');
     } catch (error) {
-      console.error('Error toggling favorite:', error);
+      console.error('❌ Error toggling favorite:', error.code, error.message);
+      // Show the user the failure reason instead of swallowing it.
+      const detail = error.code === 'permission-denied'
+        ? 'Permission denied. Check Firestore rules.'
+        : error.message || 'Unknown error';
+      if (Platform.OS === 'web') {
+        window.alert(`Could not update favorite: ${detail}`);
+      }
     }
   };
 
-  const renderCategory = ({ item }) => (
-    <TouchableOpacity
-      style={[
-        styles.categoryPill,
-        selectedCategory === item.id && styles.categoryPillActive
-      ]}
-      onPress={() => {
-        if (item.id === 'All') {
-          setSelectedCategory(item.id);
-        } else {
-          navigation.navigate('SubCategories', { category: item.id });
-        }
-      }}
-    >
-      <Ionicons
-        name={item.icon}
-        size={16}
-        color={selectedCategory === item.id ? '#FFFFFF' : PREMIUM_COLORS.text}
-      />
-      <Text style={[
-        styles.categoryText,
-        selectedCategory === item.id && styles.categoryTextActive
-      ]}>
-        {item.label}
-      </Text>
-    </TouchableOpacity>
-  );
+  const renderCategory = ({ item }) => {
+    const isMore = item.id === '__more__';
+    const isActive = !isMore && selectedCategory === item.id;
+    return (
+      <TouchableOpacity
+        style={[
+          styles.categoryPill,
+          isActive && styles.categoryPillActive,
+          isMore && styles.categoryPillMore,
+        ]}
+        onPress={() => {
+          if (isMore) {
+            setCategoryPickerOpen(true);
+            return;
+          }
+          if (item.id === 'All') {
+            setSelectedCategory(item.id);
+          } else {
+            navigation.navigate('SubCategories', { category: item.id });
+          }
+        }}
+        activeOpacity={0.7}
+      >
+        <View style={[
+          styles.categoryIconWrap,
+          isActive && styles.categoryIconWrapActive,
+          isMore && styles.categoryIconWrapMore,
+        ]}>
+          <Ionicons
+            name={item.icon}
+            size={18}
+            color={isActive || isMore ? '#FFFFFF' : PREMIUM_COLORS.accent}
+          />
+        </View>
+        <Text
+          style={[
+            styles.categoryText,
+            isActive && styles.categoryTextActive,
+          ]}
+          numberOfLines={1}
+        >
+          {item.label}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   const renderListing = ({ item }) => {
     // DEBUG: Confirm this code is running
@@ -230,6 +272,12 @@ export default function HomeScreenSimple({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <SEO
+        title="Buy & Sell across Africa"
+        description="Sabalist is Africa's marketplace. Buy and sell electronics, vehicles, real estate, fashion and more."
+        canonicalUrl="/"
+        jsonLd={[generateWebsiteSchema()]}
+      />
       <StatusBar barStyle="dark-content" backgroundColor={PREMIUM_COLORS.bg} />
 
       <AppHeader navigation={navigation} />
@@ -282,7 +330,7 @@ export default function HomeScreenSimple({ navigation }) {
       {/* Category Pills */}
       <View style={styles.categorySection}>
         <FlatList
-          data={CATEGORIES}
+          data={CATEGORY_STRIP}
           keyExtractor={(item) => item.id}
           renderItem={renderCategory}
           horizontal
@@ -300,6 +348,27 @@ export default function HomeScreenSimple({ navigation }) {
         contentContainerStyle={styles.listingContent}
         columnWrapperStyle={styles.listingRow}
         ListEmptyComponent={renderEmpty}
+        ListFooterComponent={Platform.OS === 'web' ? (
+          <View style={styles.seoCityLinks}>
+            <Text style={styles.seoCityLinksTitle}>Browse by City</Text>
+            {Object.entries(SEO_COUNTRIES).map(([countrySlug, country]) => (
+              <View key={countrySlug} style={styles.seoCityCountryBlock}>
+                <Text style={styles.seoCityCountryName}>{country.name}</Text>
+                <View style={styles.seoCityRow}>
+                  {Object.entries(country.cities).map(([citySlug, city]) => (
+                    <a
+                      key={citySlug}
+                      href={`/${countrySlug}/${citySlug}/electronics`}
+                      style={{ color: '#6B7280', fontSize: 13, textDecoration: 'none', marginRight: 14, marginBottom: 4 }}
+                    >
+                      {city.name}
+                    </a>
+                  ))}
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : null}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[PREMIUM_COLORS.accent]} />
         }
@@ -314,6 +383,17 @@ export default function HomeScreenSimple({ navigation }) {
           setShowLocationSelector(false);
         }}
         userId={user?.uid}
+      />
+
+      {/* Searchable category picker (long-tail navigation) */}
+      <CategorySelector
+        visible={categoryPickerOpen}
+        selectedKey={selectedCategory}
+        onClose={() => setCategoryPickerOpen(false)}
+        onSelect={(key) => {
+          setCategoryPickerOpen(false);
+          navigation.navigate('SubCategories', { category: key });
+        }}
       />
     </View>
   );
@@ -364,30 +444,47 @@ const styles = StyleSheet.create({
   },
   categoryList: {
     paddingHorizontal: PREMIUM_SPACING.xl,
+    paddingVertical: PREMIUM_SPACING.xs,
     gap: PREMIUM_SPACING.sm,
   },
   categoryPill: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: PREMIUM_SPACING.xs,
+    justifyContent: 'flex-start',
+    width: 78,
+    paddingHorizontal: 4,
+    paddingVertical: PREMIUM_SPACING.xs,
+  },
+  categoryPillActive: {},
+  categoryPillMore: {},
+  categoryIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: PREMIUM_COLORS.card,
-    paddingHorizontal: PREMIUM_SPACING.base,
-    paddingVertical: PREMIUM_SPACING.sm,
-    borderRadius: PREMIUM_RADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: PREMIUM_COLORS.border,
+    marginBottom: 6,
+    ...PREMIUM_SHADOWS.card,
   },
-  categoryPillActive: {
+  categoryIconWrapActive: {
     backgroundColor: PREMIUM_COLORS.accent,
     borderColor: PREMIUM_COLORS.accent,
   },
+  categoryIconWrapMore: {
+    backgroundColor: PREMIUM_COLORS.text,
+    borderColor: PREMIUM_COLORS.text,
+  },
   categoryText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: PREMIUM_COLORS.text,
+    textAlign: 'center',
   },
   categoryTextActive: {
-    color: '#FFFFFF',
+    color: PREMIUM_COLORS.accent,
+    fontWeight: '700',
   },
   listingContent: {
     padding: PREMIUM_SPACING.base,
@@ -449,5 +546,31 @@ const styles = StyleSheet.create({
     marginLeft: PREMIUM_SPACING.xs,
     marginRight: PREMIUM_SPACING.xs,
     flex: 1,
+  },
+  seoCityLinks: {
+    paddingTop: PREMIUM_SPACING.xl,
+    paddingBottom: PREMIUM_SPACING.base,
+    borderTopWidth: 1,
+    borderTopColor: PREMIUM_COLORS.border,
+    marginTop: PREMIUM_SPACING.base,
+  },
+  seoCityLinksTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: PREMIUM_COLORS.muted,
+    marginBottom: 12,
+  },
+  seoCityCountryBlock: {
+    marginBottom: 10,
+  },
+  seoCityCountryName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: PREMIUM_COLORS.text,
+    marginBottom: 4,
+  },
+  seoCityRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
 });

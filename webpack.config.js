@@ -55,6 +55,25 @@ module.exports = async function (env, argv) {
     config.devServer.historyApiFallback = true;
   }
 
+  // Add default SEO meta tags to HTML template
+  const HtmlWebpackPlugin = require('html-webpack-plugin');
+  const existingHtmlPlugin = config.plugins.find(p => p.constructor.name === 'HtmlWebpackPlugin');
+  if (existingHtmlPlugin && existingHtmlPlugin.userOptions) {
+    existingHtmlPlugin.userOptions.meta = {
+      ...existingHtmlPlugin.userOptions.meta,
+      'description': { name: 'description', content: 'Sabalist - Buy & Sell across Africa. Find electronics, vehicles, real estate, fashion and more.' },
+      'og:title': { property: 'og:title', content: 'Sabalist - Buy & Sell across Africa' },
+      'og:description': { property: 'og:description', content: "Africa's marketplace for electronics, vehicles, real estate, fashion and more." },
+      'og:type': { property: 'og:type', content: 'website' },
+      'og:url': { property: 'og:url', content: 'https://sabalist.web.app' },
+      'og:image': { property: 'og:image', content: 'https://sabalist.web.app/web-app-manifest-512x512.png' },
+      'twitter:card': { name: 'twitter:card', content: 'summary_large_image' },
+      'twitter:title': { name: 'twitter:title', content: 'Sabalist - Buy & Sell across Africa' },
+      'twitter:description': { name: 'twitter:description', content: "Africa's marketplace for electronics, vehicles, real estate, fashion and more." },
+      'theme-color': { name: 'theme-color', content: '#E50914' },
+    };
+  }
+
   // Inject environment variables into the build
   config.plugins.push(
     new webpack.DefinePlugin({

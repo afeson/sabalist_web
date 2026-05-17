@@ -1,16 +1,15 @@
 module.exports = function(api) {
-  api.cache(true);
-
-  // Detect if we're building for web by checking if webpack is in the call stack
+  // Cache based on the WEBPACK env var so web vs native get different configs
   const isWeb = process.env.WEBPACK === 'true' ||
                 process.argv.some(arg => arg.includes('export:web'));
+  api.cache.using(() => isWeb ? 'web' : 'native');
 
   return {
     presets: [
       [
         'babel-preset-expo',
         {
-          // Disable reanimated plugin for web builds to avoid worklets dependency
+          // Enable reanimated plugin for native builds, disable for web
           reanimated: !isWeb,
         },
       ],
@@ -18,5 +17,3 @@ module.exports = function(api) {
     plugins: [],
   };
 };
-
-

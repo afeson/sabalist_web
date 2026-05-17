@@ -18,7 +18,6 @@ const DEV_USER = {
   emailVerified: true,
   phoneNumber: null,
   photoURL: null,
-  // Add any other properties your app expects
 };
 
 export function AuthProvider({ children }) {
@@ -59,10 +58,7 @@ export function AuthProvider({ children }) {
         // Set up auth listener based on platform
         if (Platform.OS === 'web') {
           console.log('🔥 AUTH_CONTEXT: Setting up WEB auth listener');
-          console.log('🔥 AUTH_CONTEXT: webAuth =', !!webAuth);
-          console.log('🔥 AUTH_CONTEXT: webOnAuthStateChanged =', !!webOnAuthStateChanged);
 
-          // Web listener - use direct imports
           unsubscribe = webOnAuthStateChanged(webAuth, (currentUser) => {
             if (!mounted) return;
             resolved = true;
@@ -73,7 +69,6 @@ export function AuthProvider({ children }) {
           });
         } else {
           console.log('🔥 AUTH_CONTEXT: Setting up NATIVE auth listener');
-          // Native listener - dynamic require
           if (!nativeAuth) {
             nativeAuth = require('../lib/firebase').auth;
           }
@@ -137,18 +132,12 @@ export function AuthProvider({ children }) {
 
       // PRODUCTION: Normal Firebase logout
       if (Platform.OS === 'web') {
-        const currentUser = webAuth.currentUser;
-        console.log('🔥 LOGOUT: Web user before =', currentUser?.email || 'NONE');
-
         await webSignOut(webAuth);
         console.log('✅ LOGOUT: Web signOut completed');
       } else {
         if (!nativeAuth) {
           nativeAuth = require('../lib/firebase').auth;
         }
-        const currentUser = nativeAuth().currentUser;
-        console.log('🔥 LOGOUT: Native user before =', currentUser?.email || 'NONE');
-
         await nativeAuth().signOut();
         console.log('✅ LOGOUT: Native signOut completed');
       }

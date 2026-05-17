@@ -9,12 +9,12 @@ import {
   SafeAreaView,
   StatusBar,
   TouchableOpacity,
-  Alert,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
+import SEO from '../components/SEO';
 
 // Platform-aware Firebase imports
 let auth, getUserListings, subscribeToUserListings;
@@ -94,8 +94,9 @@ export default function MyListingsScreen({ navigation, route }) {
     setLoading(true);
 
     const unsubscribe = subscribeToUserListings(userId, (newListings) => {
-      console.log('🔴 Received real-time update:', newListings.length, 'user listings');
-      setListings(newListings);
+      const safe = Array.isArray(newListings) ? newListings : [];
+      console.log('🔴 Received real-time update:', safe.length, 'user listings');
+      setListings(safe);
       setLoading(false);
       setRefreshing(false);
     });
@@ -117,8 +118,9 @@ export default function MyListingsScreen({ navigation, route }) {
 
     console.log('❤️ Setting up favorites listener for user:', userId);
     const unsubscribe = subscribeToFavorites(userId, (ids) => {
-      console.log('❤️ Favorites updated:', ids.length, 'items');
-      setFavoriteIds(ids);
+      const safeIds = Array.isArray(ids) ? ids : [];
+      console.log('❤️ Favorites updated:', safeIds.length, 'items');
+      setFavoriteIds(safeIds);
     });
 
     return () => {
@@ -166,21 +168,24 @@ export default function MyListingsScreen({ navigation, route }) {
     }
   };
 
-  const renderListing = ({ item }) => (
-    <View style={styles.listingCardWrapper}>
-      <ListingCard
-        listing={item}
-        onPress={() => navigation?.navigate('ListingDetail', { listingId: item.id })}
-        isFavorited={favoriteIds.includes(item.id)}
-        onFavoriteToggle={handleFavoriteToggle}
-      />
-      {item.status === 'sold' && (
-        <View style={styles.soldBadge}>
-          <Text style={styles.soldBadgeText}>{t('listing.sold')}</Text>
-        </View>
-      )}
-    </View>
-  );
+  const renderListing = ({ item }) => {
+    if (!item) return null;
+    return (
+      <View style={styles.listingCardWrapper}>
+        <ListingCard
+          listing={item}
+          onPress={() => navigation?.navigate('ListingDetail', { listingId: item.id })}
+          isFavorited={favoriteIds.includes(item.id)}
+          onFavoriteToggle={handleFavoriteToggle}
+        />
+        {item.status === 'sold' && (
+          <View style={styles.soldBadge}>
+            <Text style={styles.soldBadgeText}>{t('listing.sold')}</Text>
+          </View>
+        )}
+      </View>
+    );
+  };
 
   const renderEmptyState = () => {
     if (loading) {
@@ -203,7 +208,7 @@ export default function MyListingsScreen({ navigation, route }) {
         </Text>
         <TouchableOpacity 
           style={styles.emptyButton}
-          onPress={() => Alert.alert(t('listing.createListing'), t('listing.postItem'))}
+          onPress={() => navigation.navigate('CreateListing')}
         >
           <Ionicons name="add-circle" size={24} color={COLORS.card} />
           <Text style={styles.emptyButtonText}>{t('listing.createListing')}</Text>
@@ -212,11 +217,13 @@ export default function MyListingsScreen({ navigation, route }) {
     );
   };
 
-  const activeListings = listings.filter(l => l.status === 'active' || !l.status);
-  const soldListings = listings.filter(l => l.status === 'sold');
+  const safeListings = Array.isArray(listings) ? listings : [];
+  const activeListings = safeListings.filter(l => l && (l.status === 'active' || !l.status));
+  const soldListings = safeListings.filter(l => l && l.status === 'sold');
 
   return (
     <View style={styles.container}>
+      <SEO title="My Listings" noIndex />
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.card} />
 
       <AppHeader navigation={navigation} />
@@ -239,7 +246,7 @@ export default function MyListingsScreen({ navigation, route }) {
 
       {/* Listings Grid */}
       <FlatList
-        data={listings}
+        data={safeListings}
         keyExtractor={(item, index) => item.id || `listing-${index}`}
         renderItem={renderListing}
         numColumns={2}

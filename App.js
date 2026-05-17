@@ -10,6 +10,11 @@ import AuthScreen from './src/screens/AuthScreen';
 import MainTabNavigator from './src/navigation/MainTabNavigator';
 import { COLORS } from './src/theme';
 
+// SEO: HelmetProvider for web only
+const HelmetProvider = Platform.OS === 'web'
+  ? require('react-helmet-async').HelmetProvider
+  : ({ children }) => children;
+
 // Lazy load i18n to prevent startup crash
 let i18nInitialized = false;
 const initializeI18n = async () => {
@@ -24,7 +29,7 @@ const initializeI18n = async () => {
   }
 };
 
-// Linking configuration for deep links
+// Linking configuration for deep links and SEO-friendly URLs
 const linking = {
   prefixes: [
     'sabalist://',
@@ -33,8 +38,29 @@ const linking = {
   ],
   config: {
     screens: {
-      Auth: '',
-      Main: 'main',
+      Auth: 'auth',
+      Main: {
+        screens: {
+          MainTabs: {
+            screens: {
+              Home: '',
+              Favorites: 'favorites',
+              CreateListing: 'create',
+              MyListings: 'my-listings',
+              Profile: 'profile',
+            },
+          },
+          ListingDetail: 'listing/:listingId',
+          SubCategories: 'category/:category',
+          CategoryListings: 'category/:category/:subcategoryId',
+          About: 'about',
+          TermsPrivacy: 'terms',
+          HelpSupport: 'help',
+          Notifications: 'notifications',
+          EditProfile: 'edit-profile',
+          CityListings: ':country/:city/:category',
+        },
+      },
     },
   },
 };
@@ -142,9 +168,11 @@ function AppContent() {
   // Single NavigationContainer wraps BOTH authenticated and unauthenticated states
   // This fixes "Couldn't find a navigation object" error on web
   return (
-    <NavigationContainer linking={linking}>
-      {user ? <MainTabNavigator /> : <AuthScreen />}
-    </NavigationContainer>
+    <HelmetProvider>
+      <NavigationContainer linking={linking}>
+        {user ? <MainTabNavigator /> : <AuthScreen />}
+      </NavigationContainer>
+    </HelmetProvider>
   );
 }
 

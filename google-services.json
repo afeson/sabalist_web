@@ -12,7 +12,28 @@
           "package_name": "com.sabalist.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "231273918004-n8eerdmul29q9ovb5ujgm7dmpp8m8gt1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.sabalist.app",
+            "certificate_hash": "876d37d56ee702d5c7ab17445224e9cdc3ea16b1"
+          }
+        },
+        {
+          "client_id": "231273918004-v4vltioa49t43rdcqecoq2vnh1516ks6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.sabalist.app",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "231273918004-smt9rcdm8omt68aefj2bv0pk3n5202kc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDkQ3xGhs_m-_v71El6NYnWzXFuiUf6UVM"
@@ -20,7 +41,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "231273918004-smt9rcdm8omt68aefj2bv0pk3n5202kc.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

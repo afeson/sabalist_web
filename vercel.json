@@ -51,6 +51,14 @@
       "dest": "/pwa/$1"
     },
     {
+      "src": "/robots.txt",
+      "dest": "/robots.txt"
+    },
+    {
+      "src": "/sitemap.xml",
+      "dest": "/sitemap.xml"
+    },
+    {
       "src": "/delete-account",
       "dest": "/delete-account.html"
     },
@@ -77,6 +85,10 @@
     {
       "src": "/simple-write-test.html",
       "dest": "/simple-write-test.html"
+    },
+    {
+      "src": "/google22ac299e2979bc6d.html",
+      "dest": "/google22ac299e2979bc6d.html"
     },
     {
       "src": "/(.*)",

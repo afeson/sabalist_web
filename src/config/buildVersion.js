@@ -1,1 +1,1 @@
-export const BUILD_VERSION = "UI_REDESIGN_V2_2025-12-29";
+export const BUILD_VERSION = "NATIVE_v1.3.0_2026-05-10";

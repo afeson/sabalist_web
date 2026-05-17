@@ -1,12 +1,46 @@
 /**
- * Native-specific Firebase Firestore & Storage operations for listings
- * Uses React Native Firebase SDK (@react-native-firebase)
+ * Firebase Firestore & Storage operations for listings
+ * Uses Firebase JS SDK for Firestore (avoids gRPC issues on iOS)
+ * Uses React Native Firebase for Storage (native file uploads)
  */
 
-import { firestore, storage } from "../lib/firebase";
+import {
+  firestore,
+  storage,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+  limit,
+  serverTimestamp,
+  increment,
+  onSnapshot
+} from "../lib/firebase";
+import { resolveCategoryId, getLegacyAliasesFor } from "../config/categories";
 
 /**
- * Create a new listing in Firestore (NATIVE VERSION)
+ * Returns the set of categoryId values to query when the caller asks for
+ * `inputId`. Includes the canonical id and any legacy ids that were merged
+ * into it so old listings created under those slugs still surface.
+ */
+function expandCategoryIds(inputId) {
+  if (!inputId || inputId === "All") return null;
+  const canonical = resolveCategoryId(inputId);
+  const legacy = getLegacyAliasesFor(canonical);
+  const set = new Set([canonical, ...legacy]);
+  // If caller passed a legacy slug directly, include it too.
+  set.add(inputId);
+  return Array.from(set);
+}
+
+/**
+ * Create a new listing in Firestore
  * @param {Object} listingData - { title, description, price, category, currency, location, userId }
  * @param {Array} imageUris - Array of local image URIs to upload (up to 30)
  * @returns {Promise<string>} - Document ID
@@ -14,25 +48,26 @@ import { firestore, storage } from "../lib/firebase";
 export async function createListing(listingData, imageUris = []) {
   try {
     // Create listing document first to get listingId
-    const listingRef = await firestore().collection("listings").add({
+    const listingsRef = collection(firestore, "listings");
+    const docRef = await addDoc(listingsRef, {
       title: listingData.title,
       description: listingData.description || "",
       price: parseFloat(listingData.price) || 0,
       currency: listingData.currency || "USD",
-      category: listingData.category, // ✅ FIX: No "General" fallback - must be valid category
-      subcategory: listingData.subcategory || "", // Add subcategory field
+      category: listingData.category,
+      subcategory: listingData.subcategory || "",
       location: listingData.location || "Africa",
       phoneNumber: listingData.phoneNumber || "",
       userId: listingData.userId,
-      images: [], // Will be updated after upload
-      coverImage: "", // Will be set to first image
+      images: [],
+      coverImage: "",
       status: "active",
       views: 0,
-      createdAt: firestore.FieldValue.serverTimestamp(),
-      updatedAt: firestore.FieldValue.serverTimestamp()
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
     });
 
-    const listingId = listingRef.id;
+    const listingId = docRef.id;
     console.log(`✅ Listing created: ${listingId}`);
 
     // Upload images in parallel to listingId-specific folder
@@ -41,7 +76,6 @@ export async function createListing(listingData, imageUris = []) {
     if (imageUris.length > 0) {
       console.log(`📤 Uploading ${imageUris.length} images in parallel...`);
 
-      // Upload all images in parallel for speed
       const uploadPromises = imageUris.map((uri, index) =>
         uploadImage(uri, `listings/${listingId}/image-${index}-${Date.now()}.jpg`)
       );
@@ -50,10 +84,11 @@ export async function createListing(listingData, imageUris = []) {
       console.log(`✅ Uploaded ${imageUrls.length} images`);
 
       // Update listing with image URLs
-      await firestore().collection("listings").doc(listingId).update({
+      const listingDocRef = doc(firestore, "listings", listingId);
+      await updateDoc(listingDocRef, {
         images: imageUrls,
-        coverImage: imageUrls[0] || "", // First image is cover
-        updatedAt: firestore.FieldValue.serverTimestamp()
+        coverImage: imageUrls[0] || "",
+        updatedAt: serverTimestamp()
       });
 
       console.log(`✅ Images linked to listing: ${listingId}`);
@@ -89,30 +124,45 @@ async function uploadImage(uri, path) {
 }
 
 /**
- * Fetch listings from Firestore (NATIVE VERSION)
+ * Fetch listings from Firestore
  * @param {Object} options - { category, maxResults }
  * @returns {Promise<Array>} - Array of listings
  */
 export async function fetchListings({ category = null, maxResults = 50 } = {}) {
   try {
-    let query = firestore()
-      .collection("listings")
-      .orderBy("createdAt", "desc")
-      .limit(maxResults);
+    const listingsRef = collection(firestore, "listings");
+    let q;
 
-    if (category && category !== "All") {
-      query = firestore()
-        .collection("listings")
-        .where("categoryId", "==", category)
-        .orderBy("createdAt", "desc")
-        .limit(maxResults);
+    const expandedIds = expandCategoryIds(category);
+
+    if (expandedIds && expandedIds.length === 1) {
+      q = query(
+        listingsRef,
+        where("categoryId", "==", expandedIds[0]),
+        orderBy("createdAt", "desc"),
+        limit(maxResults)
+      );
+    } else if (expandedIds && expandedIds.length > 1) {
+      // `where in` supports up to 10 values; legacy aliases are well under that.
+      q = query(
+        listingsRef,
+        where("categoryId", "in", expandedIds.slice(0, 10)),
+        orderBy("createdAt", "desc"),
+        limit(maxResults)
+      );
+    } else {
+      q = query(
+        listingsRef,
+        orderBy("createdAt", "desc"),
+        limit(maxResults)
+      );
     }
 
-    const snapshot = await query.get();
+    const snapshot = await getDocs(q);
 
-    const listings = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
+    const listings = snapshot.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data()
     }));
 
     // Filter for active listings (or listings without status field) in-memory
@@ -129,7 +179,7 @@ export async function fetchListings({ category = null, maxResults = 50 } = {}) {
 }
 
 /**
- * Search listings by text (only active listings) (NATIVE VERSION)
+ * Search listings by text (only active listings)
  * @param {string} searchText - Search query
  * @param {string} category - Category filter
  * @param {number} minPrice - Minimum price filter
@@ -214,15 +264,16 @@ export async function searchListings(searchText = "", category = null, minPrice 
 }
 
 /**
- * Get a single listing by ID (NATIVE VERSION)
+ * Get a single listing by ID
  * @param {string} listingId - Listing document ID
  * @returns {Promise<Object>} - Listing data with id
  */
 export async function getListing(listingId) {
   try {
-    const docSnap = await firestore().collection("listings").doc(listingId).get();
+    const docRef = doc(firestore, "listings", listingId);
+    const docSnap = await getDoc(docRef);
 
-    if (!docSnap.exists) {
+    if (!docSnap.exists()) {
       throw new Error("Listing not found");
     }
 
@@ -237,22 +288,25 @@ export async function getListing(listingId) {
 }
 
 /**
- * Get listings for a specific user (NATIVE VERSION)
+ * Get listings for a specific user
  * @param {string} userId - User ID
  * @returns {Promise<Array>} - Array of user's listings
  */
 export async function getUserListings(userId) {
   try {
-    const snapshot = await firestore()
-      .collection("listings")
-      .where("userId", "==", userId)
-      .orderBy("createdAt", "desc")
-      .limit(100)
-      .get();
+    const listingsRef = collection(firestore, "listings");
+    const q = query(
+      listingsRef,
+      where("userId", "==", userId),
+      orderBy("createdAt", "desc"),
+      limit(100)
+    );
 
-    const listings = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
+    const snapshot = await getDocs(q);
+
+    const listings = snapshot.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data()
     }));
 
     console.log(`✅ Fetched ${listings.length} listings for user ${userId}`);
@@ -264,7 +318,7 @@ export async function getUserListings(userId) {
 }
 
 /**
- * Update an existing listing (NATIVE VERSION)
+ * Update an existing listing
  * @param {string} listingId - Listing document ID
  * @param {Object} updateData - Fields to update
  * @param {Array} newImageUris - Optional new images to upload
@@ -293,11 +347,12 @@ export async function updateListing(listingId, updateData, newImageUris = [], ex
     const updates = {
       ...updateData,
       images: allImages,
-      coverImage: allImages[0] || "", // First image is always cover
-      updatedAt: firestore.FieldValue.serverTimestamp()
+      coverImage: allImages[0] || "",
+      updatedAt: serverTimestamp()
     };
 
-    await firestore().collection("listings").doc(listingId).update(updates);
+    const docRef = doc(firestore, "listings", listingId);
+    await updateDoc(docRef, updates);
     console.log(`✅ Listing updated: ${listingId} with ${allImages.length} images`);
   } catch (error) {
     console.error("❌ Error updating listing:", error);
@@ -306,16 +361,17 @@ export async function updateListing(listingId, updateData, newImageUris = [], ex
 }
 
 /**
- * Mark listing as sold (NATIVE VERSION)
+ * Mark listing as sold
  * @param {string} listingId - Listing document ID
  * @returns {Promise<void>}
  */
 export async function markListingAsSold(listingId) {
   try {
-    await firestore().collection("listings").doc(listingId).update({
+    const docRef = doc(firestore, "listings", listingId);
+    await updateDoc(docRef, {
       status: 'sold',
-      soldAt: firestore.FieldValue.serverTimestamp(),
-      updatedAt: firestore.FieldValue.serverTimestamp()
+      soldAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
     });
     console.log(`✅ Listing marked as sold: ${listingId}`);
   } catch (error) {
@@ -325,16 +381,17 @@ export async function markListingAsSold(listingId) {
 }
 
 /**
- * Reactivate a sold listing (NATIVE VERSION)
+ * Reactivate a sold listing
  * @param {string} listingId - Listing document ID
  * @returns {Promise<void>}
  */
 export async function reactivateListing(listingId) {
   try {
-    await firestore().collection("listings").doc(listingId).update({
+    const docRef = doc(firestore, "listings", listingId);
+    await updateDoc(docRef, {
       status: 'active',
       soldAt: null,
-      updatedAt: firestore.FieldValue.serverTimestamp()
+      updatedAt: serverTimestamp()
     });
     console.log(`✅ Listing reactivated: ${listingId}`);
   } catch (error) {
@@ -344,15 +401,16 @@ export async function reactivateListing(listingId) {
 }
 
 /**
- * Increment listing view count (NATIVE VERSION)
+ * Increment listing view count
  * @param {string} listingId - Listing document ID
  * @returns {Promise<void>}
  */
 export async function incrementListingViews(listingId) {
   try {
-    await firestore().collection("listings").doc(listingId).update({
-      views: firestore.FieldValue.increment(1),
-      lastViewedAt: firestore.FieldValue.serverTimestamp()
+    const docRef = doc(firestore, "listings", listingId);
+    await updateDoc(docRef, {
+      views: increment(1),
+      lastViewedAt: serverTimestamp()
     });
     console.log(`👁️ View counted for listing: ${listingId}`);
   } catch (error) {
@@ -362,7 +420,7 @@ export async function incrementListingViews(listingId) {
 }
 
 /**
- * Delete a listing and its images from storage (NATIVE VERSION)
+ * Delete a listing and its images from storage
  * @param {string} listingId - Listing document ID
  * @returns {Promise<void>}
  */
@@ -394,11 +452,45 @@ export async function deleteListing(listingId) {
     }
 
     // Delete the document
-    await firestore().collection("listings").doc(listingId).delete();
+    const docRef = doc(firestore, "listings", listingId);
+    await deleteDoc(docRef);
 
     console.log(`✅ Listing deleted: ${listingId}`);
   } catch (error) {
     console.error("❌ Error deleting listing:", error);
     throw error;
+  }
+}
+
+/**
+ * Subscribe to real-time user listings updates (NATIVE VERSION)
+ * @param {string} userId - User ID
+ * @param {function} callback - Called with array of listings on each update
+ * @returns {function} unsubscribe function
+ */
+export function subscribeToUserListings(userId, callback) {
+  try {
+    const q = query(
+      collection(firestore, "listings"),
+      where("userId", "==", userId),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const listings = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }));
+      callback(listings);
+    }, (error) => {
+      console.error("❌ Error in user listings listener:", error);
+      callback([]);
+    });
+
+    return unsubscribe;
+  } catch (error) {
+    console.error("❌ Error setting up user listings listener:", error);
+    callback([]);
+    return () => {};
   }
 }

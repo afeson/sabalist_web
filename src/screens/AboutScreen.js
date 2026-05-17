@@ -3,8 +3,10 @@ import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView, Image 
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
+import Constants from 'expo-constants';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { Card } from '../components/ui';
+import SEO from '../components/SEO';
 
 export default function AboutScreen({ navigation }) {
   const { t, i18n } = useTranslation();
@@ -24,6 +26,11 @@ export default function AboutScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <SEO
+        title="About Sabalist"
+        description="Sabalist is Africa's leading marketplace. Learn about our mission to connect buyers and sellers across Africa."
+        canonicalUrl="/about"
+      />
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.card} />
 
       {/* Header */}
@@ -46,7 +53,7 @@ export default function AboutScreen({ navigation }) {
           />
           <Text style={styles.appName}>{t('about.appName')}</Text>
           <Text style={styles.tagline}>{t('tagline')}</Text>
-          <Text style={styles.version}>{t('about.version')}</Text>
+          <Text style={styles.version}>Version {Constants.expoConfig?.version || '1.2.8'} ({Constants.expoConfig?.android?.versionCode || 19})</Text>
         </View>
 
         {/* About Card */}

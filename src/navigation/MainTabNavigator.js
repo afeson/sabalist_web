@@ -21,6 +21,7 @@ import TermsPrivacyScreen from '../screens/TermsPrivacyScreen';
 import AboutScreen from '../screens/AboutScreen';
 import SubCategoriesScreen from '../screens/SubCategoriesScreen';
 import CategoryListingsScreen from '../screens/CategoryListingsScreen';
+import CityListingsScreen from '../screens/CityListingsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -204,6 +205,14 @@ export default function MainTabNavigator() {
       <Stack.Screen
         name="CategoryListings"
         component={CategoryListingsScreen}
+        options={{
+          headerShown: false,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="CityListings"
+        component={CityListingsScreen}
         options={{
           headerShown: false,
           presentation: 'card',

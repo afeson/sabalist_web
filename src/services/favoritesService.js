@@ -1,9 +1,39 @@
 /**
  * Favorites Service
- * Save and retrieve user's favorite listings
+ *
+ * Native (iOS/Android): @react-native-firebase/firestore — inherits the
+ * native auth session, so the user-scoped Firestore rules in firestore.rules
+ * (`request.auth.uid == userId`) actually pass.
+ *
+ * Web: Firebase JS SDK Firestore — shares auth state with the web auth SDK,
+ * so the same rules pass.
+ *
+ * The split exists because the rest of the app uses the JS SDK Firestore on
+ * native too (see src/lib/firebase.js), and the JS SDK has no view of the
+ * native auth context — so every favorites operation was being denied.
  */
 
-import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, onSnapshot } from 'firebase/firestore';
+import { Platform } from 'react-native';
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  onSnapshot,
+} from 'firebase/firestore';
+
+const isWeb = Platform.OS === 'web';
+
+// Native firestore is only required on native; on web webpack aliases the
+// package to a no-op mock (see webpack.config.js), so this require would be
+// harmless there too — but guard it anyway to keep the web bundle clean.
+let nativeFirestore;
+if (!isWeb) {
+  nativeFirestore = require('@react-native-firebase/firestore').default;
+}
 
 /**
  * Add listing to favorites
@@ -13,15 +43,25 @@ export async function addToFavorites(userId, listingId) {
     throw new Error('userId and listingId are required');
   }
 
-  const db = getFirestore();
-  const favoriteRef = doc(db, 'users', userId, 'favorites', listingId);
-
-  await setDoc(favoriteRef, {
+  const payload = {
     listingId,
     addedAt: new Date().toISOString(),
-  });
+  };
 
-  console.log('✅ Added to favorites:', listingId);
+  if (isWeb) {
+    const db = getFirestore();
+    const favoriteRef = doc(db, 'users', userId, 'favorites', listingId);
+    await setDoc(favoriteRef, payload);
+  } else {
+    await nativeFirestore()
+      .collection('users')
+      .doc(userId)
+      .collection('favorites')
+      .doc(listingId)
+      .set(payload);
+  }
+
+  console.log('Added to favorites:', listingId);
 }
 
 /**
@@ -32,11 +72,20 @@ export async function removeFromFavorites(userId, listingId) {
     throw new Error('userId and listingId are required');
   }
 
-  const db = getFirestore();
-  const favoriteRef = doc(db, 'users', userId, 'favorites', listingId);
+  if (isWeb) {
+    const db = getFirestore();
+    const favoriteRef = doc(db, 'users', userId, 'favorites', listingId);
+    await deleteDoc(favoriteRef);
+  } else {
+    await nativeFirestore()
+      .collection('users')
+      .doc(userId)
+      .collection('favorites')
+      .doc(listingId)
+      .delete();
+  }
 
-  await deleteDoc(favoriteRef);
-  console.log('✅ Removed from favorites:', listingId);
+  console.log('Removed from favorites:', listingId);
 }
 
 /**
@@ -45,12 +94,21 @@ export async function removeFromFavorites(userId, listingId) {
 export async function isFavorited(userId, listingId) {
   if (!userId || !listingId) return false;
 
-  const db = getFirestore();
-  const favoriteRef = doc(db, 'users', userId, 'favorites', listingId);
-
   try {
-    const snapshot = await getDoc(favoriteRef);
-    return snapshot.exists();
+    if (isWeb) {
+      const db = getFirestore();
+      const favoriteRef = doc(db, 'users', userId, 'favorites', listingId);
+      const snapshot = await getDoc(favoriteRef);
+      return snapshot.exists();
+    } else {
+      const snapshot = await nativeFirestore()
+        .collection('users')
+        .doc(userId)
+        .collection('favorites')
+        .doc(listingId)
+        .get();
+      return snapshot.exists;
+    }
   } catch {
     return false;
   }
@@ -62,12 +120,20 @@ export async function isFavorited(userId, listingId) {
 export async function getFavoriteIds(userId) {
   if (!userId) return [];
 
-  const db = getFirestore();
-  const favoritesRef = collection(db, 'users', userId, 'favorites');
-
   try {
-    const snapshot = await getDocs(favoritesRef);
-    return snapshot.docs.map(doc => doc.id);
+    if (isWeb) {
+      const db = getFirestore();
+      const favoritesRef = collection(db, 'users', userId, 'favorites');
+      const snapshot = await getDocs(favoritesRef);
+      return snapshot.docs.map(d => d.id);
+    } else {
+      const snapshot = await nativeFirestore()
+        .collection('users')
+        .doc(userId)
+        .collection('favorites')
+        .get();
+      return snapshot.docs.map(d => d.id);
+    }
   } catch (error) {
     console.error('Error getting favorites:', error);
     return [];
@@ -83,14 +149,28 @@ export function subscribeToFavorites(userId, callback) {
     return () => {};
   }
 
-  const db = getFirestore();
-  const favoritesRef = collection(db, 'users', userId, 'favorites');
+  if (isWeb) {
+    const db = getFirestore();
+    const favoritesRef = collection(db, 'users', userId, 'favorites');
+    return onSnapshot(
+      favoritesRef,
+      (snapshot) => callback(snapshot.docs.map(d => d.id)),
+      (error) => {
+        console.error('Error in favorites listener:', error);
+        callback([]);
+      }
+    );
+  }
 
-  return onSnapshot(favoritesRef, (snapshot) => {
-    const favoriteIds = snapshot.docs.map(doc => doc.id);
-    callback(favoriteIds);
-  }, (error) => {
-    console.error('Error in favorites listener:', error);
-    callback([]);
-  });
+  return nativeFirestore()
+    .collection('users')
+    .doc(userId)
+    .collection('favorites')
+    .onSnapshot(
+      (snapshot) => callback(snapshot.docs.map(d => d.id)),
+      (error) => {
+        console.error('Error in favorites listener:', error);
+        callback([]);
+      }
+    );
 }

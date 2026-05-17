@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, RADIUS } from '../theme';
 import { ListingCard } from '../components/ui';
+import SEO from '../components/SEO';
 import { useAuth } from '../contexts/AuthContext';
 import {
   subscribeToFavorites,
@@ -124,6 +125,7 @@ export default function FavoritesScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <SEO title="My Favorites" noIndex />
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.card} />
 
       {loading ? (

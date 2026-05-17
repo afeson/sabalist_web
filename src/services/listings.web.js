@@ -6,6 +6,18 @@
 import { firestore, storage } from "../lib/firebase.web";
 import { collection, addDoc, updateDoc, doc, serverTimestamp, query, where, orderBy, limit as firestoreLimit, deleteDoc, increment, getDocsFromServer, getDocFromServer, onSnapshot } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { CATEGORIES, resolveCategoryId, getLegacyAliasesFor } from "../config/categories";
+
+const VALID_CATEGORY_KEYS = new Set(CATEGORIES.map((c) => c.key));
+
+function expandCategoryIds(inputId) {
+  if (!inputId || inputId === "All") return null;
+  const canonical = resolveCategoryId(inputId);
+  const legacy = getLegacyAliasesFor(canonical);
+  const set = new Set([canonical, ...legacy]);
+  set.add(inputId);
+  return Array.from(set);
+}
 
 /**
  * Create a new listing in Firestore (WEB VERSION)
@@ -18,8 +30,8 @@ export async function createListing(listingData, imageUris = [], videoData = nul
       hasVideo: !!videoData
     });
 
-    // ✅ FIX: Validate required fields before Firestore write
-    if (!listingData.category || !['Electronics', 'Vehicles', 'Real Estate', 'Fashion', 'Services'].includes(listingData.category)) {
+    // Validate against the source-of-truth category list.
+    if (!listingData.category || !VALID_CATEGORY_KEYS.has(listingData.category)) {
       throw new Error('Invalid category. Please select a valid category.');
     }
 
@@ -241,16 +253,26 @@ async function uploadVideo(uri, path) {
  */
 export async function fetchListings(categoryFilter = null, limitCount = 20) {
   try {
-    let q = query(
-      collection(firestore, "listings"),
-      orderBy("createdAt", "desc"),
-      firestoreLimit(limitCount)
-    );
+    const expandedIds = expandCategoryIds(categoryFilter);
 
-    if (categoryFilter && categoryFilter !== "All") {
+    let q;
+    if (expandedIds && expandedIds.length === 1) {
       q = query(
         collection(firestore, "listings"),
-        where("categoryId", "==", categoryFilter),
+        where("categoryId", "==", expandedIds[0]),
+        orderBy("createdAt", "desc"),
+        firestoreLimit(limitCount)
+      );
+    } else if (expandedIds && expandedIds.length > 1) {
+      q = query(
+        collection(firestore, "listings"),
+        where("categoryId", "in", expandedIds.slice(0, 10)),
+        orderBy("createdAt", "desc"),
+        firestoreLimit(limitCount)
+      );
+    } else {
+      q = query(
+        collection(firestore, "listings"),
         orderBy("createdAt", "desc"),
         firestoreLimit(limitCount)
       );
@@ -529,16 +551,26 @@ export async function searchListings(searchText = "", category = null, minPrice 
  */
 export function subscribeToListings(callback, categoryFilter = null, limitCount = 20) {
   try {
-    let q = query(
-      collection(firestore, "listings"),
-      orderBy("createdAt", "desc"),
-      firestoreLimit(limitCount)
-    );
+    const expandedIds = expandCategoryIds(categoryFilter);
 
-    if (categoryFilter && categoryFilter !== "All") {
+    let q;
+    if (expandedIds && expandedIds.length === 1) {
       q = query(
         collection(firestore, "listings"),
-        where("categoryId", "==", categoryFilter),
+        where("categoryId", "==", expandedIds[0]),
+        orderBy("createdAt", "desc"),
+        firestoreLimit(limitCount)
+      );
+    } else if (expandedIds && expandedIds.length > 1) {
+      q = query(
+        collection(firestore, "listings"),
+        where("categoryId", "in", expandedIds.slice(0, 10)),
+        orderBy("createdAt", "desc"),
+        firestoreLimit(limitCount)
+      );
+    } else {
+      q = query(
+        collection(firestore, "listings"),
         orderBy("createdAt", "desc"),
         firestoreLimit(limitCount)
       );

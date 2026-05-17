@@ -11,9 +11,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
+import Constants from 'expo-constants';
 import { useAuth } from '../contexts/AuthContext';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { Card } from '../components/ui';
+import SEO from '../components/SEO';
 
 export default function ProfileScreen({ navigation }) {
   const { t, i18n } = useTranslation();
@@ -89,6 +91,7 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <SEO title="Profile" noIndex />
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.card} />
 
       {/* Header */}
@@ -167,7 +170,7 @@ export default function ProfileScreen({ navigation }) {
             <MenuItem
               icon="information-circle-outline"
               title={t('profile.about')}
-              subtitle={t('profile.version')}
+              subtitle={`Version ${Constants.expoConfig?.version || '1.2.7'}`}
               onPress={() => {
                 console.log('✅ Navigating to About');
                 navigation.navigate('About');

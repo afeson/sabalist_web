@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+Allow: /listing/
+Allow: /category/
+Allow: /about
+Allow: /terms
+Allow: /help
+Disallow: /favorites
+Disallow: /my-listings
+Disallow: /profile
+Disallow: /edit-profile
+Disallow: /create
+Disallow: /auth
+Disallow: /notifications
+
+Sitemap: https://sabalist.web.app/sitemap.xml

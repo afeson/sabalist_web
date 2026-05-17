@@ -1,14 +1,19 @@
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, FlatList, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, FlatList, RefreshControl, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useState, useCallback, useEffect } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getSubCategories, getCategoryIcon } from '../config/categories';
-import { getTranslatedCategoryLabel } from '../utils/categoryI18n';
+import { getTranslatedCategoryLabel, getTranslatedSubCategoryLabel } from '../utils/categoryI18n';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
+import SEO from '../components/SEO';
+import { generateBreadcrumbSchema } from '../utils/seo';
+import { getCategoryId } from '../config/categoryMapping';
 
 export default function SubCategoriesScreen({ route, navigation }) {
   const { t, i18n } = useTranslation();
+  const insets = useSafeAreaInsets();
   const { category } = route.params;
   const subCategories = getSubCategories(category);
   const [refreshing, setRefreshing] = useState(false);
@@ -40,7 +45,7 @@ export default function SubCategoriesScreen({ route, navigation }) {
     navigation.navigate('CategoryListings', {
       category,
       subcategoryId: subCategory.id,
-      title: t(subCategory.labelKey)
+      title: getTranslatedSubCategoryLabel(subCategory, t)
     });
   };
 
@@ -53,25 +58,35 @@ export default function SubCategoriesScreen({ route, navigation }) {
       <View style={styles.iconContainer}>
         <Ionicons name={item.icon} size={28} color={COLORS.primary} />
       </View>
-      <Text style={styles.subCategoryLabel}>{t(item.labelKey)}</Text>
+      <Text style={styles.subCategoryLabel}>{getTranslatedSubCategoryLabel(item, t)}</Text>
       <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
     </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
+      <SEO
+        title={`${category} - Subcategories`}
+        description={`Browse subcategories in ${category} on Sabalist. Find electronics, vehicles, furniture and more.`}
+        canonicalUrl={`/category/${getCategoryId(category)}`}
+        jsonLd={[generateBreadcrumbSchema([
+          { name: 'Home', url: '/' },
+          { name: category, url: `/category/${getCategoryId(category)}` },
+        ])]}
+      />
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.card} />
 
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.textDark} />
+      <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? insets.top + SPACING.xs : SPACING.md }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Ionicons name="chevron-back" size={22} color={COLORS.primary} />
+          <Text style={styles.backLabel}>{t('common.back') || 'Back'}</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Ionicons name={getCategoryIcon(category)} size={24} color={COLORS.primary} />
           <Text style={styles.headerTitle}>{getTranslatedCategoryLabel(category, t)}</Text>
         </View>
-        <View style={{ width: 24 }} />
+        <View style={{ width: 60 }} />
       </View>
 
       {/* Sub-Categories List */}
@@ -125,7 +140,15 @@ const styles = StyleSheet.create({
     ...SHADOWS.small,
   },
   backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: SPACING.xs,
+  },
+  backLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.primary,
+    marginLeft: 2,
   },
   headerCenter: {
     flexDirection: 'row',

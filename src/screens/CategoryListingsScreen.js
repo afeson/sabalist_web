@@ -7,10 +7,12 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   StatusBar,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PREMIUM_COLORS, PREMIUM_SPACING, PREMIUM_RADIUS, PREMIUM_SHADOWS } from '../theme/premiumTheme';
 import { ListingCard } from '../components/ui';
 import { getCategoryIcon } from '../config/categories';
@@ -18,10 +20,13 @@ import { getCategoryId } from '../config/categoryMapping';
 import { getFirestore, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { subscribeToFavorites, addToFavorites, removeFromFavorites } from '../services/favoritesService';
+import SEO from '../components/SEO';
+import { generateCategoryItemListSchema, generateBreadcrumbSchema } from '../utils/seo';
 
 export default function CategoryListingsScreen({ route, navigation }) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const { category, subcategoryId, title } = route.params;
 
   const [listings, setListings] = useState([]);
@@ -156,18 +161,32 @@ export default function CategoryListingsScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
+      <SEO
+        title={`${category} for Sale`}
+        description={`Browse ${category} listings on Sabalist. Find the best deals in Africa.`}
+        canonicalUrl={subcategoryId ? `/category/${getCategoryId(category)}/${subcategoryId}` : `/category/${getCategoryId(category)}`}
+        jsonLd={[
+          generateCategoryItemListSchema(listings, category),
+          generateBreadcrumbSchema([
+            { name: 'Home', url: '/' },
+            { name: category, url: `/category/${getCategoryId(category)}` },
+            ...(subcategoryId ? [{ name: title || subcategoryId, url: `/category/${getCategoryId(category)}/${subcategoryId}` }] : []),
+          ]),
+        ]}
+      />
       <StatusBar barStyle="dark-content" backgroundColor={PREMIUM_COLORS.card} />
 
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={PREMIUM_COLORS.text} />
+      <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? insets.top + PREMIUM_SPACING.xs : PREMIUM_SPACING.md }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Ionicons name="chevron-back" size={22} color={PREMIUM_COLORS.accent} />
+          <Text style={styles.backLabel}>{t('common.back') || 'Back'}</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Ionicons name={getCategoryIcon(category)} size={24} color={PREMIUM_COLORS.accent} />
           <Text style={styles.headerTitle}>{title || category}</Text>
         </View>
-        <View style={{ width: 24 }} />
+        <View style={{ width: 60 }} />
       </View>
 
       {/* Listings Grid */}
@@ -201,7 +220,15 @@ const styles = StyleSheet.create({
     ...PREMIUM_SHADOWS.card,
   },
   backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: PREMIUM_SPACING.xs,
+  },
+  backLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: PREMIUM_COLORS.accent,
+    marginLeft: 2,
   },
   headerCenter: {
     flexDirection: 'row',

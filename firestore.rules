@@ -3,16 +3,23 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Listings collection - OPEN FOR TESTING
+    // Listings collection
+    // Native iOS/Android uses @react-native-firebase/auth but JS SDK Firestore,
+    // so request.auth may be null on native. Validate userId field instead.
     match /listings/{listingId} {
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
+      allow create: if request.auth != null
+                    || (request.resource.data.userId is string
+                        && request.resource.data.userId.size() > 0);
+      allow update: if request.auth != null
+                    || (request.resource.data.userId is string
+                        && request.resource.data.userId.size() > 0);
+      allow delete: if request.auth != null;
     }
 
     // Users collection - Allow users to read/write their own data
     match /users/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
+      allow read: if true;
       allow write: if request.auth != null && request.auth.uid == userId;
 
       // Favorites subcollection - users can manage their own favorites

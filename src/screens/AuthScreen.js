@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ScrollView,
   Image,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +18,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Platform-aware Firebase imports
 let auth, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink, GoogleAuthProvider, signInWithPopup;
+let RecaptchaVerifier, signInWithPhoneNumberWeb;
+let GoogleSignin;
 if (Platform.OS === 'web') {
   const firebaseWeb = require('../lib/firebase.web');
   const firebaseAuth = require('firebase/auth');
@@ -26,24 +29,61 @@ if (Platform.OS === 'web') {
   signInWithEmailLink = firebaseAuth.signInWithEmailLink;
   GoogleAuthProvider = firebaseAuth.GoogleAuthProvider;
   signInWithPopup = firebaseAuth.signInWithPopup;
+  RecaptchaVerifier = firebaseAuth.RecaptchaVerifier;
+  signInWithPhoneNumberWeb = firebaseAuth.signInWithPhoneNumber;
 } else {
   // Native (Android/iOS) - @react-native-firebase
   const firebaseNative = require('../lib/firebase');
   auth = firebaseNative.auth;
-  // These methods exist on the auth() instance for native
+  // Native Google Sign-In
+  try {
+    const googleSignIn = require('@react-native-google-signin/google-signin');
+    GoogleSignin = googleSignIn.GoogleSignin;
+    GoogleSignin.configure({
+      webClientId: '231273918004-smt9rcdm8omt68aefj2bv0pk3n5202kc.apps.googleusercontent.com',
+    });
+    console.log('Google Sign-In configured');
+  } catch (e) {
+    console.warn('Google Sign-In not available:', e.message);
+  }
 }
 
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { PrimaryButton, Card } from '../components/ui';
 import Input from '../components/Input';
+import OpenMailApp from '../components/auth/OpenMailApp';
+import ResendCountdown from '../components/auth/ResendCountdown';
+
+// 'phone' is the recommended primary path: SMS is far more reliable than
+// email on mobile-first African markets where users rarely check inboxes
+// and email is frequently routed to spam. Magic link is retained as a
+// secondary option.
+const METHODS = {
+  PHONE: 'phone',
+  EMAIL: 'email',
+};
 
 export default function AuthScreen() {
   const { t, i18n } = useTranslation();
+  const [authMethod, setAuthMethod] = useState(METHODS.PHONE);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [emailSentAt, setEmailSentAt] = useState(0); // resetKey for ResendCountdown
   const [error, setError] = useState('');
   const [, forceUpdate] = useState(0);
+
+  // Phone OTP state
+  const [phone, setPhone] = useState('');
+  const [code, setCode] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
+  const [codeSentAt, setCodeSentAt] = useState(0);
+  const [verifyingCode, setVerifyingCode] = useState(false);
+  // Holds the Firebase confirmation object between "send" and "verify"
+  // (web: ConfirmationResult, native: PhoneAuthSnapshot)
+  const phoneConfirmationRef = useRef(null);
+  // Holds the RecaptchaVerifier instance on web so we can clean it up
+  const recaptchaVerifierRef = useRef(null);
 
   // Force re-render when language changes (even if screen is already focused)
   useEffect(() => {
@@ -312,6 +352,7 @@ export default function AuthScreen() {
 
       console.log('✅ Magic link sent successfully!');
       setEmailSent(true);
+      setEmailSentAt(Date.now());
       setLoading(false);
 
       Alert.alert(
@@ -341,38 +382,176 @@ export default function AuthScreen() {
     }
   }
 
-  async function signInWithGoogle() {
-    if (Platform.OS !== 'web') {
-      Alert.alert(t('auth.googleNotAvailable'), t('auth.googleNotAvailableMessage'));
+  /**
+   * Validate a phone number in E.164-ish form. Firebase requires the
+   * leading `+` and country code (e.g. +254712345678). We don't do full
+   * country validation here — just shape — and let Firebase reject
+   * obviously bad numbers.
+   */
+  function isValidE164(value) {
+    return /^\+\d{8,15}$/.test(value.replace(/\s/g, ''));
+  }
+
+  /**
+   * Lazily create (or reuse) the invisible reCAPTCHA verifier for web.
+   * The DOM container `#recaptcha-container` is rendered below by RN-Web
+   * via `nativeID`.
+   */
+  async function getRecaptchaVerifier() {
+    if (Platform.OS !== 'web') return null;
+    if (recaptchaVerifierRef.current) return recaptchaVerifierRef.current;
+    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      size: 'invisible',
+    });
+    await verifier.render();
+    recaptchaVerifierRef.current = verifier;
+    return verifier;
+  }
+
+  /** Reset the phone flow so the user can restart (e.g. wrong number). */
+  function resetPhoneFlow() {
+    setCode('');
+    setCodeSent(false);
+    phoneConfirmationRef.current = null;
+    if (recaptchaVerifierRef.current?.clear) {
+      try { recaptchaVerifierRef.current.clear(); } catch {}
+    }
+    recaptchaVerifierRef.current = null;
+  }
+
+  /** Send the 6-digit OTP to the phone number. */
+  async function sendPhoneCode() {
+    const trimmed = phone.replace(/\s/g, '');
+    if (!isValidE164(trimmed)) {
+      Alert.alert(t('auth.invalidPhoneNumber'), t('auth.invalidPhoneMessage'));
       return;
     }
 
     try {
       setLoading(true);
       setError('');
+      console.log('📱 Sending OTP to:', trimmed);
 
-      console.log('🔵 Starting Google Sign-In...');
+      let confirmation;
+      if (Platform.OS === 'web') {
+        const verifier = await getRecaptchaVerifier();
+        confirmation = await signInWithPhoneNumberWeb(auth, trimmed, verifier);
+      } else {
+        confirmation = await auth().signInWithPhoneNumber(trimmed);
+      }
 
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-
-      console.log('✅ User signed in:', result.user.uid);
-
+      phoneConfirmationRef.current = confirmation;
+      setCodeSent(true);
+      setCodeSentAt(Date.now());
       setLoading(false);
-
-      Alert.alert(t('auth.welcomeUser'), t('auth.signedInAs', { user: result.user.displayName || result.user.email }));
+      console.log('✅ OTP sent');
     } catch (e) {
       setLoading(false);
-      console.error('❌ Google Sign-In error:', e);
+      console.error('❌ sendPhoneCode error:', e);
+      let title = t('common.error');
+      let message = e.message || 'Could not send code';
+      if (e.code === 'auth/invalid-phone-number') {
+        title = t('auth.invalidPhoneNumber');
+        message = t('auth.invalidPhoneMessage');
+      } else if (e.code === 'auth/too-many-requests' || e.code === 'auth/quota-exceeded') {
+        title = t('auth.smsQuotaExceeded') || 'Too many attempts';
+        message = t('auth.smsQuotaMessage') || 'Please try again later.';
+      }
+      setError(`${e.code || 'error'}: ${e.message}`);
+      Alert.alert(title, message);
+      // Recaptcha can get stuck after an error — reset it so the next send works.
+      if (recaptchaVerifierRef.current?.clear) {
+        try { recaptchaVerifierRef.current.clear(); } catch {}
+        recaptchaVerifierRef.current = null;
+      }
+    }
+  }
 
-      let errorMessage = e.message;
-      if (e.code === 'auth/popup-closed-by-user') {
+  /** Verify the user-entered 6-digit code and sign in. */
+  async function verifyPhoneCode() {
+    const clean = code.replace(/\s/g, '');
+    if (clean.length < 6) {
+      Alert.alert(
+        t('auth.codeRequired') || 'Enter the 6-digit code',
+        t('auth.codeRequiredMessage') || 'Please enter the verification code you received'
+      );
+      return;
+    }
+    if (!phoneConfirmationRef.current) {
+      Alert.alert(t('common.error'), 'No active verification. Please request a new code.');
+      setCodeSent(false);
+      return;
+    }
+
+    try {
+      setVerifyingCode(true);
+      setError('');
+      const result = await phoneConfirmationRef.current.confirm(clean);
+      console.log('✅ Phone sign-in complete:', result?.user?.uid);
+      // Auth state listener takes over — no manual navigation needed.
+    } catch (e) {
+      console.error('❌ verifyPhoneCode error:', e);
+      let message = e.message || 'Verification failed';
+      if (e.code === 'auth/invalid-verification-code') {
+        message = t('auth.invalidCode') || 'Invalid code. Please try again.';
+      } else if (e.code === 'auth/code-expired') {
+        message = t('auth.codeExpired') || 'Code expired. Please request a new one.';
+        setCodeSent(false);
+      }
+      setError(`${e.code || 'error'}: ${e.message}`);
+      Alert.alert(t('auth.verificationFailed') || t('common.error'), message);
+    } finally {
+      setVerifyingCode(false);
+    }
+  }
+
+  async function signInWithGoogle() {
+    try {
+      setLoading(true);
+      setError('');
+
+      console.log('Starting Google Sign-In...');
+
+      if (Platform.OS === 'web') {
+        const provider = new GoogleAuthProvider();
+        const result = await signInWithPopup(auth, provider);
+        console.log('User signed in:', result.user.uid);
+      } else {
+        // Native Google Sign-In
+        if (!GoogleSignin) {
+          Alert.alert('Error', 'Google Sign-In is not available on this device.');
+          setLoading(false);
+          return;
+        }
+
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        const signInResult = await GoogleSignin.signIn();
+        const idToken = signInResult?.data?.idToken || signInResult?.idToken;
+
+        if (!idToken) {
+          throw new Error('No ID token received from Google Sign-In');
+        }
+
+        console.log('Google ID token obtained, signing into Firebase...');
+        const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+        const result = await auth().signInWithCredential(googleCredential);
+        console.log('User signed in:', result.user.uid);
+      }
+
+      setLoading(false);
+      console.log('Sign-in complete. Auth state listener will handle navigation.');
+    } catch (e) {
+      setLoading(false);
+      console.error('Google Sign-In error:', e);
+
+      // User cancelled
+      if (e.code === 'auth/popup-closed-by-user' || e.code === 'SIGN_IN_CANCELLED' || e.code === '12501') {
         console.log('User cancelled Google Sign-In');
         return;
       }
 
-      setError(`${e.code}: ${e.message}`);
-      Alert.alert(t('auth.googleSignInFailed'), errorMessage);
+      setError(`${e.code || 'error'}: ${e.message}`);
+      Alert.alert(t('auth.googleSignInFailed') || 'Sign-In Failed', e.message);
     }
   }
 
@@ -398,33 +577,165 @@ export default function AuthScreen() {
 
         {/* Auth Card */}
         <Card style={styles.authCard}>
-          <View style={styles.welcomeSection}>
-            <Text style={styles.welcomeTitle}>
-              {emailSent ? t('auth.checkYourEmail') : t('auth.welcome')}
-            </Text>
-            <Text style={styles.welcomeText}>
-              {emailSent
-                ? t('auth.linkSentTo', { email })
-                : t('auth.noPasswordNeeded')
-              }
-            </Text>
-
-            {/* Error Display */}
-            {error ? (
-              <View style={styles.errorBox}>
-                <Ionicons name="alert-circle" size={20} color={COLORS.error} />
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            ) : null}
+          {/* Method tabs: Phone (primary) | Email */}
+          <View style={styles.tabRow}>
+            <TouchableOpacity
+              style={[styles.tab, authMethod === METHODS.PHONE && styles.tabActive]}
+              onPress={() => {
+                setError('');
+                setAuthMethod(METHODS.PHONE);
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="call"
+                size={16}
+                color={authMethod === METHODS.PHONE ? COLORS.primary : COLORS.textMuted}
+              />
+              <Text style={[styles.tabText, authMethod === METHODS.PHONE && styles.tabTextActive]}>
+                {t('auth.phoneTab') !== 'auth.phoneTab' ? t('auth.phoneTab') : 'Phone'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, authMethod === METHODS.EMAIL && styles.tabActive]}
+              onPress={() => {
+                setError('');
+                setAuthMethod(METHODS.EMAIL);
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="mail"
+                size={16}
+                color={authMethod === METHODS.EMAIL ? COLORS.primary : COLORS.textMuted}
+              />
+              <Text style={[styles.tabText, authMethod === METHODS.EMAIL && styles.tabTextActive]}>
+                {t('auth.emailTab') !== 'auth.emailTab' ? t('auth.emailTab') : 'Email'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {!emailSent ? (
+          {/* Error display (shared across methods) */}
+          {error ? (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle" size={20} color={COLORS.error} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          {/* ==================== PHONE TAB ==================== */}
+          {authMethod === METHODS.PHONE && !codeSent && (
             <>
+              <View style={styles.welcomeSection}>
+                <Text style={styles.welcomeTitle}>
+                  {t('auth.phoneSignInTitle') !== 'auth.phoneSignInTitle'
+                    ? t('auth.phoneSignInTitle')
+                    : 'Sign in with phone'}
+                </Text>
+                <Text style={styles.welcomeText}>
+                  {t('auth.phoneSignInDesc') !== 'auth.phoneSignInDesc'
+                    ? t('auth.phoneSignInDesc')
+                    : "We'll text you a 6-digit code"}
+                </Text>
+              </View>
+
+              <View style={styles.emailHint}>
+                <Ionicons name="information-circle" size={16} color={COLORS.info} />
+                <Text style={styles.hintText}>{t('auth.phoneHint')}</Text>
+              </View>
+
+              <Input
+                label={t('auth.phoneLabel')}
+                value={phone}
+                onChangeText={setPhone}
+                placeholder={t('auth.phonePlaceholder')}
+                keyboardType="phone-pad"
+                autoCapitalize="none"
+                autoCorrect={false}
+                showClear={true}
+                editable={!loading}
+              />
+
+              <PrimaryButton
+                title={t('auth.sendOTP')}
+                onPress={sendPhoneCode}
+                loading={loading}
+                disabled={loading}
+                size="large"
+              />
+
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>{t('auth.orDivider') || 'OR'}</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              <PrimaryButton
+                title={t('auth.continueWithGoogle') || 'Continue with Google'}
+                onPress={signInWithGoogle}
+                variant="outline"
+                size="large"
+                icon={<Ionicons name="logo-google" size={20} color={COLORS.primary} />}
+              />
+            </>
+          )}
+
+          {authMethod === METHODS.PHONE && codeSent && (
+            <>
+              <View style={styles.successBox}>
+                <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+                <Text style={styles.successText}>{t('auth.codeSentTo', { phone })}</Text>
+              </View>
+
+              <Input
+                label={t('auth.codeLabel')}
+                value={code}
+                onChangeText={setCode}
+                placeholder="123456"
+                keyboardType="number-pad"
+                autoCapitalize="none"
+                autoCorrect={false}
+                showClear={true}
+                editable={!verifyingCode}
+                maxLength={6}
+              />
+
+              <PrimaryButton
+                title={t('auth.verify')}
+                onPress={verifyPhoneCode}
+                loading={verifyingCode}
+                disabled={verifyingCode || code.length < 6}
+                size="large"
+              />
+
+              <View style={styles.fallbackRow}>
+                <ResendCountdown
+                  seconds={60}
+                  resetKey={codeSentAt}
+                  onResend={sendPhoneCode}
+                />
+                <TouchableOpacity onPress={resetPhoneFlow} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={styles.linkText}>
+                    {t('auth.changePhoneNumber') !== 'auth.changePhoneNumber'
+                      ? t('auth.changePhoneNumber')
+                      : 'Change number'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+
+          {/* ==================== EMAIL TAB ==================== */}
+          {authMethod === METHODS.EMAIL && !emailSent && (
+            <>
+              <View style={styles.welcomeSection}>
+                <Text style={styles.welcomeTitle}>{t('auth.welcome')}</Text>
+                <Text style={styles.welcomeText}>{t('auth.noPasswordNeeded')}</Text>
+              </View>
+
               <View style={styles.emailHint}>
                 <Ionicons name="mail" size={16} color={COLORS.info} />
-                <Text style={styles.hintText}>
-                  {t('auth.emailHint')}
-                </Text>
+                <Text style={styles.hintText}>{t('auth.emailHint')}</Text>
               </View>
 
               <Input
@@ -447,55 +758,96 @@ export default function AuthScreen() {
                 size="large"
               />
 
-              {/* Divider - only show on web */}
-              {Platform.OS === 'web' && (
-                <>
-                  <View style={styles.divider}>
-                    <View style={styles.dividerLine} />
-                    <Text style={styles.dividerText}>{t('auth.orDivider')}</Text>
-                    <View style={styles.dividerLine} />
-                  </View>
-
-                  {/* Google Sign-In Button - web only */}
-                  <PrimaryButton
-                    title={t('auth.continueWithGoogle')}
-                    onPress={signInWithGoogle}
-                    variant="outline"
-                    size="large"
-                    icon={
-                      <Ionicons name="logo-google" size={20} color={COLORS.primary} />
-                    }
-                  />
-                </>
-              )}
-            </>
-          ) : (
-            <>
-              <View style={styles.successBox}>
-                <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
-                <Text style={styles.successText}>
-                  {t('auth.loginLinkSentTo', { email })}
-                </Text>
-              </View>
-
-              <View style={styles.instructionsBox}>
-                <Text style={styles.instructionsTitle}>{t('auth.nextSteps')}</Text>
-                <Text style={styles.instructionsText}>
-                  {t('auth.nextStepsText')}
-                </Text>
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>{t('auth.orDivider') || 'OR'}</Text>
+                <View style={styles.dividerLine} />
               </View>
 
               <PrimaryButton
-                title={t('auth.sendAnotherLink')}
-                onPress={() => {
-                  setEmailSent(false);
-                  setEmail('');
-                }}
+                title={t('auth.continueWithGoogle') || 'Continue with Google'}
+                onPress={signInWithGoogle}
                 variant="outline"
-                size="medium"
-                style={styles.resendButton}
+                size="large"
+                icon={<Ionicons name="logo-google" size={20} color={COLORS.primary} />}
               />
             </>
+          )}
+
+          {authMethod === METHODS.EMAIL && emailSent && (
+            <>
+              <View style={styles.welcomeSection}>
+                <Text style={styles.welcomeTitle}>{t('auth.checkYourEmail')}</Text>
+                <Text style={styles.welcomeText}>{t('auth.linkSentTo', { email })}</Text>
+              </View>
+
+              <View style={styles.successBox}>
+                <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+                <Text style={styles.successText}>{t('auth.loginLinkSentTo', { email })}</Text>
+              </View>
+
+              {/* "Open Mail App" helper */}
+              <OpenMailApp />
+
+              {/* "Didn't receive?" fallback panel */}
+              <View style={styles.fallbackPanel}>
+                <Text style={styles.fallbackTitle}>
+                  {t('auth.didntReceive') !== 'auth.didntReceive'
+                    ? t('auth.didntReceive')
+                    : "Didn't receive the email?"}
+                </Text>
+                <View style={styles.fallbackBullet}>
+                  <Ionicons name="ellipse" size={6} color={COLORS.textMuted} />
+                  <Text style={styles.fallbackText}>
+                    {t('auth.checkSpam') !== 'auth.checkSpam'
+                      ? t('auth.checkSpam')
+                      : 'Check your spam or promotions folder'}
+                  </Text>
+                </View>
+                <View style={styles.fallbackRow}>
+                  <ResendCountdown
+                    seconds={60}
+                    resetKey={emailSentAt}
+                    onResend={sendMagicLink}
+                  />
+                  <TouchableOpacity
+                    onPress={() => {
+                      setEmailSent(false);
+                      setEmail('');
+                    }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={styles.linkText}>
+                      {t('auth.useDifferentEmail') !== 'auth.useDifferentEmail'
+                        ? t('auth.useDifferentEmail')
+                        : 'Use a different email'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.tryAnotherBtn}
+                  onPress={() => {
+                    setAuthMethod(METHODS.PHONE);
+                    setEmailSent(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="call" size={16} color={COLORS.primary} />
+                  <Text style={styles.tryAnotherText}>
+                    {t('auth.tryPhoneInstead') !== 'auth.tryPhoneInstead'
+                      ? t('auth.tryPhoneInstead')
+                      : 'Use phone number instead'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+
+          {/* Invisible reCAPTCHA container — web only, required by Firebase
+              phone auth. RN-Web maps nativeID -> id. */}
+          {Platform.OS === 'web' && (
+            <View nativeID="recaptcha-container" style={styles.recaptcha} />
           )}
         </Card>
 
@@ -676,6 +1028,95 @@ const styles = StyleSheet.create({
   },
   resendButton: {
     marginTop: SPACING.md,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
+    padding: 4,
+    marginBottom: SPACING.lg,
+    gap: 4,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.sm,
+  },
+  tabActive: {
+    backgroundColor: COLORS.card,
+    ...SHADOWS.small,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+  },
+  tabTextActive: {
+    color: COLORS.primary,
+    fontWeight: '700',
+  },
+  fallbackPanel: {
+    marginTop: SPACING.lg,
+    paddingTop: SPACING.lg,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.cardBorder,
+  },
+  fallbackTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.textDark,
+    marginBottom: SPACING.sm,
+  },
+  fallbackBullet: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  fallbackText: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    flexShrink: 1,
+  },
+  fallbackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  linkText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.primary,
+    textDecorationLine: 'underline',
+  },
+  tryAnotherBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    backgroundColor: `${COLORS.primary}10`,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.base,
+    borderRadius: RADIUS.md,
+    marginTop: SPACING.md,
+    borderWidth: 1,
+    borderColor: `${COLORS.primary}30`,
+  },
+  tryAnotherText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  recaptcha: {
+    height: 0,
+    width: 0,
+    overflow: 'hidden',
   },
   featuresSection: {
     gap: SPACING.base,

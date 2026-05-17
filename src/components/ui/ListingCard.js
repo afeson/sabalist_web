@@ -35,8 +35,11 @@ export default function ListingCard({
       e.preventDefault && e.preventDefault();
       e.nativeEvent && e.nativeEvent.stopImmediatePropagation && e.nativeEvent.stopImmediatePropagation();
     }
+    console.log('❤️ Heart pressed for listing:', listing.id, '| isFavorited:', isFavorited, '| has onFavoriteToggle:', !!onFavoriteToggle);
     if (onFavoriteToggle) {
       onFavoriteToggle(listing.id, !isFavorited);
+    } else {
+      console.warn('❤️ No onFavoriteToggle handler passed to ListingCard');
     }
   };
 
@@ -63,15 +66,12 @@ export default function ListingCard({
         >
           {/* Image */}
           <div style={{ width: '100%', height: 130, backgroundColor: '#F3F4F6', position: 'relative' }}>
-            <Image
-              source={
-                imageUri
-                  ? { uri: imageUri, cache: 'reload' }
-                  : require('../../../assets/sabalist_app_icon_1024.png')
-              }
-              style={{ width: '100%', height: '100%' }}
-              resizeMode="cover"
-              key={imageUri}
+            <img
+              src={imageUri || require('../../../assets/sabalist_app_icon_1024.png')}
+              alt={title || 'Listing image'}
+              loading="lazy"
+              decoding="async"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
           </div>
 
@@ -139,6 +139,7 @@ export default function ListingCard({
             style={styles.image}
             resizeMode="cover"
             key={imageUri}
+            accessibilityLabel={title || 'Listing image'}
           />
         </View>
 

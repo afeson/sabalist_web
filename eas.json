@@ -27,11 +27,20 @@
     },
     "production": {
       "extends": "base",
+      "cache": {
+        "disabled": true
+      },
+      "env": {
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
+        "NO_FLIPPER": "1"
+      },
       "android": {
         "buildType": "app-bundle"
       },
       "ios": {
-        "resourceClass": "m-medium"
+        "resourceClass": "m-medium",
+        "distribution": "store",
+        "image": "macos-sequoia-15.6-xcode-16.4"
       }
     }
   },
