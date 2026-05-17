@@ -55,7 +55,7 @@ module.exports = ({ config }) => {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.sabalist.app',
-      buildNumber: '6',
+      buildNumber: '7',
       icon: './assets/branding/sabalist-icon-square.png',
       googleServicesFile: process.env.GOOGLE_SERVICES_PLIST || './ios/GoogleService-Info.plist',
       associatedDomains: [

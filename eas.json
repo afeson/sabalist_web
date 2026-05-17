@@ -40,11 +40,19 @@
       "ios": {
         "resourceClass": "m-medium",
         "distribution": "store",
-        "image": "macos-sequoia-15.6-xcode-16.4"
+        "image": "macos-sequoia-15.6-xcode-26.0"
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6759536317",
+        "appleTeamId": "4UDZ22DAFP",
+        "ascApiKeyPath": "./AuthKey_YZ25AY48W8.p8",
+        "ascApiKeyId": "YZ25AY48W8",
+        "ascApiKeyIssuerId": "e065ba7d-5d43-40f7-9f44-32a01b9f165c"
+      }
+    }
   }
 }
