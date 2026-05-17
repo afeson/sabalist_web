@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "231273918004-siv9tagc0e1m129blbsb0oqm873enuhi.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.sabalist.app",
+            "certificate_hash": "5a90fc1849ac252d297c1d7c5ba413ef55bf2846"
+          }
+        },
+        {
           "client_id": "231273918004-v4vltioa49t43rdcqecoq2vnh1516ks6.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

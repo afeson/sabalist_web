@@ -41,7 +41,7 @@ module.exports = ({ config }) => {
     name: 'Sabalist',
     slug: 'sabalist',
     owner: 'afrson',
-    version: '1.3.2',
+    version: '1.3.3',
     orientation: 'portrait',
     icon: './assets/branding/sabalist-icon-square.png',
     userInterfaceStyle: 'light',
@@ -70,7 +70,7 @@ module.exports = ({ config }) => {
     },
     android: {
       package: 'com.sabalist.app',
-      versionCode: 22,
+      versionCode: 23,
       icon: './assets/branding/sabalist-icon-square.png',
       adaptiveIcon: {
         foregroundImage: './assets/branding/sabalist-icon-square.png',
