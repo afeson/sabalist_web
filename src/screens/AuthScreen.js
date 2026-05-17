@@ -63,6 +63,37 @@ const METHODS = {
   EMAIL: 'email',
 };
 
+// Race any native-auth promise against a timeout so the UI is never stuck
+// spinning if the underlying SDK hangs (most common cause on Android:
+// Play Integrity / SafetyNet attestation never resolving when the running
+// app's signing-key SHA isn't registered in Firebase).
+const AUTH_TIMEOUT_MS = 20000;
+function withAuthTimeout(promise, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const err = new Error(`Timed out after ${AUTH_TIMEOUT_MS / 1000}s: ${label}`);
+      err.code = 'auth/timeout';
+      err.label = label;
+      reject(err);
+    }, AUTH_TIMEOUT_MS);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+function logAuthError(label, e) {
+  const dump = {
+    label,
+    code: e?.code,
+    message: e?.message,
+    nativeErrorCode: e?.nativeErrorCode,
+    userInfo: e?.userInfo,
+  };
+  console.error('AUTH_ERROR', JSON.stringify(dump));
+  try { console.error('AUTH_ERROR_RAW', e); } catch {}
+  try { console.error('AUTH_ERROR_STACK', e?.stack); } catch {}
+}
+
 export default function AuthScreen() {
   const { t, i18n } = useTranslation();
   const [authMethod, setAuthMethod] = useState(METHODS.PHONE);
@@ -227,14 +258,20 @@ export default function AuthScreen() {
 
         if (Platform.OS === 'web') {
           // Web: Firebase Web SDK
-          const result = await signInWithEmailLink(auth, emailAddress, link);
+          const result = await withAuthTimeout(
+            signInWithEmailLink(auth, emailAddress, link),
+            'web.signInWithEmailLink'
+          );
           console.log('✅ User signed in:', result.user.uid);
 
           // Clear saved email
           window.localStorage.removeItem('emailForSignIn');
         } else {
           // Native: React Native Firebase
-          const result = await auth().signInWithEmailLink(emailAddress, link);
+          const result = await withAuthTimeout(
+            auth().signInWithEmailLink(emailAddress, link),
+            'native.signInWithEmailLink'
+          );
           console.log('✅ User signed in:', result.user.uid);
 
           // Clear saved email
@@ -244,13 +281,15 @@ export default function AuthScreen() {
         // Don't show alert - let the auth state listener in App.js handle navigation
         console.log('✅ Sign-in complete. Auth state listener will handle navigation.');
       } catch (e) {
-        console.error('❌ Sign-in error:', e);
+        logAuthError('completeSignIn', e);
 
-        let errorMessage = e.message;
+        let errorMessage = `[${e.code || 'unknown'}] ${e.message || 'Unknown error'}`;
         if (e.code === 'auth/invalid-action-code') {
           errorMessage = t('auth.linkExpired');
         } else if (e.code === 'auth/invalid-email') {
           errorMessage = t('auth.pleaseEnterValidEmail');
+        } else if (e.code === 'auth/timeout') {
+          errorMessage = 'Sign-in timed out. Check your internet and try again.';
         }
 
         Alert.alert(t('auth.signInFailed'), errorMessage);
@@ -341,11 +380,17 @@ export default function AuthScreen() {
 
       // Send email link (platform-aware)
       if (Platform.OS === 'web') {
-        await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+        await withAuthTimeout(
+          sendSignInLinkToEmail(auth, email, actionCodeSettings),
+          'web.sendSignInLinkToEmail'
+        );
         // Save email locally
         window.localStorage.setItem('emailForSignIn', email);
       } else {
-        await auth().sendSignInLinkToEmail(email, actionCodeSettings);
+        await withAuthTimeout(
+          auth().sendSignInLinkToEmail(email, actionCodeSettings),
+          'native.sendSignInLinkToEmail'
+        );
         // Save email locally
         await AsyncStorage.setItem('emailForSignIn', email);
       }
@@ -353,17 +398,15 @@ export default function AuthScreen() {
       console.log('✅ Magic link sent successfully!');
       setEmailSent(true);
       setEmailSentAt(Date.now());
-      setLoading(false);
 
       Alert.alert(
         t('auth.checkEmail'),
         t('auth.magicLinkSent', { email })
       );
     } catch (e) {
-      setLoading(false);
-      console.error('❌ Send magic link error:', e);
+      logAuthError('sendMagicLink', e);
 
-      let errorMessage = e.message;
+      let errorMessage = `[${e.code || 'unknown'}] ${e.message || 'Unknown error'}`;
       let errorTitle = t('common.error');
 
       if (e.code === 'auth/invalid-email') {
@@ -375,10 +418,15 @@ export default function AuthScreen() {
       } else if (e.code === 'auth/unauthorized-continue-uri') {
         errorTitle = t('auth.configError');
         errorMessage = t('auth.configErrorMessage');
+      } else if (e.code === 'auth/timeout') {
+        errorTitle = 'Sign-in timed out';
+        errorMessage = 'The server did not respond. Check your internet and try again.';
       }
 
-      setError(`${e.code}: ${e.message}`);
+      setError(`${e.code || 'error'}: ${e.message || ''}`);
       Alert.alert(errorTitle, errorMessage);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -435,27 +483,37 @@ export default function AuthScreen() {
       let confirmation;
       if (Platform.OS === 'web') {
         const verifier = await getRecaptchaVerifier();
-        confirmation = await signInWithPhoneNumberWeb(auth, trimmed, verifier);
+        confirmation = await withAuthTimeout(
+          signInWithPhoneNumberWeb(auth, trimmed, verifier),
+          'web.signInWithPhoneNumber'
+        );
       } else {
-        confirmation = await auth().signInWithPhoneNumber(trimmed);
+        confirmation = await withAuthTimeout(
+          auth().signInWithPhoneNumber(trimmed),
+          'native.signInWithPhoneNumber'
+        );
       }
 
       phoneConfirmationRef.current = confirmation;
       setCodeSent(true);
       setCodeSentAt(Date.now());
-      setLoading(false);
       console.log('✅ OTP sent');
     } catch (e) {
-      setLoading(false);
-      console.error('❌ sendPhoneCode error:', e);
+      logAuthError('sendPhoneCode', e);
       let title = t('common.error');
-      let message = e.message || 'Could not send code';
+      let message = `[${e.code || 'unknown'}] ${e.message || 'Could not send code'}`;
       if (e.code === 'auth/invalid-phone-number') {
         title = t('auth.invalidPhoneNumber');
         message = t('auth.invalidPhoneMessage');
       } else if (e.code === 'auth/too-many-requests' || e.code === 'auth/quota-exceeded') {
         title = t('auth.smsQuotaExceeded') || 'Too many attempts';
         message = t('auth.smsQuotaMessage') || 'Please try again later.';
+      } else if (e.code === 'auth/timeout') {
+        title = 'OTP request timed out';
+        message = 'Firebase did not respond. On Android this usually means the running app\'s SHA-1 is not registered in Firebase Console. Try another method or contact support.';
+      } else if (e.code === 'auth/app-not-authorized' || e.code === 'auth/missing-app-credential') {
+        title = 'App not authorized';
+        message = 'This app build is not authorized for phone sign-in. The signing key SHA must be added in Firebase Console.';
       }
       setError(`${e.code || 'error'}: ${e.message}`);
       Alert.alert(title, message);
@@ -464,6 +522,8 @@ export default function AuthScreen() {
         try { recaptchaVerifierRef.current.clear(); } catch {}
         recaptchaVerifierRef.current = null;
       }
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -486,17 +546,22 @@ export default function AuthScreen() {
     try {
       setVerifyingCode(true);
       setError('');
-      const result = await phoneConfirmationRef.current.confirm(clean);
+      const result = await withAuthTimeout(
+        phoneConfirmationRef.current.confirm(clean),
+        'phoneConfirmation.confirm'
+      );
       console.log('✅ Phone sign-in complete:', result?.user?.uid);
       // Auth state listener takes over — no manual navigation needed.
     } catch (e) {
-      console.error('❌ verifyPhoneCode error:', e);
-      let message = e.message || 'Verification failed';
+      logAuthError('verifyPhoneCode', e);
+      let message = `[${e.code || 'unknown'}] ${e.message || 'Verification failed'}`;
       if (e.code === 'auth/invalid-verification-code') {
         message = t('auth.invalidCode') || 'Invalid code. Please try again.';
       } else if (e.code === 'auth/code-expired') {
         message = t('auth.codeExpired') || 'Code expired. Please request a new one.';
         setCodeSent(false);
+      } else if (e.code === 'auth/timeout') {
+        message = 'Verification timed out. Try requesting a new code.';
       }
       setError(`${e.code || 'error'}: ${e.message}`);
       Alert.alert(t('auth.verificationFailed') || t('common.error'), message);
@@ -514,18 +579,26 @@ export default function AuthScreen() {
 
       if (Platform.OS === 'web') {
         const provider = new GoogleAuthProvider();
-        const result = await signInWithPopup(auth, provider);
+        const result = await withAuthTimeout(
+          signInWithPopup(auth, provider),
+          'web.signInWithPopup'
+        );
         console.log('User signed in:', result.user.uid);
       } else {
         // Native Google Sign-In
         if (!GoogleSignin) {
           Alert.alert('Error', 'Google Sign-In is not available on this device.');
-          setLoading(false);
           return;
         }
 
-        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-        const signInResult = await GoogleSignin.signIn();
+        await withAuthTimeout(
+          GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true }),
+          'GoogleSignin.hasPlayServices'
+        );
+        const signInResult = await withAuthTimeout(
+          GoogleSignin.signIn(),
+          'GoogleSignin.signIn'
+        );
         const idToken = signInResult?.data?.idToken || signInResult?.idToken;
 
         if (!idToken) {
@@ -534,15 +607,16 @@ export default function AuthScreen() {
 
         console.log('Google ID token obtained, signing into Firebase...');
         const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-        const result = await auth().signInWithCredential(googleCredential);
+        const result = await withAuthTimeout(
+          auth().signInWithCredential(googleCredential),
+          'native.signInWithCredential'
+        );
         console.log('User signed in:', result.user.uid);
       }
 
-      setLoading(false);
       console.log('Sign-in complete. Auth state listener will handle navigation.');
     } catch (e) {
-      setLoading(false);
-      console.error('Google Sign-In error:', e);
+      logAuthError('signInWithGoogle', e);
 
       // User cancelled
       if (e.code === 'auth/popup-closed-by-user' || e.code === 'SIGN_IN_CANCELLED' || e.code === '12501') {
@@ -550,8 +624,21 @@ export default function AuthScreen() {
         return;
       }
 
+      let title = t('auth.googleSignInFailed') || 'Sign-In Failed';
+      let message = `[${e.code || 'unknown'}] ${e.message || 'Unknown error'}`;
+      // DEVELOPER_ERROR (10) almost always = SHA fingerprint mismatch in Firebase.
+      if (e.code === 'DEVELOPER_ERROR' || e.code === '10') {
+        title = 'Google Sign-In not configured';
+        message = 'This app build\'s SHA-1 fingerprint is not registered in Firebase Console. Both the Google Play signing key and the upload key SHAs must be added.';
+      } else if (e.code === 'auth/timeout') {
+        title = 'Sign-in timed out';
+        message = 'Google did not respond. Check internet, or another method.';
+      }
+
       setError(`${e.code || 'error'}: ${e.message}`);
-      Alert.alert(t('auth.googleSignInFailed') || 'Sign-In Failed', e.message);
+      Alert.alert(title, message);
+    } finally {
+      setLoading(false);
     }
   }
 

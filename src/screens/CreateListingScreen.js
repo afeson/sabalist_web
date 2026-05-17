@@ -33,6 +33,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Image upload helper - v14.0.0 UNIVERSAL
 import { imageToBlob } from '../services/uploadHelpers';
@@ -55,6 +56,7 @@ const CATEGORY_KEYS = CATEGORIES.map((c) => c.key);
 export default function CreateListingScreen({ navigation }) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth(); // Get authenticated user from AuthContext
+  const insets = useSafeAreaInsets();
   const [, forceUpdate] = useState(0);
 
   // Force re-render when language changes (even if screen is already focused)
@@ -719,7 +721,11 @@ export default function CreateListingScreen({ navigation }) {
    * Step 1: Photos & Video
    */
   const renderPhotosStep = () => (
-    <ScrollView style={styles.stepContainer}>
+    <ScrollView
+      style={styles.stepContainer}
+      contentContainerStyle={styles.stepScrollContent}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={styles.stepTitle}>{t('createListing.addPhotos')}</Text>
       <Text style={styles.stepSubtitle}>
         {t('createListing.photosRequired', {
@@ -792,14 +798,6 @@ export default function CreateListingScreen({ navigation }) {
           <Text style={styles.addVideoText}>{t('createListing.addVideo')}</Text>
         </TouchableOpacity>
       )}
-
-      {/* Next Button */}
-      <PrimaryButton
-        title={t('common.next')}
-        onPress={() => setStep(2)}
-        disabled={!canProceedFromPhotos}
-        style={styles.nextButton}
-      />
     </ScrollView>
   );
 
@@ -807,7 +805,11 @@ export default function CreateListingScreen({ navigation }) {
    * Step 2: Details
    */
   const renderDetailsStep = () => (
-    <ScrollView style={styles.stepContainer}>
+    <ScrollView
+      style={styles.stepContainer}
+      contentContainerStyle={styles.stepScrollContent}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={styles.stepTitle}>{t('createListing.listingDetails')}</Text>
 
       {/* Title */}
@@ -938,18 +940,6 @@ export default function CreateListingScreen({ navigation }) {
           maxLength={5000}
         />
       </View>
-
-      {/* Navigation Buttons */}
-      <View style={styles.buttonRow}>
-        <TouchableOpacity style={styles.backButton} onPress={() => setStep(1)}>
-          <Text style={styles.backButtonText}>{t('common.back')}</Text>
-        </TouchableOpacity>
-        <PrimaryButton
-          title={t('common.next')}
-          onPress={() => setStep(3)}
-          style={styles.nextButtonInRow}
-        />
-      </View>
     </ScrollView>
   );
 
@@ -957,7 +947,11 @@ export default function CreateListingScreen({ navigation }) {
    * Step 3: Review & Submit
    */
   const renderReviewStep = () => (
-    <ScrollView style={styles.stepContainer}>
+    <ScrollView
+      style={styles.stepContainer}
+      contentContainerStyle={styles.stepScrollContent}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={styles.stepTitle}>{t('createListing.review')}</Text>
 
       <Card style={styles.reviewCard}>
@@ -1015,49 +1009,102 @@ export default function CreateListingScreen({ navigation }) {
           <Text style={styles.uploadingText}>{uploadProgress}</Text>
         </View>
       )}
-
-      {/* Debug Info - Remove after testing */}
-      {!canSubmit && (
-        <View style={{ padding: 16, backgroundColor: '#FEF2F2', borderRadius: 8, marginVertical: 8 }}>
-          <Text style={{ color: '#991B1B', fontWeight: 'bold', marginBottom: 8 }}>Button Disabled - Missing:</Text>
-          {!canProceedFromPhotos && <Text style={{ color: '#991B1B' }}>• Need at least {imageLimits.min} images (have {images.length})</Text>}
-          {!title.trim() && <Text style={{ color: '#991B1B' }}>• Title is empty</Text>}
-          {!price.trim() && <Text style={{ color: '#991B1B' }}>• Price is empty</Text>}
-          {!location.trim() && <Text style={{ color: '#991B1B' }}>• Location is empty</Text>}
-          {!phoneNumber.trim() && <Text style={{ color: '#991B1B' }}>• Phone number is empty</Text>}
-        </View>
-      )}
-
-      {/* Navigation Buttons */}
-      <View style={styles.buttonRow}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => setStep(2)}
-          disabled={uploading}
-        >
-          <Text style={styles.backButtonText}>{t('common.back')}</Text>
-        </TouchableOpacity>
-        <PrimaryButton
-          title={uploading ? t('common.posting') : t('common.post')}
-          onPress={() => {
-            console.log('🔘 Post button clicked!');
-            console.log('🔘 canSubmit:', canSubmit);
-            console.log('🔘 uploading:', uploading);
-            console.log('🔘 Validation:', {
-              hasImages: canProceedFromPhotos,
-              hasTitle: !!title.trim(),
-              hasPrice: !!price.trim(),
-              hasLocation: !!location.trim(),
-              hasPhone: !!phoneNumber.trim(),
-            });
-            handleSubmit();
-          }}
-          disabled={!canSubmit || uploading}
-          style={styles.nextButtonInRow}
-        />
-      </View>
     </ScrollView>
   );
+
+  /**
+   * Sticky footer with step-appropriate buttons and missing-field hints.
+   * Lives outside the ScrollView so it is always visible above the keyboard
+   * and above the iPhone home indicator. The bottom tab bar is hidden while
+   * this screen is focused (see MainTabNavigator), so the footer sits cleanly
+   * at the bottom of the screen on both Android and iOS.
+   */
+  const renderStickyFooter = () => {
+    // What's blocking the user, per step?
+    const missing = [];
+    if (step === 1) {
+      if (!canProceedFromPhotos) {
+        missing.push(
+          t('createListing.needMinPhotos', {
+            min: imageLimits.min,
+            have: images.length,
+            defaultValue: `Add at least ${imageLimits.min} photo(s) (have ${images.length})`,
+          })
+        );
+      }
+    } else if (step === 2 || step === 3) {
+      if (!canProceedFromPhotos) {
+        missing.push(`Photos: need ${imageLimits.min} (have ${images.length})`);
+      }
+      if (!title.trim()) missing.push(t('createListing.titleMissing') || 'Title is empty');
+      if (!price.trim()) missing.push(t('createListing.priceMissing') || 'Price is empty');
+      if (!location.trim()) missing.push(t('createListing.locationMissing') || 'Location is empty');
+      if (!phoneNumber.trim()) missing.push(t('createListing.phoneMissing') || 'Phone number is empty');
+    }
+
+    const stepDisabled =
+      (step === 1 && !canProceedFromPhotos) ||
+      (step === 2 && missing.length > 0) ||
+      (step === 3 && (!canSubmit || uploading));
+
+    return (
+      <View
+        style={[
+          styles.stickyFooter,
+          { paddingBottom: Math.max(insets.bottom, SPACING.md) },
+        ]}
+      >
+        {stepDisabled && missing.length > 0 && (
+          <View style={styles.missingPanel}>
+            <Text style={styles.missingTitle}>
+              {t('createListing.missingFields') || 'Required to continue:'}
+            </Text>
+            {missing.map((m, i) => (
+              <Text key={i} style={styles.missingItem}>• {m}</Text>
+            ))}
+          </View>
+        )}
+
+        <View style={styles.stickyButtonRow}>
+          {step > 1 && (
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => setStep(step - 1)}
+              disabled={uploading}
+            >
+              <Text style={styles.backButtonText}>{t('common.back')}</Text>
+            </TouchableOpacity>
+          )}
+          <PrimaryButton
+            title={
+              step === 3
+                ? (uploading ? t('common.posting') : t('common.post'))
+                : t('common.next')
+            }
+            onPress={() => {
+              if (step === 3) {
+                console.log('🔘 Post button clicked!', {
+                  canSubmit, uploading,
+                  validation: {
+                    hasImages: canProceedFromPhotos,
+                    hasTitle: !!title.trim(),
+                    hasPrice: !!price.trim(),
+                    hasLocation: !!location.trim(),
+                    hasPhone: !!phoneNumber.trim(),
+                  },
+                });
+                handleSubmit();
+              } else {
+                setStep(step + 1);
+              }
+            }}
+            disabled={stepDisabled}
+            style={styles.stickyNextButton}
+          />
+        </View>
+      </View>
+    );
+  };
 
   // ============================================
   // MAIN RENDER
@@ -1088,9 +1135,15 @@ export default function CreateListingScreen({ navigation }) {
       </View>
 
       {/* Step Content */}
-      {step === 1 && renderPhotosStep()}
-      {step === 2 && renderDetailsStep()}
-      {step === 3 && renderReviewStep()}
+      <View style={styles.stepWrapper}>
+        {step === 1 && renderPhotosStep()}
+        {step === 2 && renderDetailsStep()}
+        {step === 3 && renderReviewStep()}
+      </View>
+
+      {/* Sticky Footer — always visible above the iPhone home indicator,
+          above the keyboard, and above where the tab bar used to be. */}
+      {renderStickyFooter()}
 
       <CategorySelector
         visible={categoryPickerOpen}
@@ -1159,9 +1212,60 @@ const styles = StyleSheet.create({
   progressDotActive: {
     backgroundColor: COLORS.primary,
   },
+  stepWrapper: {
+    flex: 1,
+  },
   stepContainer: {
     flex: 1,
     padding: SPACING.md,
+  },
+  // Extra space so the last field/button isn't obscured by the sticky footer.
+  // ~160 covers footer (button row ~56 + paddingBottom + optional missing panel)
+  // with a comfortable margin on both Android and iPhone.
+  stepScrollContent: {
+    paddingBottom: 160,
+  },
+  stickyFooter: {
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.md,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  stickyButtonRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  stickyNextButton: {
+    flex: 1,
+  },
+  missingPanel: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: 8,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  missingTitle: {
+    color: '#991B1B',
+    fontWeight: 'bold',
+    marginBottom: 6,
+    fontSize: 13,
+  },
+  missingItem: {
+    color: '#991B1B',
+    fontSize: 13,
+    lineHeight: 18,
   },
   stepTitle: {
     fontSize: 24,

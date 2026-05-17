@@ -57,11 +57,16 @@ function TabNavigator() {
         headerShown: false,
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textMuted,
-        tabBarStyle: {
-          ...styles.tabBar,
-          paddingBottom: Math.max(insets.bottom, 10),
-          height: Platform.OS === 'ios' ? 85 : 70 + Math.max(insets.bottom - 10, 0),
-        },
+        // Hide the bottom tab bar while creating a listing so its absolute
+        // positioning can't cover the step's Next/Post button. The header X
+        // in CreateListingScreen handles exiting back to the previous tab.
+        tabBarStyle: route.name === 'CreateListing'
+          ? { display: 'none' }
+          : {
+              ...styles.tabBar,
+              paddingBottom: Math.max(insets.bottom, 10),
+              height: Platform.OS === 'ios' ? 85 : 70 + Math.max(insets.bottom - 10, 0),
+            },
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
