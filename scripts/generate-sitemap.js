@@ -138,6 +138,24 @@ async function main() {
     }
   }
 
+  // Robustness guard: when Firestore is unreachable, getDocs can resolve EMPTY
+  // (offline mode) instead of throwing, so the catch above never fires and we'd
+  // overwrite a good sitemap with a listing-less one. If we fetched 0 listings
+  // but an existing sitemap already contains /listing/ URLs, keep it — the
+  // committed sitemap becomes a guaranteed floor and a misconfigured build
+  // (missing EXPO_PUBLIC_FIREBASE_* env / no network) can't regress SEO coverage.
+  if (listingCount === 0 && fs.existsSync(OUT_FILE)) {
+    try {
+      if (fs.readFileSync(OUT_FILE, 'utf8').includes('/listing/')) {
+        console.warn(
+          '[sitemap] Fetched 0 listings but existing sitemap has listing URLs — ' +
+            'keeping existing file to avoid regressing SEO coverage.'
+        );
+        return;
+      }
+    } catch {}
+  }
+
   const xml =
     '<?xml version="1.0" encoding="UTF-8"?>\n' +
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +

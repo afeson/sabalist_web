@@ -58,20 +58,31 @@ module.exports = async function (env, argv) {
   // Add default SEO meta tags to HTML template
   const HtmlWebpackPlugin = require('html-webpack-plugin');
   const existingHtmlPlugin = config.plugins.find(p => p.constructor.name === 'HtmlWebpackPlugin');
-  if (existingHtmlPlugin && existingHtmlPlugin.userOptions) {
-    existingHtmlPlugin.userOptions.meta = {
-      ...existingHtmlPlugin.userOptions.meta,
-      'description': { name: 'description', content: 'Sabalist - Buy & Sell across Africa. Find electronics, vehicles, real estate, fashion and more.' },
-      'og:title': { property: 'og:title', content: 'Sabalist - Buy & Sell across Africa' },
-      'og:description': { property: 'og:description', content: "Africa's marketplace for electronics, vehicles, real estate, fashion and more." },
-      'og:type': { property: 'og:type', content: 'website' },
-      'og:url': { property: 'og:url', content: 'https://sabalist.web.app' },
-      'og:image': { property: 'og:image', content: 'https://sabalist.web.app/web-app-manifest-512x512.png' },
-      'twitter:card': { name: 'twitter:card', content: 'summary_large_image' },
-      'twitter:title': { name: 'twitter:title', content: 'Sabalist - Buy & Sell across Africa' },
-      'twitter:description': { name: 'twitter:description', content: "Africa's marketplace for electronics, vehicles, real estate, fashion and more." },
-      'theme-color': { name: 'theme-color', content: '#E50914' },
-    };
+  if (existingHtmlPlugin) {
+    // html-webpack-plugin v5 renders from `.options` at build time; `.userOptions`
+    // is only the raw user input and is NOT read when emitting index.html. The
+    // previous code wrote to `.userOptions`, so none of these tags ever shipped
+    // (the live HTML had only <title>). Write to `.options` (fall back to
+    // `.userOptions`) so they actually appear in the generated static HTML.
+    const htmlOpts = existingHtmlPlugin.options || existingHtmlPlugin.userOptions;
+    if (htmlOpts) {
+      htmlOpts.meta = {
+        ...htmlOpts.meta,
+        // Google Search Console verification (HTML-tag method) — must be in the
+        // static HTML, so it lives here rather than in the JS-rendered Helmet.
+        'google-site-verification': { name: 'google-site-verification', content: 'W1etxg02tM4cfzhaWSiFNtzLYCvpNS3dSqoNY_Xptvg' },
+        'description': { name: 'description', content: 'Sabalist - Buy & Sell across Africa. Find electronics, vehicles, real estate, fashion and more.' },
+        'og:title': { property: 'og:title', content: 'Sabalist - Buy & Sell across Africa' },
+        'og:description': { property: 'og:description', content: "Africa's marketplace for electronics, vehicles, real estate, fashion and more." },
+        'og:type': { property: 'og:type', content: 'website' },
+        'og:url': { property: 'og:url', content: 'https://sabalist.com' },
+        'og:image': { property: 'og:image', content: 'https://sabalist.com/web-app-manifest-512x512.png' },
+        'twitter:card': { name: 'twitter:card', content: 'summary_large_image' },
+        'twitter:title': { name: 'twitter:title', content: 'Sabalist - Buy & Sell across Africa' },
+        'twitter:description': { name: 'twitter:description', content: "Africa's marketplace for electronics, vehicles, real estate, fashion and more." },
+        'theme-color': { name: 'theme-color', content: '#E50914' },
+      };
+    }
   }
 
   // Inject environment variables into the build
