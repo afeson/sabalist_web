@@ -1,0 +1,107 @@
+# Codemagic CI/CD — Sabalist (Expo SDK 54, React Native, bare workflow)
+# Native android/ and ios/ folders are committed, so we build them directly.
+#
+# Before the first build, set these in the Codemagic UI:
+#   • Environment variable groups (Teams > Integrations / App settings > Env vars):
+#       - "sabalist_env"        : EXPO_PUBLIC_FIREBASE_* and SITE_URL (see .env.example)
+#       - "google_play"         : GCLOUD_SERVICE_ACCOUNT_CREDENTIALS (JSON, secure)
+#       - "appstore_credentials": APP_STORE_CONNECT_* (integration) for iOS signing
+#   • iOS code signing: connect an App Store Connect API key integration and add
+#     your distribution certificate + provisioning profile (Automatic is fine).
+#   • Android signing: upload your keystore as a reference named "sabalist_keystore".
+#
+# Firebase config files (android/app/google-services.json and
+# ios/GoogleService-Info.plist) are referenced by app.json. Keep them in the repo
+# or inject them from secure env vars in a pre-build script.
+
+workflows:
+  android-release:
+    name: Android Release (AAB)
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      groups:
+        - sabalist_env          # EXPO_PUBLIC_FIREBASE_*, SITE_URL
+        - google_play           # GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+      android_signing:
+        - sabalist_keystore
+      node: 20
+      java: 17
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+        - $HOME/.npm
+    scripts:
+      - name: Install dependencies
+        script: npm install --legacy-peer-deps
+      - name: Generate sitemap (non-fatal) + verify JS bundles
+        script: npm run generate-sitemap || true
+      - name: Set Android version from build number
+        script: |
+          cd android
+          # Codemagic provides $BUILD_NUMBER; keep versionName from app.json
+      - name: Build release AAB
+        script: |
+          cd android
+          ./gradlew bundleRelease
+    artifacts:
+      - android/app/build/outputs/**/*.aab
+      - android/app/build/outputs/**/mapping.txt
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal          # internal -> alpha -> beta -> production
+        submit_as_draft: true
+      email:
+        recipients:
+          - afesonabebe@yahoo.com
+        notify:
+          success: true
+          failure: true
+
+  ios-release:
+    name: iOS Release (IPA)
+    max_build_duration: 90
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: appstore_credentials   # App Store Connect API key integration
+    environment:
+      groups:
+        - sabalist_env
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.sabalist.app
+      node: 20
+      xcode: latest
+      cocoapods: default
+    cache:
+      cache_paths:
+        - $HOME/.npm
+        - ios/Pods
+    scripts:
+      - name: Install dependencies
+        script: npm install --legacy-peer-deps
+      - name: Install CocoaPods
+        script: |
+          cd ios && pod install
+      - name: Set up provisioning
+        script: xcode-project use-profiles
+      - name: Build IPA
+        script: |
+          xcode-project build-ipa \
+            --project "ios/$(ls ios | grep -m1 '\.xcodeproj' )" \
+            --scheme "Sabalist"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false
+      email:
+        recipients:
+          - afesonabebe@yahoo.com
+        notify:
+          success: true
+          failure: true

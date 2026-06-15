@@ -32,7 +32,7 @@ import CategorySelector from '../components/CategorySelector';
 import LocationSelector from '../components/LocationSelector';
 import { getUserLocation } from '../services/locationService';
 import SEO from '../components/SEO';
-import { generateWebsiteSchema } from '../utils/seo';
+import { generateWebsiteSchema, generateOrganizationSchema } from '../utils/seo';
 import { SEO_COUNTRIES, SEO_CATEGORY_SLUGS } from '../config/cityRoutes';
 
 // Platform-aware listings imports
@@ -366,7 +366,7 @@ export default function HomeScreenSimple({ navigation }) {
         title="Buy & Sell across Africa"
         description="Sabalist is Africa's marketplace. Buy and sell electronics, vehicles, real estate, fashion and more."
         canonicalUrl="/"
-        jsonLd={[generateWebsiteSchema()]}
+        jsonLd={[generateWebsiteSchema(), generateOrganizationSchema()]}
       />
       <StatusBar barStyle="dark-content" backgroundColor={PREMIUM_COLORS.bg} />
 

@@ -43,12 +43,20 @@ import { useAuth } from '../contexts/AuthContext';
 import { getFirestore, collection, addDoc, updateDoc, doc, getDoc } from 'firebase/firestore';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getImageLimits, GLOBAL_IMAGE_LIMITS } from '../config/categoryLimits';
+import { recordListingPosted } from '../services/reviewService';
 import SEO from '../components/SEO';
-import { getSubCategories, CATEGORIES, getCategoryByKey, getCategoryIcon } from '../config/categories';
+import { getSubCategories, CATEGORIES, getCategoryByKey, getCategoryIcon, categoryRequiresPricing } from '../config/categories';
 import { getTranslatedCategoryLabel, getTranslatedSubCategoryLabel } from '../utils/categoryI18n';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { PrimaryButton, Card } from '../components/ui';
 import CategorySelector from '../components/CategorySelector';
+import PriceTypeSelector from '../components/ui/PriceTypeSelector';
+import {
+  PRICE_TYPES,
+  buildPriceData,
+  formatListingPrice,
+} from '../lib/pricing';
+import { DEFAULT_CURRENCY } from '../lib/currencies';
 
 // All canonical category keys (source of truth in src/config/categories.js)
 const CATEGORY_KEYS = CATEGORIES.map((c) => c.key);
@@ -77,7 +85,17 @@ export default function CreateListingScreen({ navigation }) {
   // Form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('');
+  // Pricing form — supports fixed, range, free, call_for_price, none.
+  // See src/lib/pricing.js for the canonical schema. The legacy `price`
+  // string is no longer a separate piece of state; everything is here.
+  const [priceForm, setPriceForm] = useState({
+    priceType: PRICE_TYPES.FIXED,
+    amount: '',
+    minAmount: '',
+    maxAmount: '',
+    currency: DEFAULT_CURRENCY,
+    isNegotiable: false,
+  });
   const [category, setCategory] = useState('Electronics');
   const [subcategory, setSubcategory] = useState(null);
   const [location, setLocation] = useState('');
@@ -96,7 +114,40 @@ export default function CreateListingScreen({ navigation }) {
   const availableSubcategories = getSubCategories(category);
   const imageLimits = getImageLimits(category);
   const canProceedFromPhotos = images.length >= imageLimits.min;
-  const canSubmit = canProceedFromPhotos && title.trim() && price.trim() && location.trim() && phoneNumber.trim();
+
+  // Categories like Jobs, Services, Community, Education, Events may
+  // omit a numeric price. For required-pricing categories, the seller
+  // must pick Fixed / Range / Free / Call (i.e. NOT "none") AND, if
+  // they pick Fixed/Range, the numeric inputs must be filled.
+  const pricingRequired = categoryRequiresPricing(category);
+  const priceValid = (() => {
+    switch (priceForm.priceType) {
+      case PRICE_TYPES.FIXED:
+        return !!priceForm.amount && parseFloat(priceForm.amount) >= 0;
+      case PRICE_TYPES.RANGE:
+        return (
+          !!priceForm.minAmount &&
+          !!priceForm.maxAmount &&
+          parseFloat(priceForm.minAmount) >= 0 &&
+          parseFloat(priceForm.maxAmount) >= parseFloat(priceForm.minAmount)
+        );
+      case PRICE_TYPES.FREE:
+      case PRICE_TYPES.CALL_FOR_PRICE:
+        return true;
+      case PRICE_TYPES.NONE:
+        // Only valid when the category opted out of pricing.
+        return !pricingRequired;
+      default:
+        return false;
+    }
+  })();
+
+  const canSubmit =
+    canProceedFromPhotos &&
+    title.trim() &&
+    priceValid &&
+    location.trim() &&
+    phoneNumber.trim();
 
   /**
    * STEP 1: Pick images from gallery
@@ -493,14 +544,19 @@ export default function CreateListingScreen({ navigation }) {
       const now = new Date().toISOString();
       const categoryId = getCategoryId(category);
 
+      // Convert the form's pricing state into the canonical Firestore
+      // schema (priceType, amount, minAmount, maxAmount, currency,
+      // isNegotiable, displayPriceText, plus a legacy `price` mirror
+      // for backwards-compatible queries).
+      const priceFields = buildPriceData(priceForm);
+
       const listingData = {
         title: title.trim(),
         description: description.trim(),
-        price: parseFloat(price.trim()) || 0,
+        ...priceFields,
         category,
         categoryId,
         subcategory: subcategory || '',
-        currency: 'USD',
         location: location.trim(),
         phoneNumber: phoneNumber.trim(),
         userId,
@@ -516,7 +572,8 @@ export default function CreateListingScreen({ navigation }) {
       console.log('📝 Listing data prepared:', {
         title: listingData.title,
         category: listingData.category,
-        price: listingData.price,
+        priceType: listingData.priceType,
+        priceDisplay: listingData.displayPriceText,
         imageCount: images.length,
       });
 
@@ -670,6 +727,10 @@ export default function CreateListingScreen({ navigation }) {
               resetForm();
               // Navigate to Home with refresh flag to show new listing immediately
               navigation.navigate('Home', { refresh: Date.now() });
+              // Posting a listing is a strong positive moment: ask for a native
+              // app review (native only; 90-day cap). Delayed so the rating
+              // dialog doesn't collide with this success alert / navigation.
+              setTimeout(() => { recordListingPosted(); }, 1500);
             },
           },
         ]
@@ -704,7 +765,14 @@ export default function CreateListingScreen({ navigation }) {
     setStep(1);
     setTitle('');
     setDescription('');
-    setPrice('');
+    setPriceForm({
+      priceType: PRICE_TYPES.FIXED,
+      amount: '',
+      minAmount: '',
+      maxAmount: '',
+      currency: DEFAULT_CURRENCY,
+      isNegotiable: false,
+    });
     setCategory('Electronics');
     setSubcategory(null);
     setLocation('');
@@ -726,12 +794,23 @@ export default function CreateListingScreen({ navigation }) {
       contentContainerStyle={styles.stepScrollContent}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.stepTitle}>{t('createListing.addPhotos')}</Text>
+      <Text style={styles.stepTitle}>
+        {imageLimits.min === 0
+          ? (t('createListing.addPhotosOptional') !== 'createListing.addPhotosOptional'
+              ? t('createListing.addPhotosOptional')
+              : 'Add photos (optional)')
+          : t('createListing.addPhotos')}
+      </Text>
       <Text style={styles.stepSubtitle}>
-        {t('createListing.photosRequired', {
-          min: imageLimits.min,
-          max: imageLimits.max,
-        }) || `Add ${imageLimits.min}-${imageLimits.max} photos`}
+        {imageLimits.min === 0
+          ? (t('createListing.photosOptionalHint', { max: imageLimits.max }) !==
+              'createListing.photosOptionalHint'
+              ? t('createListing.photosOptionalHint', { max: imageLimits.max })
+              : `Photos are not required for this category. You can attach up to ${imageLimits.max} if you'd like.`)
+          : (t('createListing.photosRequired', {
+              min: imageLimits.min,
+              max: imageLimits.max,
+            }) || `Add ${imageLimits.min}-${imageLimits.max} photos`)}
       </Text>
 
       {/* Image Grid */}
@@ -880,13 +959,15 @@ export default function CreateListingScreen({ navigation }) {
 
       {/* Price */}
       <View style={styles.formGroup}>
-        <Text style={styles.label}>{t('createListing.price')} *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder={t('createListing.pricePlaceholder')}
-          value={price}
-          onChangeText={setPrice}
-          keyboardType="numeric"
+        <Text style={styles.label}>
+          {t('createListing.price')}
+          {pricingRequired ? ' *' : ''}
+        </Text>
+        <PriceTypeSelector
+          value={priceForm}
+          onChange={(partial) => setPriceForm((p) => ({ ...p, ...partial }))}
+          allowNone={!pricingRequired}
+          t={t}
         />
       </View>
 
@@ -984,7 +1065,9 @@ export default function CreateListingScreen({ navigation }) {
         )}
         <View style={styles.reviewRow}>
           <Text style={styles.reviewLabel}>{t('createListing.price')}:</Text>
-          <Text style={styles.reviewValue}>${price}</Text>
+          <Text style={styles.reviewValue}>
+            {formatListingPrice(buildPriceData(priceForm), t)}
+          </Text>
         </View>
         <View style={styles.reviewRow}>
           <Text style={styles.reviewLabel}>{t('createListing.location')}:</Text>
@@ -1037,7 +1120,7 @@ export default function CreateListingScreen({ navigation }) {
         missing.push(`Photos: need ${imageLimits.min} (have ${images.length})`);
       }
       if (!title.trim()) missing.push(t('createListing.titleMissing') || 'Title is empty');
-      if (!price.trim()) missing.push(t('createListing.priceMissing') || 'Price is empty');
+      if (!priceValid) missing.push(t('createListing.priceMissing') || 'Price details are incomplete');
       if (!location.trim()) missing.push(t('createListing.locationMissing') || 'Location is empty');
       if (!phoneNumber.trim()) missing.push(t('createListing.phoneMissing') || 'Phone number is empty');
     }
@@ -1088,7 +1171,7 @@ export default function CreateListingScreen({ navigation }) {
                   validation: {
                     hasImages: canProceedFromPhotos,
                     hasTitle: !!title.trim(),
-                    hasPrice: !!price.trim(),
+                    hasPrice: priceValid,
                     hasLocation: !!location.trim(),
                     hasPhone: !!phoneNumber.trim(),
                   },
@@ -1152,6 +1235,21 @@ export default function CreateListingScreen({ navigation }) {
         onSelect={(newKey) => {
           setCategory(newKey);
           setSubcategory(null);
+          // When switching to a non-pricing category (Jobs, Services,
+          // Community, Events, Education), default priceType to "none"
+          // so the seller isn't blocked by a required price. They can
+          // still pick a paid type if they want.
+          if (!categoryRequiresPricing(newKey)) {
+            if (priceForm.priceType === PRICE_TYPES.FIXED && !priceForm.amount) {
+              setPriceForm((p) => ({ ...p, priceType: PRICE_TYPES.NONE }));
+            }
+          } else {
+            // Switching back to a pricing-required category: if user had
+            // selected "none", bump them back to FIXED.
+            if (priceForm.priceType === PRICE_TYPES.NONE) {
+              setPriceForm((p) => ({ ...p, priceType: PRICE_TYPES.FIXED }));
+            }
+          }
         }}
       />
     </SafeAreaView>

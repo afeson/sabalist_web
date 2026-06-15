@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import AuthScreen from './src/screens/AuthScreen';
 import MainTabNavigator from './src/navigation/MainTabNavigator';
 import { COLORS } from './src/theme';
+import { registerSession } from './src/services/reviewService';
 
 // SEO: HelmetProvider for web only
 const HelmetProvider = Platform.OS === 'web'
@@ -95,6 +96,11 @@ function AppContent() {
 
         // Initialize i18n
         await initializeI18n();
+
+        // Count this app launch as a session for the in-app review policy
+        // (native only; no-ops on web). May trigger the native rating prompt
+        // once the user has completed 3 sessions, subject to the 90-day cap.
+        registerSession();
 
         // Add small delay to ensure all modules are loaded
         await new Promise(resolve => setTimeout(resolve, 100));

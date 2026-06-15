@@ -24,6 +24,7 @@ import {
   getDocs,
   onSnapshot,
 } from 'firebase/firestore';
+import { recordFavoriteAdded } from './reviewService';
 
 const isWeb = Platform.OS === 'web';
 
@@ -62,6 +63,10 @@ export async function addToFavorites(userId, listingId) {
   }
 
   console.log('Added to favorites:', listingId);
+
+  // Count this favorite toward the in-app review policy (native only; no-op on
+  // web). Fire-and-forget so it never blocks or fails the favorite action.
+  recordFavoriteAdded().catch(() => {});
 }
 
 /**

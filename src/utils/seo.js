@@ -1,7 +1,25 @@
-const BASE_URL = 'https://sabalist.web.app';
+// Canonical production domain. Must match the canonical/OG host used in
+// src/components/SEO.js, robots.txt and sitemap.xml (all https://sabalist.com)
+// so structured-data URLs reinforce ONE domain instead of advertising the
+// Firebase mirror (sabalist.web.app) and fragmenting ranking signals.
+const BASE_URL = 'https://sabalist.com';
 
 export function buildCanonicalUrl(path) {
   return `${BASE_URL}${path}`;
+}
+
+export function generateOrganizationSchema() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'Sabalist',
+    url: BASE_URL,
+    logo: `${BASE_URL}/web-app-manifest-512x512.png`,
+    description:
+      "Sabalist is Africa's marketplace for buying and selling electronics, vehicles, real estate, fashion and more.",
+    // Add real profiles here as they go live to strengthen the brand entity:
+    // sameAs: ['https://facebook.com/sabalist', 'https://x.com/sabalist'],
+  };
 }
 
 export function generateWebsiteSchema() {
@@ -25,20 +43,43 @@ export function generateWebsiteSchema() {
 export function generateListingSchema(listing) {
   if (!listing) return null;
 
+  // Build the Offer block from the normalised price. Only emit numeric
+  // price/priceCurrency for fixed/negotiable/range — for free, call-for-
+  // price, and "no price" listings, schema.org accepts a priceSpecification
+  // with PriceSpecification (or just omit the price). Free items use 0.
+  const { normalisePrice, PRICE_TYPES } = require('../lib/pricing');
+  const p = normalisePrice(listing);
+  const offer = {
+    '@type': 'Offer',
+    availability:
+      listing.status === 'sold'
+        ? 'https://schema.org/SoldOut'
+        : 'https://schema.org/InStock',
+    itemCondition: 'https://schema.org/UsedCondition',
+  };
+  if (p.priceType === PRICE_TYPES.FREE) {
+    offer.price = 0;
+    offer.priceCurrency = p.currency;
+  } else if (p.priceType === PRICE_TYPES.FIXED || p.priceType === PRICE_TYPES.NEGOTIABLE) {
+    offer.price = p.amount ?? 0;
+    offer.priceCurrency = p.currency;
+  } else if (p.priceType === PRICE_TYPES.RANGE) {
+    offer.priceSpecification = {
+      '@type': 'PriceSpecification',
+      minPrice: p.minAmount ?? undefined,
+      maxPrice: p.maxAmount ?? undefined,
+      priceCurrency: p.currency,
+    };
+  }
+  // For CALL_FOR_PRICE and NONE: leave price/priceCurrency unset so
+  // schema.org doesn't advertise a wrong number.
+
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: listing.title,
     description: listing.description || listing.title,
-    offers: {
-      '@type': 'Offer',
-      price: listing.price,
-      priceCurrency: listing.currency || 'ETB',
-      availability: listing.status === 'sold'
-        ? 'https://schema.org/SoldOut'
-        : 'https://schema.org/InStock',
-      itemCondition: 'https://schema.org/UsedCondition',
-    },
+    offers: offer,
   };
 
   if (listing.images && listing.images.length > 0) {
