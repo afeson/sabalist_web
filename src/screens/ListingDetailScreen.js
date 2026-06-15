@@ -22,6 +22,12 @@ import { generateListingSchema, generateBreadcrumbSchema } from '../utils/seo';
 import { getCategoryId, canonicalCategoryName } from '../config/categoryMapping';
 import { findSubCategoryById } from '../config/categories';
 import { getTranslatedCategoryLabel, getTranslatedSubCategoryLabel } from '../utils/categoryI18n';
+import {
+  formatListingPrice,
+  normalisePrice,
+  PRICE_TYPES,
+} from '../lib/pricing';
+import { normalizeListingImages, withCacheBuster } from '../lib/listingImages';
 
 // Platform-aware Firebase imports
 let auth, getListing, deleteListing, markListingAsSold, reactivateListing, incrementListingViews;
@@ -132,6 +138,21 @@ export default function ListingDetailScreen({ route, navigation }) {
   };
 
   const handleContact = () => {
+    // Web public browsing: anonymous visitors (and crawlers) must sign in
+    // before seller contact details are revealed — this keeps the seller's
+    // phone number out of indexable/anonymous reach. On native, currentUser is
+    // always present here, so behavior is unchanged.
+    if (Platform.OS === 'web' && !currentUser) {
+      Alert.alert(
+        t('auth.signInRequired') !== 'auth.signInRequired'
+          ? t('auth.signInRequired')
+          : 'Sign in required',
+        t('auth.signInToContact') !== 'auth.signInToContact'
+          ? t('auth.signInToContact')
+          : 'Please sign in to view the seller’s contact details.'
+      );
+      return;
+    }
     if (listing.phoneNumber) {
       Alert.alert(t('contact.title'), listing.phoneNumber);
     } else {
@@ -139,10 +160,10 @@ export default function ListingDetailScreen({ route, navigation }) {
     }
   };
 
-  const formatPrice = (price, currency = 'USD') => {
-    if (!price || price === 0) return 'Price on call';
-    return `${currency} ${Number(price).toLocaleString()}`;
-  };
+  // formatListingPrice handles all price types (fixed, range, free,
+  // call-for-price, negotiable, none) plus legacy listings. See
+  // src/lib/pricing.js.
+  const renderPrice = () => formatListingPrice(listing, t);
 
   const formatDate = (timestamp) => {
     if (!timestamp) return 'Recently';
@@ -172,7 +193,9 @@ export default function ListingDetailScreen({ route, navigation }) {
     );
   }
 
-  const images = listing.images || [];
+  // Use the shared normalizer so cards and detail render the same set of
+  // images regardless of which legacy field the listing was saved under.
+  const { all: images } = normalizeListingImages(listing);
   const hasImages = images.length > 0;
 
   // Resolve category + subcategory labels (handles legacy stored values).
@@ -189,7 +212,7 @@ export default function ListingDetailScreen({ route, navigation }) {
     <View style={styles.container}>
       <SEO
         title={listing ? `${listing.title} for sale in ${listing.location || 'Africa'}` : 'Listing'}
-        description={listing ? `Buy ${listing.title} in ${listing.location || 'Africa'}. ${listing.currency || 'ETB'} ${listing.price}. Best price on Sabalist.` : ''}
+        description={listing ? `Buy ${listing.title} in ${listing.location || 'Africa'}. ${formatListingPrice(listing, t)}. Best price on Sabalist.` : ''}
         canonicalUrl={`/listing/${listingId}`}
         ogImage={listing?.coverImage || listing?.images?.[0]}
         ogType="product"
@@ -237,14 +260,10 @@ export default function ListingDetailScreen({ route, navigation }) {
               scrollEventThrottle={16}
             >
               {images.map((uri, index) => {
-                // Add cache-busting for mobile browsers
-                let imageUri = uri;
-                if (uri && uri.startsWith('http')) {
-                  const timestamp = listing?.updatedAt || listing?.createdAt || Date.now();
-                  const cacheKey = typeof timestamp === 'string' ? timestamp : timestamp.toMillis?.() || timestamp;
-                  const separator = uri.includes('?') ? '&' : '?';
-                  imageUri = `${uri}${separator}v=${cacheKey}`;
-                }
+                const imageUri = withCacheBuster(
+                  uri,
+                  listing?.updatedAt || listing?.createdAt || Date.now()
+                );
 
                 return (
                   <TouchableOpacity
@@ -261,6 +280,14 @@ export default function ListingDetailScreen({ route, navigation }) {
                       style={styles.image}
                       key={imageUri}
                       accessibilityLabel={`${listing?.title || 'Listing'} - image ${index + 1}`}
+                      onError={(e) => {
+                        console.warn(
+                          '🖼️ ListingDetail image failed to load:',
+                          listing?.id,
+                          imageUri,
+                          e?.nativeEvent?.error
+                        );
+                      }}
                     />
                   </TouchableOpacity>
                 );
@@ -290,7 +317,24 @@ export default function ListingDetailScreen({ route, navigation }) {
         <View style={styles.content}>
           {/* Main Card */}
           <View style={styles.mainCard}>
-            <Text style={styles.price}>{formatPrice(listing.price, listing.currency)}</Text>
+            <Text style={styles.price}>{renderPrice()}</Text>
+            {/* For "Call for price" listings, surface the contact CTA
+                inline next to the price label so the buyer immediately
+                sees how to reach the seller. */}
+            {normalisePrice(listing).priceType === PRICE_TYPES.CALL_FOR_PRICE && (
+              <TouchableOpacity
+                onPress={handleContact}
+                activeOpacity={0.7}
+                style={styles.callForPriceCta}
+              >
+                <Ionicons name="call" size={16} color={PREMIUM_COLORS.accent} />
+                <Text style={styles.callForPriceCtaText}>
+                  {t('pricing.contactSellerForPrice') !== 'pricing.contactSellerForPrice'
+                    ? t('pricing.contactSellerForPrice')
+                    : 'Contact seller for price'}
+                </Text>
+              </TouchableOpacity>
+            )}
             <Text style={styles.title}>{listing.title}</Text>
 
             <View style={styles.metaRow}>
@@ -595,6 +639,23 @@ const styles = StyleSheet.create({
     gap: PREMIUM_SPACING.sm,
     marginTop: PREMIUM_SPACING.base,
     ...PREMIUM_SHADOWS.button,
+  },
+  callForPriceCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: `${PREMIUM_COLORS.accent}15`,
+    borderRadius: PREMIUM_RADIUS.md,
+    marginTop: 4,
+    marginBottom: PREMIUM_SPACING.sm,
+  },
+  callForPriceCtaText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: PREMIUM_COLORS.accent,
   },
   contactButtonText: {
     fontSize: 17,

@@ -1,300 +1,71 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <!-- Static pages -->
-  <url><loc>https://sabalist.web.app/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
-  <url><loc>https://sabalist.web.app/about</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
-  <url><loc>https://sabalist.web.app/terms</loc><changefreq>monthly</changefreq><priority>0.3</priority></url>
-  <url><loc>https://sabalist.web.app/help</loc><changefreq>monthly</changefreq><priority>0.3</priority></url>
-
-  <!-- Category pages -->
-  <url><loc>https://sabalist.web.app/category/electronics</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
-  <url><loc>https://sabalist.web.app/category/vehicles</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
-  <url><loc>https://sabalist.web.app/category/furniture</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
-  <url><loc>https://sabalist.web.app/category/home-appliances</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
-  <url><loc>https://sabalist.web.app/category/construction-equipment</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
-  <url><loc>https://sabalist.web.app/category/art-collectibles</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
-  <url><loc>https://sabalist.web.app/category/fashion</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
-  <url><loc>https://sabalist.web.app/category/services</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
-  <url><loc>https://sabalist.web.app/category/jobs</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
-  <url><loc>https://sabalist.web.app/category/real-estate</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
-
-  <!-- Electronics subcategories -->
-  <url><loc>https://sabalist.web.app/category/electronics/mobile-phones</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/electronics/laptops-computers</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/electronics/tablets</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/electronics/tvs</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/electronics/audio-speakers</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/electronics/cameras</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/electronics/gaming-consoles</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/electronics/accessories</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-
-  <!-- Vehicles subcategories -->
-  <url><loc>https://sabalist.web.app/category/vehicles/cars</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/vehicles/motorcycles</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/vehicles/trucks</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/vehicles/buses</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/vehicles/bicycles</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/vehicles/spare-parts</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-
-  <!-- Furniture subcategories -->
-  <url><loc>https://sabalist.web.app/category/furniture/sofas-chairs</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/furniture/beds-mattresses</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/furniture/tables-desks</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/furniture/wardrobes</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/furniture/office-furniture</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-
-  <!-- Home Appliances subcategories -->
-  <url><loc>https://sabalist.web.app/category/home-appliances/refrigerators</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/home-appliances/washing-machines</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/home-appliances/microwaves</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/home-appliances/air-conditioners</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/home-appliances/cookers-ovens</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-
-  <!-- Construction Equipment subcategories -->
-  <url><loc>https://sabalist.web.app/category/construction-equipment/cement-mixers</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/construction-equipment/generators</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/construction-equipment/excavators</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/construction-equipment/drilling-machines</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/construction-equipment/power-tools</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/construction-equipment/building-materials</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-
-  <!-- Art & Collectibles subcategories -->
-  <url><loc>https://sabalist.web.app/category/art-collectibles/paintings</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/art-collectibles/sculptures</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/art-collectibles/handmade-art</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/art-collectibles/antiques</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/art-collectibles/crafts</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-
-  <!-- Fashion subcategories -->
-  <url><loc>https://sabalist.web.app/category/fashion/mens-clothing</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/fashion/womens-clothing</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/fashion/shoes</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/fashion/bags</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/fashion/watches-jewelry</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-
-  <!-- Services subcategories -->
-  <url><loc>https://sabalist.web.app/category/services/cleaning</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/services/electrical</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/services/plumbing</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/services/car-repair</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/services/graphic-design</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/services/tutoring</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-
-  <!-- Jobs subcategories -->
-  <url><loc>https://sabalist.web.app/category/jobs/full-time</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/jobs/part-time</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/jobs/freelance</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/jobs/internships</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/jobs/remote</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-
-  <!-- Real Estate subcategories -->
-  <url><loc>https://sabalist.web.app/category/real-estate/houses-sale</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/real-estate/houses-rent</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/real-estate/apartments</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/real-estate/land</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://sabalist.web.app/category/real-estate/commercial-property</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
-
-  <!-- Ethiopia - Addis Ababa -->
-  <url><loc>https://sabalist.web.app/ethiopia/addis-ababa/electronics</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/addis-ababa/vehicles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/addis-ababa/furniture</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/addis-ababa/home-appliances</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/addis-ababa/construction-equipment</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/addis-ababa/art-collectibles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/addis-ababa/fashion</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/addis-ababa/services</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/addis-ababa/jobs</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/addis-ababa/real-estate</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-
-  <!-- Ethiopia - Dire Dawa -->
-  <url><loc>https://sabalist.web.app/ethiopia/dire-dawa/electronics</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/dire-dawa/vehicles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/dire-dawa/furniture</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/dire-dawa/home-appliances</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/dire-dawa/construction-equipment</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/dire-dawa/art-collectibles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/dire-dawa/fashion</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/dire-dawa/services</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/dire-dawa/jobs</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/dire-dawa/real-estate</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-
-  <!-- Ethiopia - Mekelle -->
-  <url><loc>https://sabalist.web.app/ethiopia/mekelle/electronics</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/mekelle/vehicles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/mekelle/furniture</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/mekelle/home-appliances</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/mekelle/construction-equipment</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/mekelle/art-collectibles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/mekelle/fashion</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/mekelle/services</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/mekelle/jobs</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/mekelle/real-estate</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-
-  <!-- Ethiopia - Gondar -->
-  <url><loc>https://sabalist.web.app/ethiopia/gondar/electronics</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/gondar/vehicles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/gondar/furniture</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/gondar/home-appliances</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/gondar/construction-equipment</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/gondar/art-collectibles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/gondar/fashion</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/gondar/services</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/gondar/jobs</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ethiopia/gondar/real-estate</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-
-  <!-- Kenya - Nairobi -->
-  <url><loc>https://sabalist.web.app/kenya/nairobi/electronics</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/nairobi/vehicles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/nairobi/furniture</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/nairobi/home-appliances</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/nairobi/construction-equipment</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/nairobi/art-collectibles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/nairobi/fashion</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/nairobi/services</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/nairobi/jobs</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/nairobi/real-estate</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-
-  <!-- Kenya - Mombasa -->
-  <url><loc>https://sabalist.web.app/kenya/mombasa/electronics</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/mombasa/vehicles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/mombasa/furniture</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/mombasa/home-appliances</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/mombasa/construction-equipment</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/mombasa/art-collectibles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/mombasa/fashion</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/mombasa/services</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/mombasa/jobs</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/mombasa/real-estate</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-
-  <!-- Kenya - Kisumu -->
-  <url><loc>https://sabalist.web.app/kenya/kisumu/electronics</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/kisumu/vehicles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/kisumu/furniture</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/kisumu/home-appliances</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/kisumu/construction-equipment</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/kisumu/art-collectibles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/kisumu/fashion</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/kisumu/services</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/kisumu/jobs</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/kisumu/real-estate</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-
-  <!-- Kenya - Nakuru -->
-  <url><loc>https://sabalist.web.app/kenya/nakuru/electronics</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/nakuru/vehicles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/nakuru/furniture</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/nakuru/home-appliances</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/nakuru/construction-equipment</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/nakuru/art-collectibles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/nakuru/fashion</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/nakuru/services</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/nakuru/jobs</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/kenya/nakuru/real-estate</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-
-  <!-- Nigeria - Lagos -->
-  <url><loc>https://sabalist.web.app/nigeria/lagos/electronics</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/lagos/vehicles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/lagos/furniture</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/lagos/home-appliances</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/lagos/construction-equipment</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/lagos/art-collectibles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/lagos/fashion</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/lagos/services</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/lagos/jobs</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/lagos/real-estate</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-
-  <!-- Nigeria - Abuja -->
-  <url><loc>https://sabalist.web.app/nigeria/abuja/electronics</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/abuja/vehicles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/abuja/furniture</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/abuja/home-appliances</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/abuja/construction-equipment</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/abuja/art-collectibles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/abuja/fashion</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/abuja/services</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/abuja/jobs</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/abuja/real-estate</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-
-  <!-- Nigeria - Kano -->
-  <url><loc>https://sabalist.web.app/nigeria/kano/electronics</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/kano/vehicles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/kano/furniture</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/kano/home-appliances</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/kano/construction-equipment</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/kano/art-collectibles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/kano/fashion</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/kano/services</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/kano/jobs</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/kano/real-estate</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-
-  <!-- Nigeria - Ibadan -->
-  <url><loc>https://sabalist.web.app/nigeria/ibadan/electronics</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/ibadan/vehicles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/ibadan/furniture</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/ibadan/home-appliances</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/ibadan/construction-equipment</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/ibadan/art-collectibles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/ibadan/fashion</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/ibadan/services</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/ibadan/jobs</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/ibadan/real-estate</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-
-  <!-- Nigeria - Port Harcourt -->
-  <url><loc>https://sabalist.web.app/nigeria/port-harcourt/electronics</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/port-harcourt/vehicles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/port-harcourt/furniture</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/port-harcourt/home-appliances</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/port-harcourt/construction-equipment</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/port-harcourt/art-collectibles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/port-harcourt/fashion</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/port-harcourt/services</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/port-harcourt/jobs</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/nigeria/port-harcourt/real-estate</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-
-  <!-- Ghana - Accra -->
-  <url><loc>https://sabalist.web.app/ghana/accra/electronics</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/accra/vehicles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/accra/furniture</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/accra/home-appliances</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/accra/construction-equipment</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/accra/art-collectibles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/accra/fashion</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/accra/services</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/accra/jobs</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/accra/real-estate</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-
-  <!-- Ghana - Kumasi -->
-  <url><loc>https://sabalist.web.app/ghana/kumasi/electronics</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/kumasi/vehicles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/kumasi/furniture</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/kumasi/home-appliances</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/kumasi/construction-equipment</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/kumasi/art-collectibles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/kumasi/fashion</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/kumasi/services</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/kumasi/jobs</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/kumasi/real-estate</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-
-  <!-- Ghana - Tamale -->
-  <url><loc>https://sabalist.web.app/ghana/tamale/electronics</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/tamale/vehicles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/tamale/furniture</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/tamale/home-appliances</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/tamale/construction-equipment</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/tamale/art-collectibles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/tamale/fashion</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/tamale/services</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/tamale/jobs</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/tamale/real-estate</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-
-  <!-- Ghana - Takoradi -->
-  <url><loc>https://sabalist.web.app/ghana/takoradi/electronics</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/takoradi/vehicles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/takoradi/furniture</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/takoradi/home-appliances</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/takoradi/construction-equipment</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/takoradi/art-collectibles</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/takoradi/fashion</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/takoradi/services</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/takoradi/jobs</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://sabalist.web.app/ghana/takoradi/real-estate</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sabalist.com/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
+  <url><loc>https://sabalist.com/about</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://sabalist.com/terms</loc><changefreq>monthly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://sabalist.com/help</loc><changefreq>monthly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://sabalist.com/category/vehicles</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/real-estate</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/electronics</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/phones-tablets</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/computers</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/fashion</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/beauty</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/home-furniture</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/jobs</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/services</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/food</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/agriculture</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/animals-pets</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/baby-kids</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/sports-fitness</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/business-industrial</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/events-tickets</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/education</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/travel</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/construction</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/repair-services</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/rentals</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/entertainment</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/community</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/category/other</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sabalist.com/listing/1AzBCqxzX9mFDtFGAPeq</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/1RIdaq2QwCH5u5SvKVmB</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/7PFpKY3FscIoIs3A9DHK</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/7bzHJeudubNpVErlSpec</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/99jNKIqbqv0j6RTaUXS2</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/9YqVkY41rPJxg1UNZyYh</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/AODCmx9kEiezzEnS7H0k</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/AsxahbGzEORvriN8ECUq</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/DeC7nkqKKfS5qNouO5JT</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/IILtnBWMar83V7oUd9ka</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/Isj49lUiOcrxjykrt2lb</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/KEi1Lm8RUXpY85cPFtBH</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/Le6MRpQjbndDOOcpOdGw</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/LnYqVfJpLJLzZEkoQ6MU</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/M0bwzvGKieWWyNCwg1yB</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/Oam1GM80x9avM3yFuUZ0</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/PkBAVz2aUTSbVXjPKsfU</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/Ssq23YJceA1t8V74ENAR</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/TClf9zjxLH411nbnTNxN</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/UxLJv5Gu3QzCANEEuwNc</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/WMwwPP2IjPO4ktA389Ga</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/XsUW2Gs32RFijeRqo03H</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/aHlfGNKYdXeksYPOY7uE</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/cqQ0HxmWXnJbHEqBqYqk</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/cv3nmCxad0z7MdUQ3uvJ</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/dz3BoxAALhmKl8z2RAHs</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/f09UBfZjlTigp2TLiwi6</loc><lastmod>2026-01-05</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/hMSft3GCxmWhHP4EZAyN</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/hUBo6WoGuOytaEgUKVDg</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/hy12ah9x3RzV2EKFV4y5</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/mcqKa9gk2MtKd5sdvGCv</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/qASZmK2MzWOTG6WGbl9N</loc><lastmod>2026-01-05</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/w9Yft7xBuzxwLeHnwwj3</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/x8cT5qSlgR4vZPV9xHc7</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/xwNbWgzZU98MAqHa3sXx</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/yCTXxlzl6SL2ZW4DuQgl</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/zJZYIssdw8XqmnLFsQxp</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/zQ6hbpsWTIXl2KZ8SjUy</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sabalist.com/listing/zgiSOXc7zG9hsWhNxSFX</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
 </urlset>

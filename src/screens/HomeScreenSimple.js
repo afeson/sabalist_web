@@ -12,6 +12,7 @@ import {
   TextInput,
   ScrollView,
   Platform,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -44,6 +45,28 @@ if (Platform.OS === 'web') {
   searchListings = listingsNative.searchListings;
 }
 import { ListingCard } from '../components/ui';
+
+// Android phone-specific responsive metrics. We deliberately gate on
+// (Android && width < 600dp) so tablets and iOS keep their existing
+// layout exactly. The bottom padding must clear the floating + button
+// in MainTabNavigator (centerButton 60dp tall, lifted -20dp above the
+// 70dp tab bar -> needs ~140dp of safe space at the end of the list).
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const IS_ANDROID_PHONE = Platform.OS === 'android' && SCREEN_WIDTH < 600;
+const HERO_TITLE_SIZE = IS_ANDROID_PHONE ? 24 : 32;
+const HERO_TITLE_LINE = IS_ANDROID_PHONE ? 30 : 38;
+const HERO_SUBTITLE_SIZE = IS_ANDROID_PHONE ? 13 : 15;
+const HERO_PAD = IS_ANDROID_PHONE ? PREMIUM_SPACING.base : PREMIUM_SPACING.xl;
+const SECTION_H_PAD = IS_ANDROID_PHONE ? PREMIUM_SPACING.base : PREMIUM_SPACING.xl;
+const SEARCH_PAD = IS_ANDROID_PHONE ? PREMIUM_SPACING.sm : PREMIUM_SPACING.base;
+const SEARCH_FONT = IS_ANDROID_PHONE ? 14 : 15;
+const CATEGORY_ICON_SIZE = IS_ANDROID_PHONE ? 44 : 52;
+const CATEGORY_PILL_WIDTH = IS_ANDROID_PHONE ? 66 : 78;
+const CATEGORY_TEXT_SIZE = IS_ANDROID_PHONE ? 11 : 12;
+const CATEGORY_GAP = IS_ANDROID_PHONE ? PREMIUM_SPACING.xs : PREMIUM_SPACING.sm;
+const LIST_PAD = IS_ANDROID_PHONE ? PREMIUM_SPACING.sm : PREMIUM_SPACING.base;
+// Floating + button + tab bar clearance.
+const LIST_BOTTOM_PAD = IS_ANDROID_PHONE ? 140 : 100;
 
 export default function HomeScreenSimple({ navigation }) {
   const { t, i18n } = useTranslation();
@@ -270,18 +293,14 @@ export default function HomeScreenSimple({ navigation }) {
     );
   };
 
-  return (
-    <View style={styles.container}>
-      <SEO
-        title="Buy & Sell across Africa"
-        description="Sabalist is Africa's marketplace. Buy and sell electronics, vehicles, real estate, fashion and more."
-        canonicalUrl="/"
-        jsonLd={[generateWebsiteSchema()]}
-      />
-      <StatusBar barStyle="dark-content" backgroundColor={PREMIUM_COLORS.bg} />
+  const isWeb = Platform.OS === 'web';
 
-      <AppHeader navigation={navigation} />
-
+  // Hero + search + location + category strip. On web this becomes the
+  // FlatList's ListHeaderComponent so the entire screen scrolls together
+  // (fixes "page won't scroll" — wheel over the header now scrolls). On native
+  // it renders fixed above the list (unchanged behavior).
+  const topSections = (
+    <View>
       {/* Hero Section */}
       <View style={styles.heroSection}>
         <Text style={styles.heroTitle}>{t('home.heroTitle') || 'Discover Something\nExtraordinary'}</Text>
@@ -338,6 +357,26 @@ export default function HomeScreenSimple({ navigation }) {
           contentContainerStyle={styles.categoryList}
         />
       </View>
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      <SEO
+        title="Buy & Sell across Africa"
+        description="Sabalist is Africa's marketplace. Buy and sell electronics, vehicles, real estate, fashion and more."
+        canonicalUrl="/"
+        jsonLd={[generateWebsiteSchema()]}
+      />
+      <StatusBar barStyle="dark-content" backgroundColor={PREMIUM_COLORS.bg} />
+
+      <AppHeader navigation={navigation} />
+
+      {/* On web, hero/search/location/category render INSIDE the list header
+          (see topSections) so the whole page is one scroll surface — wheeling
+          anywhere scrolls. On native they stay fixed above the scrolling list,
+          preserving the existing mobile layout. */}
+      {!isWeb && topSections}
 
       {/* Listings Grid */}
       <FlatList
@@ -345,6 +384,8 @@ export default function HomeScreenSimple({ navigation }) {
         keyExtractor={(item) => item.id}
         renderItem={renderListing}
         numColumns={2}
+        style={isWeb ? styles.listWeb : undefined}
+        ListHeaderComponent={isWeb ? topSections : undefined}
         contentContainerStyle={styles.listingContent}
         columnWrapperStyle={styles.listingRow}
         ListEmptyComponent={renderEmpty}
@@ -403,29 +444,41 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: PREMIUM_COLORS.bg,
+    overflow: 'hidden', // prevent horizontal overflow on narrow Android phones
+    // Web: allow the flex children (the listings FlatList) to shrink below
+    // their content size so the list's own scroll area gets a bounded height
+    // instead of collapsing. Native uses default min-height (auto).
+    ...(Platform.OS === 'web' ? { minHeight: 0 } : null),
+  },
+  // Web-only: the listings FlatList must take the remaining column height so its
+  // internal scroll area resolves to a non-zero height. Without this it renders
+  // at clientHeight 0 on web and the page cannot scroll up/down. No native change.
+  listWeb: {
+    flex: 1,
+    minHeight: 0,
   },
   heroSection: {
-    padding: PREMIUM_SPACING.xl,
+    padding: HERO_PAD,
     paddingBottom: PREMIUM_SPACING.base,
   },
   heroTitle: {
-    fontSize: 32,
+    fontSize: HERO_TITLE_SIZE,
     fontWeight: '800',
     color: PREMIUM_COLORS.text,
-    lineHeight: 38,
+    lineHeight: HERO_TITLE_LINE,
     marginBottom: PREMIUM_SPACING.sm,
   },
   heroSubtitle: {
-    fontSize: 15,
+    fontSize: HERO_SUBTITLE_SIZE,
     color: PREMIUM_COLORS.muted,
     lineHeight: 22,
   },
   searchCard: {
     backgroundColor: PREMIUM_COLORS.card,
-    marginHorizontal: PREMIUM_SPACING.xl,
+    marginHorizontal: SECTION_H_PAD,
     marginBottom: PREMIUM_SPACING.base,
     borderRadius: PREMIUM_RADIUS.lg,
-    padding: PREMIUM_SPACING.base,
+    padding: SEARCH_PAD,
     ...PREMIUM_SHADOWS.card,
   },
   searchInputContainer: {
@@ -435,7 +488,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: SEARCH_FONT,
     color: PREMIUM_COLORS.text,
     padding: 0,
   },
@@ -443,23 +496,23 @@ const styles = StyleSheet.create({
     marginBottom: PREMIUM_SPACING.base,
   },
   categoryList: {
-    paddingHorizontal: PREMIUM_SPACING.xl,
+    paddingHorizontal: SECTION_H_PAD,
     paddingVertical: PREMIUM_SPACING.xs,
-    gap: PREMIUM_SPACING.sm,
+    gap: CATEGORY_GAP,
   },
   categoryPill: {
     alignItems: 'center',
     justifyContent: 'flex-start',
-    width: 78,
+    width: CATEGORY_PILL_WIDTH,
     paddingHorizontal: 4,
     paddingVertical: PREMIUM_SPACING.xs,
   },
   categoryPillActive: {},
   categoryPillMore: {},
   categoryIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: CATEGORY_ICON_SIZE,
+    height: CATEGORY_ICON_SIZE,
+    borderRadius: CATEGORY_ICON_SIZE / 2,
     backgroundColor: PREMIUM_COLORS.card,
     alignItems: 'center',
     justifyContent: 'center',
@@ -477,7 +530,7 @@ const styles = StyleSheet.create({
     borderColor: PREMIUM_COLORS.text,
   },
   categoryText: {
-    fontSize: 12,
+    fontSize: CATEGORY_TEXT_SIZE,
     fontWeight: '600',
     color: PREMIUM_COLORS.text,
     textAlign: 'center',
@@ -487,12 +540,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   listingContent: {
-    padding: PREMIUM_SPACING.base,
-    paddingBottom: 100,
+    padding: LIST_PAD,
+    paddingBottom: LIST_BOTTOM_PAD,
   },
   listingRow: {
     justifyContent: 'space-between',
-    marginBottom: PREMIUM_SPACING.base,
+    marginBottom: LIST_PAD,
   },
   listingCardWrapper: {
     width: '48%',
@@ -535,7 +588,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: PREMIUM_SPACING.md,
     paddingVertical: PREMIUM_SPACING.sm,
     borderRadius: PREMIUM_RADIUS.md,
-    marginHorizontal: PREMIUM_SPACING.xl,
+    marginHorizontal: SECTION_H_PAD,
     marginBottom: PREMIUM_SPACING.md,
     ...PREMIUM_SHADOWS.card,
   },

@@ -29,38 +29,42 @@ const initializeI18n = async () => {
   }
 };
 
-// Linking configuration for deep links and SEO-friendly URLs
+// Linking configuration for deep links and SEO-friendly URLs.
+//
+// The `screens` map MUST mirror the actual navigator hierarchy. The root
+// navigator rendered below is MainTabNavigator (a stack whose first screen is
+// the "MainTabs" tab navigator), so these screens live at the TOP level — not
+// nested under a non-existent "Main"/"Auth" wrapper. The previous nesting meant
+// URLs like /listing/:id and /category/:id never resolved, which (together with
+// the login wall) is why crawlers couldn't index marketplace content.
 const linking = {
   prefixes: [
     'sabalist://',
-    'https://sabalist.firebaseapp.com',
+    'https://sabalist.com',
+    'https://www.sabalist.com',
     'https://sabalist.web.app',
+    'https://sabalist.firebaseapp.com',
   ],
   config: {
     screens: {
-      Auth: 'auth',
-      Main: {
+      MainTabs: {
         screens: {
-          MainTabs: {
-            screens: {
-              Home: '',
-              Favorites: 'favorites',
-              CreateListing: 'create',
-              MyListings: 'my-listings',
-              Profile: 'profile',
-            },
-          },
-          ListingDetail: 'listing/:listingId',
-          SubCategories: 'category/:category',
-          CategoryListings: 'category/:category/:subcategoryId',
-          About: 'about',
-          TermsPrivacy: 'terms',
-          HelpSupport: 'help',
-          Notifications: 'notifications',
-          EditProfile: 'edit-profile',
-          CityListings: ':country/:city/:category',
+          Home: '',
+          Favorites: 'favorites',
+          CreateListing: 'create',
+          MyListings: 'my-listings',
+          Profile: 'profile',
         },
       },
+      ListingDetail: 'listing/:listingId',
+      SubCategories: 'category/:category',
+      CategoryListings: 'category/:category/:subcategoryId',
+      About: 'about',
+      TermsPrivacy: 'terms',
+      HelpSupport: 'help',
+      Notifications: 'notifications',
+      EditProfile: 'edit-profile',
+      CityListings: ':country/:city/:category',
     },
   },
 };
@@ -167,10 +171,28 @@ function AppContent() {
 
   // Single NavigationContainer wraps BOTH authenticated and unauthenticated states
   // This fixes "Couldn't find a navigation object" error on web
+  //
+  // SEO fix (web only): logged-out visitors and search-engine crawlers are
+  // allowed to mount the full marketplace navigator so public pages (home,
+  // categories, search, listing detail) render and are indexable. Private
+  // actions stay protected by <RequireAuth> wrappers inside MainTabNavigator.
+  //
+  // Native (iOS/Android) behavior is intentionally UNCHANGED: logged-out users
+  // still see <AuthScreen /> first, so the mobile apps work exactly as before
+  // and no new build is required.
+  const allowPublicBrowsing = Platform.OS === 'web';
+
   return (
     <HelmetProvider>
-      <NavigationContainer linking={linking}>
-        {user ? <MainTabNavigator /> : <AuthScreen />}
+      {/* documentTitle disabled so React Navigation doesn't overwrite the
+          per-page <title> set by the SEO/Helmet component on web (otherwise
+          every page is titled by its route name, e.g. "Home"). No native
+          effect — documentTitle only applies on web. */}
+      <NavigationContainer
+        linking={linking}
+        documentTitle={{ enabled: false }}
+      >
+        {user || allowPublicBrowsing ? <MainTabNavigator /> : <AuthScreen />}
       </NavigationContainer>
     </HelmetProvider>
   );

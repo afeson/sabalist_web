@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Platform, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Platform, TouchableOpacity, Dimensions } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,9 +22,31 @@ import AboutScreen from '../screens/AboutScreen';
 import SubCategoriesScreen from '../screens/SubCategoriesScreen';
 import CategoryListingsScreen from '../screens/CategoryListingsScreen';
 import CityListingsScreen from '../screens/CityListingsScreen';
+import { withAuthGate } from '../components/RequireAuth';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+
+// Private screens require a signed-in user. On web, logged-out visitors can
+// browse public marketplace screens (home/category/search/listing) but hitting
+// any of these renders the auth screen. On native this is a no-op (logged-out
+// users never reach the navigator). Wrapped at module scope so the component
+// identity stays stable and the screens don't remount on every render.
+const GuardedFavorites = withAuthGate(FavoritesScreen);
+const GuardedCreateListing = withAuthGate(CreateListingScreen);
+const GuardedMyListings = withAuthGate(MyListingsScreen);
+const GuardedProfile = withAuthGate(ProfileScreen);
+const GuardedEditProfile = withAuthGate(EditProfileScreen);
+const GuardedNotifications = withAuthGate(NotificationsScreen);
+
+// Android phones get a slightly smaller floating + button so it doesn't
+// crowd the listings grid on narrow screens. Tablets and iOS unchanged.
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const IS_ANDROID_PHONE = Platform.OS === 'android' && SCREEN_WIDTH < 600;
+const CENTER_BUTTON_SIZE = IS_ANDROID_PHONE ? 52 : 60;
+const CENTER_BUTTON_ICON = IS_ANDROID_PHONE ? 28 : 32;
+const CENTER_BUTTON_LIFT = IS_ANDROID_PHONE ? -16 : -20;
+const CENTER_BUTTON_CONTAINER = IS_ANDROID_PHONE ? 60 : 70;
 
 // Custom center button
 function CenterButton({ onPress }) {
@@ -34,7 +56,7 @@ function CenterButton({ onPress }) {
       onPress={onPress}
       activeOpacity={0.8}
     >
-      <Ionicons name="add" size={32} color={COLORS.card} />
+      <Ionicons name="add" size={CENTER_BUTTON_ICON} color={COLORS.card} />
     </TouchableOpacity>
   );
 }
@@ -104,14 +126,14 @@ function TabNavigator() {
       />
       <Tab.Screen
         name="Favorites"
-        component={FavoritesScreen}
+        component={GuardedFavorites}
         options={{
           tabBarLabel: t('tabs.favorites'),
         }}
       />
       <Tab.Screen
         name="CreateListing"
-        component={CreateListingScreen}
+        component={GuardedCreateListing}
         options={{
           tabBarLabel: '',
           tabBarButton: (props) => (
@@ -123,14 +145,14 @@ function TabNavigator() {
       />
       <Tab.Screen
         name="MyListings"
-        component={MyListingsScreen}
+        component={GuardedMyListings}
         options={{
           tabBarLabel: t('tabs.myListings'),
         }}
       />
       <Tab.Screen
         name="Profile"
-        component={ProfileScreen}
+        component={GuardedProfile}
         options={{
           tabBarLabel: t('tabs.profile'),
         }}
@@ -161,7 +183,7 @@ export default function MainTabNavigator() {
       />
       <Stack.Screen
         name="EditProfile"
-        component={EditProfileScreen}
+        component={GuardedEditProfile}
         options={{
           headerShown: false,
           presentation: 'card',
@@ -169,7 +191,7 @@ export default function MainTabNavigator() {
       />
       <Stack.Screen
         name="Notifications"
-        component={NotificationsScreen}
+        component={GuardedNotifications}
         options={{
           headerShown: false,
           presentation: 'card',
@@ -245,15 +267,15 @@ const styles = StyleSheet.create({
     marginTop: -4,
   },
   centerButtonContainer: {
-    top: -20,
+    top: CENTER_BUTTON_LIFT,
     justifyContent: 'center',
     alignItems: 'center',
-    width: 70,
+    width: CENTER_BUTTON_CONTAINER,
   },
   centerButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: CENTER_BUTTON_SIZE,
+    height: CENTER_BUTTON_SIZE,
+    borderRadius: CENTER_BUTTON_SIZE / 2,
     backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',

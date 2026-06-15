@@ -13,4 +13,4 @@ Disallow: /create
 Disallow: /auth
 Disallow: /notifications
 
-Sitemap: https://sabalist.web.app/sitemap.xml
+Sitemap: https://sabalist.com/sitemap.xml

@@ -8,8 +8,9 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "dev": "expo start --web",
-    "build": "npx expo export:web && cpx \"web-build/**/*\" dist && cpx \"public/!(index).html\" dist && cpx \"public/*.ico\" dist && cpx \"public/*.png\" dist && cpx \"public/*.webmanifest\" dist && cpx \"public/robots.txt\" dist && cpx \"public/sitemap.xml\" dist",
-    "vercel-build": "npx expo export:web && cpx \"web-build/**/*\" dist && cpx \"public/!(index).html\" dist && cpx \"public/*.ico\" dist && cpx \"public/*.png\" dist && cpx \"public/*.webmanifest\" dist && cpx \"public/robots.txt\" dist && cpx \"public/sitemap.xml\" dist",
+    "build": "node scripts/generate-sitemap.js && npx expo export:web && cpx \"web-build/**/*\" dist && cpx \"public/!(index).html\" dist && cpx \"public/*.ico\" dist && cpx \"public/*.png\" dist && cpx \"public/*.webmanifest\" dist && cpx \"public/robots.txt\" dist && cpx \"public/sitemap.xml\" dist",
+    "vercel-build": "node scripts/generate-sitemap.js && npx expo export:web && cpx \"web-build/**/*\" dist && cpx \"public/!(index).html\" dist && cpx \"public/*.ico\" dist && cpx \"public/*.png\" dist && cpx \"public/*.webmanifest\" dist && cpx \"public/robots.txt\" dist && cpx \"public/sitemap.xml\" dist",
+    "generate-sitemap": "node scripts/generate-sitemap.js",
     "serve": "npx serve dist"
   },
   "dependencies": {
@@ -17,6 +18,7 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-firebase/app": "23.8.4",
     "@react-native-firebase/auth": "23.8.4",
+    "@react-native-firebase/crashlytics": "^23.8.4",
     "@react-native-firebase/firestore": "^23.8.4",
     "@react-native-firebase/storage": "23.8.4",
     "@react-native-google-signin/google-signin": "^16.1.1",
@@ -26,7 +28,9 @@
     "buffer": "^6.0.3",
     "crypto-browserify": "^3.12.0",
     "expo": "~54.0.33",
+    "expo-apple-authentication": "~7.2.4",
     "expo-build-properties": "^1.0.10",
+    "expo-crypto": "~14.0.2",
     "expo-document-picker": "~14.0.8",
     "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "~17.0.10",
@@ -48,6 +52,7 @@
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-web": "^0.21.0",
+    "react-native-webview": "~13.13.5",
     "react-native-worklets": "^0.5.1",
     "stream-browserify": "^3.0.0"
   },

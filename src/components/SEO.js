@@ -1,7 +1,11 @@
 import React from 'react';
 import { Platform } from 'react-native';
 
-const BASE_URL = 'https://sabalist.web.app';
+// Canonical domain is the primary production host (sabalist.com, served by
+// Vercel). The app is also reachable at sabalist.web.app / firebaseapp.com, so
+// pointing canonical + OG URLs at sabalist.com consolidates ranking signals
+// onto one domain instead of fragmenting them across mirrors.
+const BASE_URL = 'https://sabalist.com';
 const DEFAULT_OG_IMAGE = `${BASE_URL}/web-app-manifest-512x512.png`;
 
 function SEO({ title, description, canonicalUrl, ogImage, ogType = 'website', jsonLd, noIndex = false }) {
