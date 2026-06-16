@@ -27,6 +27,7 @@ import {
   ActivityIndicator,
   SafeAreaView,
   Platform,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -45,6 +46,7 @@ import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'fire
 import { getImageLimits, GLOBAL_IMAGE_LIMITS } from '../config/categoryLimits';
 import { recordListingPosted } from '../services/reviewService';
 import SEO from '../components/SEO';
+import AuthScreen from './AuthScreen';
 import { getSubCategories, CATEGORIES, getCategoryByKey, getCategoryIcon, categoryRequiresPricing } from '../config/categories';
 import { getTranslatedCategoryLabel, getTranslatedSubCategoryLabel } from '../utils/categoryI18n';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
@@ -64,6 +66,15 @@ const CATEGORY_KEYS = CATEGORIES.map((c) => c.key);
 export default function CreateListingScreen({ navigation }) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth(); // Get authenticated user from AuthContext
+
+  // Build-first / gate-at-publish (web): logged-out visitors can build a listing;
+  // they're only asked to sign in when they hit Post. The screen stays mounted
+  // so the draft is preserved in state — after sign-in this effect hides the
+  // prompt and the user can publish their draft.
+  const [needsAuth, setNeedsAuth] = useState(false);
+  useEffect(() => {
+    if (user && needsAuth) setNeedsAuth(false);
+  }, [user, needsAuth]);
   const insets = useSafeAreaInsets();
   const [, forceUpdate] = useState(0);
 
@@ -528,8 +539,9 @@ export default function CreateListingScreen({ navigation }) {
         setUploadProgress('');
 
         if (Platform.OS === 'web') {
-          alert(t('alerts.pleaseSignInCreate'));
-          navigation.navigate('Home');
+          // Build-first: keep the draft and prompt sign-in inline (no navigation
+          // away, so the form state survives). After sign-in the user taps Post.
+          setNeedsAuth(true);
         } else {
           Alert.alert(t('alerts.signInRequired'), t('alerts.pleaseSignInCreate'), [
             { text: t('common.ok'), onPress: () => navigation.navigate('Home') }
@@ -716,25 +728,42 @@ export default function CreateListingScreen({ navigation }) {
       console.log(`✅ ========== SUBMIT COMPLETE: ${listingId} ==========`);
 
       // Success! Show alert and navigate
-      Alert.alert(
-        t('alerts.success'),
-        t('alerts.listingPosted', { title }) || 'Your listing has been posted!',
-        [
-          {
-            text: t('common.ok'),
-            onPress: () => {
-              // Reset form
-              resetForm();
-              // Navigate to Home with refresh flag to show new listing immediately
-              navigation.navigate('Home', { refresh: Date.now() });
-              // Posting a listing is a strong positive moment: ask for a native
-              // app review (native only; 90-day cap). Delayed so the rating
-              // dialog doesn't collide with this success alert / navigation.
-              setTimeout(() => { recordListingPosted(); }, 1500);
+      // Success! Offer a one-tap WhatsApp share (the seller's network is the
+      // cheapest distribution), then reset + return home and (native) request
+      // an app review. Posting is a strong positive moment for the review prompt.
+      const shareUrl = `https://sabalist.com/listing/${listingId}`;
+      const shareMsg = `${title} — now on Sabalist\n${shareUrl}`;
+      const finish = () => {
+        resetForm();
+        navigation.navigate('Home', { refresh: Date.now() });
+        setTimeout(() => { recordListingPosted(); }, 1500);
+      };
+
+      if (Platform.OS === 'web') {
+        // RN-Web Alert can't render multiple buttons; use confirm for the share.
+        const wantsShare =
+          typeof window !== 'undefined' &&
+          window.confirm('✅ Your listing is live! Share it on WhatsApp now?');
+        if (wantsShare) {
+          window.open(`https://wa.me/?text=${encodeURIComponent(shareMsg)}`, '_blank');
+        }
+        finish();
+      } else {
+        Alert.alert(
+          t('alerts.success'),
+          t('alerts.listingPosted', { title }) || 'Your listing has been posted!',
+          [
+            {
+              text: 'Share on WhatsApp',
+              onPress: () => {
+                Linking.openURL(`https://wa.me/?text=${encodeURIComponent(shareMsg)}`).catch(() => {});
+                finish();
+              },
             },
-          },
-        ]
-      );
+            { text: t('common.ok'), onPress: finish },
+          ]
+        );
+      }
     } catch (error) {
       console.error('❌ ========== SUBMIT FAILED ==========');
       console.error('❌ Error:', error.message);
@@ -1192,6 +1221,27 @@ export default function CreateListingScreen({ navigation }) {
   // ============================================
   // MAIN RENDER
   // ============================================
+
+  // Gate-at-publish: when a logged-out web visitor tries to post, show sign-in
+  // inline while keeping their draft in state. A Back arrow returns to the form.
+  if (needsAuth && !user) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 8 }}>
+          <TouchableOpacity onPress={() => setNeedsAuth(false)} style={{ padding: 8 }} accessibilityLabel="Back to listing">
+            <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          </TouchableOpacity>
+          <View style={{ marginLeft: 4 }}>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.text }}>Sign in to publish</Text>
+            <Text style={{ fontSize: 13, color: COLORS.textMuted }}>Your draft is saved — sign in, then tap Post.</Text>
+          </View>
+        </View>
+        <View style={{ flex: 1 }}>
+          <AuthScreen />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>

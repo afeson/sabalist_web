@@ -133,7 +133,7 @@ function TabNavigator() {
       />
       <Tab.Screen
         name="CreateListing"
-        component={GuardedCreateListing}
+        component={CreateListingScreen}
         options={{
           tabBarLabel: '',
           tabBarButton: (props) => (
