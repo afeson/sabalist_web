@@ -1,0 +1,22 @@
+{
+  "id": "tmpl-events-api",
+  "name": "TEMPLATE — Events (Ticketmaster/Eventbrite API)",
+  "enabled": false,
+  "_needs": "key",
+  "_howto": "Ticketmaster Discovery API (free key) or Eventbrite. Set ${EVENTS_API_KEY}, confirm recordsPath + fields, set enabled:true.",
+  "format": "json",
+  "fetch": { "type": "http", "url": "https://app.ticketmaster.com/discovery/v2/events.json", "query": { "apikey": "${EVENTS_API_KEY}", "countryCode": "ZA", "size": "100" } },
+  "parseOptions": { "recordsPath": "_embedded.events" },
+  "schedule": "0 */6 * * *", "ownerUserId": "imported-listings", "region": "Africa",
+  "thresholds": { "autoPublishQuality": 0.6, "autoPublishConfidence": 0.7 },
+  "mapping": {
+    "externalId": "id",
+    "title": { "path": "name", "transform": "trim" },
+    "description": { "path": "info", "transform": ["stripHtml", "trim"] },
+    "category": { "const": "events-tickets" },
+    "location": ["_embedded.venues.0.city.name"],
+    "country": "_embedded.venues.0.country.name",
+    "images": { "path": "images.0.url", "transform": "splitImages" },
+    "url": "url"
+  }
+}

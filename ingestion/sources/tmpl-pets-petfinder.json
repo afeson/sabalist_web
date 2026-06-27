@@ -1,0 +1,22 @@
+{
+  "id": "tmpl-pets-petfinder",
+  "name": "TEMPLATE — Pets (Petfinder API)",
+  "enabled": false,
+  "_needs": "key",
+  "_howto": "Petfinder API (free key, OAuth). Get token, set ${PETFINDER_TOKEN}, set enabled:true. Returns adoptable pets with photos.",
+  "format": "json",
+  "fetch": { "type": "http", "url": "https://api.petfinder.com/v2/animals", "query": { "limit": "100" }, "headers": { "Authorization": "Bearer ${PETFINDER_TOKEN}" } },
+  "parseOptions": { "recordsPath": "animals" },
+  "schedule": "0 */6 * * *", "ownerUserId": "imported-listings", "region": "Worldwide",
+  "thresholds": { "autoPublishQuality": 0.6, "autoPublishConfidence": 0.7 },
+  "mapping": {
+    "externalId": "id",
+    "title": { "path": "name", "transform": "trim" },
+    "description": { "path": "description", "transform": ["stripHtml", "trim"] },
+    "category": { "const": "animals-pets" },
+    "location": ["contact.address.city", "contact.address.state"],
+    "country": "contact.address.country",
+    "images": { "path": "photos", "transform": "splitImages" },
+    "url": "url"
+  }
+}
