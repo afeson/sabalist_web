@@ -92,7 +92,20 @@ async function fetchPayload(source, baseDir = process.cwd()) {
           headers['Content-Type'] = headers['Content-Type'] || 'application/json';
         }
       }
-      return httpRequest(buildUrl(f.url, f.query), { method, headers, body });
+      // Retry transient failures (5xx / timeout) — public feeds like Overpass
+      // intermittently return 504 under load.
+      const url = buildUrl(f.url, f.query);
+      let lastErr;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          return await httpRequest(url, { method, headers, body });
+        } catch (e) {
+          lastErr = e;
+          if (!/HTTP 5\d\d|timeout|ECONNRESET|EAI_AGAIN/.test(e.message)) throw e;
+          await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+        }
+      }
+      throw lastErr;
     }
     default:
       throw new Error(`Unsupported fetch.type: ${f.type}`);
