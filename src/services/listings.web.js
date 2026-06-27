@@ -499,7 +499,9 @@ export async function searchListings(searchText = "", category = null, minPrice 
     console.log('searchListings called with:', { searchText, category, subcategoryId, userLocation });
 
     // Only fetch active listings for marketplace
-    const listings = await fetchListings(category, 50);
+    // Home (no category) pulls a wider window so organic photo listings (older
+    // than the imports) are present to rank to the top; category stays tight.
+    const listings = await fetchListings(category, category ? 50 : 150);
 
     // Filter out sold listings for marketplace display
     let activeListings = listings.filter(listing => listing.status === 'active' || !listing.status);
@@ -527,19 +529,24 @@ export async function searchListings(searchText = "", category = null, minPrice 
       );
     }
 
-    // Location is a best-effort PREFERENCE, not a hard filter (kept in sync with
-    // services/listings.js). A hard filter showed "No listings yet" once imports
-    // filled the newest-N window with non-local results. Sort local first, keep
-    // all active listings so app and website show the same data.
-    if (userLocation && userLocation.city) {
-      const uc = userLocation.city.toLowerCase();
-      const us = (userLocation.state || '').toLowerCase();
-      const uco = (userLocation.country || '').toLowerCase();
+    // Feed ranking (kept in sync with services/listings.js): real/organic
+    // listings WITH product photos first, then any image, then organic without
+    // image, then the rest; local preferred within a tier; newest last. Never
+    // excludes — app and website show the same data / counts.
+    {
+      const uc = ((userLocation && userLocation.city) || '').toLowerCase();
+      const us = ((userLocation && userLocation.state) || '').toLowerCase();
+      const uco = ((userLocation && userLocation.country) || '').toLowerCase();
       const isLocal = (l) => {
         const loc = (l.location || '').toLowerCase();
-        return !!loc && (loc.includes(uc) || (us && loc.includes(us)) || (uco && loc.includes(uco)));
+        return !!uc && !!loc && (loc.includes(uc) || (us && loc.includes(us)) || (uco && loc.includes(uco)));
       };
-      activeListings = [...activeListings].sort((a, b) => (isLocal(b) ? 1 : 0) - (isLocal(a) ? 1 : 0));
+      const tier = (l) => (!l.source && l.hasImage) ? 3 : (l.hasImage ? 2 : (!l.source ? 1 : 0));
+      activeListings = [...activeListings].sort((a, b) => {
+        const t = tier(b) - tier(a); if (t) return t;
+        const lo = (isLocal(b) ? 1 : 0) - (isLocal(a) ? 1 : 0); if (lo) return lo;
+        return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+      });
     }
 
     // Apply text search
