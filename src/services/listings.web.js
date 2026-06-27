@@ -541,7 +541,19 @@ export async function searchListings(searchText = "", category = null, minPrice 
         const loc = (l.location || '').toLowerCase();
         return !!uc && !!loc && (loc.includes(uc) || (us && loc.includes(us)) || (uco && loc.includes(uco)));
       };
-      const tier = (l) => (!l.source && l.hasImage) ? 3 : (l.hasImage ? 2 : (!l.source ? 1 : 0));
+      // Classifieds-first ranking (jobs LAST, directory next):
+      //   5 organic + photo  4 marketplace import + photo  3 organic no photo
+      //   2 marketplace import no photo  1 business directory (OSM/universities)
+      //   0 jobs
+      const isDir = (s) => /^(osm-|hipolabs-)/.test(s || '');
+      const tier = (l) => {
+        if (l.categoryId === 'jobs') return 0;
+        if (isDir(l.source)) return 1;
+        if (!l.source && l.hasImage) return 5;
+        if (l.source && l.hasImage) return 4;
+        if (!l.source) return 3;
+        return 2;
+      };
       activeListings = [...activeListings].sort((a, b) => {
         const t = tier(b) - tier(a); if (t) return t;
         const lo = (isLocal(b) ? 1 : 0) - (isLocal(a) ? 1 : 0); if (lo) return lo;
