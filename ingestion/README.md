@@ -94,11 +94,16 @@ highest-risk path — keep it for sources that explicitly allow it.
 - **Live connectors shipped (enabled, no key, tested):**
   - Jobs: `remotive-jobs`, `arbeitnow-jobs`, `themuse-jobs`, `jobicy-jobs` (JSON API),
     `remoteok-jobs` (code), `weworkremotely-jobs` (**RSS**).
-  - Multi-category, **Africa-first**: `osm-africa-businesses` (code, Overpass POST) —
-    food/services/electronics/phones/computers/home-furniture/fashion/beauty/vehicles/
-    agriculture/business across Lagos/Nairobi/Accra/Addis/Joburg.
+  - Multi-category, **all-Africa** (~30 cities, 20+ countries): `osm-africa-businesses`
+    (code, Overpass via `load()`) — food/services/electronics/phones/computers/
+    home-furniture/fashion/beauty/vehicles/agriculture/business/**travel(hotels/
+    attractions)**/**education(schools/universities)**/**sports-fitness**.
+  - **Education, every African country**: `hipolabs-universities-africa` (code) —
+    universities via the open Hipolabs API.
   - **African diaspora**: `osm-diaspora-african` (code) — African restaurants in
     London/Toronto/Atlanta/DC/Houston/Minneapolis.
+  - Connectors may use a `load()` hook (multi-request, per-country/per-city loops)
+    — see `connectors/universities.js`, `connectors/overpass.js`.
 - **Templates (disabled, `"_needs"` key/url):** `tmpl-realestate-api`, `tmpl-rentals-api`,
   `tmpl-cars-api`, `tmpl-jobs-adzuna`, `tmpl-products-affiliate`, `tmpl-agriculture-feed`,
   `tmpl-generic-rss`, `tmpl-generic-xml`, `_template-licensed-feed`. Cover API/RSS/XML/CSV

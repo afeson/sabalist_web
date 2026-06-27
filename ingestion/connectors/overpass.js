@@ -1,44 +1,40 @@
 'use strict';
 /**
- * OpenStreetMap / Overpass connector (CODE connector).
+ * OpenStreetMap / Overpass connector (CODE connector, load() hook).
  *
- * Pulls real businesses/services/shops/food across priority AFRICAN cities from
- * OpenStreetMap — genuinely open data (ODbL; attribution "© OpenStreetMap
- * contributors" preserved via sourceUrl). Spans many Sabalist categories:
+ * Africa-wide businesses/services/shops/food/tourism/education/health across
+ * ~30 major cities in 20+ countries — open data (ODbL; © OpenStreetMap
+ * contributors, attribution via sourceUrl). Spans many Sabalist categories:
  * food, services, electronics, phones, computers, home-furniture, fashion,
- * beauty, vehicles, agriculture, business-industrial, animals-pets.
+ * beauty, vehicles, agriculture, business, travel, education, sports-fitness.
  *
- * Demonstrates the universal connector system handling a non-trivial source
- * (POST query, multi-city, tag→category mapping) with ZERO engine changes —
- * just a config + transform().
+ * Uses load() to query each city separately (smaller, timeout-safe queries),
+ * rate-limited — instead of one giant query. Engine is unchanged.
  */
-
-// Africa first. [name, lat, lon, country].
-const CITIES = [
-  ['Lagos', 6.4541, 3.3947, 'Nigeria'],
-  ['Nairobi', -1.2864, 36.8172, 'Kenya'],
-  ['Accra', 5.6037, -0.1870, 'Ghana'],
-  ['Addis Ababa', 9.0300, 38.7400, 'Ethiopia'],
-  ['Johannesburg', -26.2041, 28.0473, 'South Africa'],
-];
-const AMENITIES = 'restaurant|cafe|fast_food|marketplace|pharmacy|fuel|bank';
+const OVERPASS = 'https://overpass-api.de/api/interpreter';
 const RADIUS = 2500;
+const PER_CITY = 120;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function buildQuery() {
-  const parts = CITIES.map(([, lat, lon]) =>
-    `node[shop](around:${RADIUS},${lat},${lon});node[amenity~"^(${AMENITIES})$"](around:${RADIUS},${lat},${lon});`
-  ).join('');
-  return `[out:json][timeout:90];(${parts});out center 250;`;
-}
-
-function nearestCity(lat, lon) {
-  let best = CITIES[0], bestD = Infinity;
-  for (const c of CITIES) {
-    const d = (c[1] - lat) ** 2 + (c[2] - lon) ** 2;
-    if (d < bestD) { bestD = d; best = c; }
-  }
-  return { city: best[0], country: best[3] };
-}
+// Africa-first, 20+ countries. [city, lat, lon, country].
+const CITIES = [
+  ['Lagos', 6.4541, 3.3947, 'Nigeria'], ['Abuja', 9.0579, 7.4951, 'Nigeria'],
+  ['Port Harcourt', 4.8156, 7.0498, 'Nigeria'], ['Kano', 12.0022, 8.592, 'Nigeria'],
+  ['Nairobi', -1.2864, 36.8172, 'Kenya'], ['Mombasa', -4.0435, 39.6682, 'Kenya'],
+  ['Accra', 5.6037, -0.187, 'Ghana'], ['Kumasi', 6.6886, -1.6244, 'Ghana'],
+  ['Addis Ababa', 9.03, 38.74, 'Ethiopia'],
+  ['Johannesburg', -26.2041, 28.0473, 'South Africa'], ['Cape Town', -33.9249, 18.4241, 'South Africa'],
+  ['Durban', -29.8587, 31.0218, 'South Africa'],
+  ['Cairo', 30.0444, 31.2357, 'Egypt'], ['Casablanca', 33.5731, -7.5898, 'Morocco'],
+  ['Dar es Salaam', -6.7924, 39.2083, 'Tanzania'], ['Kampala', 0.3476, 32.5825, 'Uganda'],
+  ['Dakar', 14.7167, -17.4677, 'Senegal'], ['Abidjan', 5.36, -4.0083, "Cote d'Ivoire"],
+  ['Kinshasa', -4.4419, 15.2663, 'DR Congo'], ['Luanda', -8.839, 13.2894, 'Angola'],
+  ['Khartoum', 15.5007, 32.5599, 'Sudan'], ['Tunis', 36.8065, 10.1815, 'Tunisia'],
+  ['Algiers', 36.7538, 3.0588, 'Algeria'], ['Kigali', -1.9441, 30.0619, 'Rwanda'],
+  ['Lusaka', -15.3875, 28.3228, 'Zambia'], ['Harare', -17.8252, 31.0335, 'Zimbabwe'],
+  ['Maputo', -25.9692, 32.5732, 'Mozambique'], ['Windhoek', -22.5609, 17.0658, 'Namibia'],
+  ['Bamako', 12.6392, -8.0029, 'Mali'], ['Douala', 4.0511, 9.7679, 'Cameroon'],
+];
 
 const SHOP_MAP = {
   mobile_phone: 'phones-tablets', computer: 'computers',
@@ -54,72 +50,81 @@ const SHOP_MAP = {
 const AMENITY_MAP = {
   restaurant: 'food', cafe: 'food', fast_food: 'food', marketplace: 'food', food_court: 'food',
   fuel: 'vehicles',
+  school: 'education', college: 'education', university: 'education',
+  pharmacy: 'services', hospital: 'services', clinic: 'services', bank: 'services',
 };
+const TOURISM_MAP = { hotel: 'travel', guest_house: 'travel', hostel: 'travel', attraction: 'travel', museum: 'travel' };
 
 function categoryFor(tags) {
   if (tags.shop) return SHOP_MAP[tags.shop] || 'services';
+  if (tags.tourism) return TOURISM_MAP[tags.tourism] || 'travel';
+  if (tags.leisure === 'fitness_centre') return 'sports-fitness';
   if (tags.amenity) return AMENITY_MAP[tags.amenity] || 'services';
   return 'services';
 }
-
 function titleCaseWord(s) { return String(s || '').replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase()); }
+
+function cityQuery(lat, lon) {
+  const a = 'restaurant|cafe|fast_food|marketplace|pharmacy|fuel|bank|hospital|clinic|school|college|university';
+  const t = 'hotel|guest_house|hostel|attraction|museum';
+  return `[out:json][timeout:50];(` +
+    `node[shop](around:${RADIUS},${lat},${lon});` +
+    `node[amenity~"^(${a})$"](around:${RADIUS},${lat},${lon});` +
+    `node[tourism~"^(${t})$"](around:${RADIUS},${lat},${lon});` +
+    `node[leisure=fitness_centre](around:${RADIUS},${lat},${lon});` +
+    `);out center ${PER_CITY};`;
+}
 
 module.exports = {
   source: {
     id: 'osm-africa-businesses',
-    name: 'OpenStreetMap — African businesses & services (Overpass, ODbL)',
+    name: 'OpenStreetMap — Africa businesses/services/tourism/education (Overpass, ODbL)',
     enabled: true,
-    format: 'json',
-    fetch: {
-      type: 'http',
-      method: 'POST',
-      url: 'https://overpass-api.de/api/interpreter',
-      headers: { Accept: 'application/json' },
-      form: { data: buildQuery() },
-    },
-    parseOptions: { recordsPath: 'elements' },
-    schedule: '0 */6 * * *',
     ownerUserId: 'imported-listings',
     region: 'Africa',
     license: 'OpenStreetMap (ODbL) — © OpenStreetMap contributors; attribution via sourceUrl.',
-    // Directory entries legitimately lack price/photos, so allow a lower bar.
     thresholds: { autoPublishQuality: 0.55, autoPublishConfidence: 0.7 },
     mapping: {
-      externalId: 'externalId',
-      title: 'title',
-      description: 'description',
-      category: 'category',
-      location: 'location',
-      country: 'country',
-      phoneNumber: 'phoneNumber',
-      url: 'url',
-      priceType: { const: 'none' },
+      externalId: 'externalId', title: 'title', description: 'description',
+      category: 'category', location: 'location', country: 'country',
+      phoneNumber: 'phoneNumber', url: 'url', priceType: { const: 'none' },
     },
-  },
 
-  // Convert raw Overpass elements → clean Sabalist-shaped records.
-  transform(elements) {
-    const out = [];
-    for (const el of elements || []) {
-      const tags = el.tags || {};
-      const name = tags.name || tags['name:en'];
-      if (!name) continue; // skip unnamed POIs
-      const lat = el.lat != null ? el.lat : (el.center && el.center.lat);
-      const lon = el.lon != null ? el.lon : (el.center && el.center.lon);
-      const { city, country } = lat != null ? nearestCity(lat, lon) : { city: '', country: '' };
-      const kind = titleCaseWord(tags.shop || tags.amenity || 'business');
-      const street = tags['addr:street'] ? `, ${tags['addr:street']}` : '';
-      out.push({
-        externalId: `osm-${el.type}-${el.id}`,
-        title: name,
-        description: `${kind} in ${city}, ${country}${street}. Business listing sourced from OpenStreetMap (© OpenStreetMap contributors).`,
-        category: categoryFor(tags),
-        location: `${city}, ${country}`,
-        country,
-        phoneNumber: tags.phone || tags['contact:phone'] || '',
-        url: `https://www.openstreetmap.org/${el.type}/${el.id}`,
-      });
-    }
-    return out;
+    async load({ httpRequest, opts }) {
+      const out = [];
+      for (const [city, lat, lon, country] of CITIES) {
+        try {
+          const body = `data=${encodeURIComponent(cityQuery(lat, lon))}`;
+          const raw = await httpRequest(OVERPASS, {
+            method: 'POST',
+            headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+            body,
+          });
+          const els = (JSON.parse(raw).elements) || [];
+          for (const el of els) {
+            const tags = el.tags || {};
+            const name = tags.name || tags['name:en'];
+            if (!name) continue;
+            const kind = titleCaseWord(tags.shop || tags.tourism || tags.amenity || tags.leisure || 'business');
+            const street = tags['addr:street'] ? `, ${tags['addr:street']}` : '';
+            out.push({
+              externalId: `osm-${el.type}-${el.id}`,
+              title: name,
+              description: `${kind} in ${city}, ${country}${street}. Listing sourced from OpenStreetMap (© OpenStreetMap contributors).`,
+              category: categoryFor(tags),
+              location: `${city}, ${country}`,
+              country,
+              phoneNumber: tags.phone || tags['contact:phone'] || '',
+              url: `https://www.openstreetmap.org/${el.type}/${el.id}`,
+            });
+          }
+        } catch (e) {
+          // per-city failure is non-fatal; keep going
+        }
+        await sleep(1000); // be polite to Overpass
+        if (opts && opts.limit && out.length >= opts.limit * 3) break; // keep test runs short
+      }
+      return out;
+    },
   },
 };

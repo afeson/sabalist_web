@@ -10,8 +10,16 @@ const { runBatch } = require('./pipeline');
 async function ingestSource(source, store, opts = {}) {
   const baseDir = opts.baseDir || require('path').resolve(__dirname, '..');
   const startedAt = new Date().toISOString();
-  const payload = await fetchPayload(source, baseDir);
-  let records = parse(source.format, payload, source.parseOptions || {});
+
+  let records;
+  if (typeof source.load === 'function') {
+    // Multi-request connectors (e.g. per-country/per-city loops over an API)
+    // do their own fetching and return ready records. Engine stays generic.
+    records = await source.load({ ...require('./fetcher'), parse, opts });
+  } else {
+    const payload = await fetchPayload(source, baseDir);
+    records = parse(source.format, payload, source.parseOptions || {});
+  }
 
   // Optional connector-level transform hook (for sources that need custom prep).
   if (typeof source.transform === 'function') records = source.transform(records);
