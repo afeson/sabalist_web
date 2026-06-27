@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Sabalist Ingestion Admin</title>
+  <style>
+    :root { --red:#E50914; --bg:#0f1115; --card:#1a1d24; --line:#2a2f3a; --muted:#8a93a6; --ok:#22c55e; --warn:#f59e0b; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:#e8edf6; }
+    header { display:flex; align-items:center; gap:12px; padding:14px 20px; border-bottom:1px solid var(--line); }
+    header h1 { font-size:16px; margin:0; }
+    header .sp { flex:1; }
+    button { background:var(--red); color:#fff; border:0; padding:8px 14px; border-radius:8px; cursor:pointer; font-weight:600; }
+    button.ghost { background:transparent; border:1px solid var(--line); color:#cdd5e3; }
+    button.ok { background:var(--ok); } button.bad { background:#444; }
+    nav { display:flex; gap:6px; padding:12px 20px; }
+    nav a { padding:8px 12px; border-radius:8px; color:var(--muted); cursor:pointer; font-weight:600; font-size:14px; }
+    nav a.active { background:var(--card); color:#fff; }
+    main { padding:0 20px 40px; }
+    .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin:10px 0 20px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+    .card .n { font-size:28px; font-weight:800; } .card .l { color:var(--muted); font-size:13px; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th,td { text-align:left; padding:10px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { color:var(--muted); font-weight:600; }
+    .tag { font-size:11px; padding:2px 8px; border-radius:999px; background:#2a2f3a; color:#cdd5e3; }
+    .tag.warn { background:#3a2e12; color:var(--warn); } .tag.dup { background:#3a1f2a; color:#f472b6; }
+    .login { max-width:360px; margin:80px auto; text-align:center; }
+    .login input { width:100%; padding:12px; border-radius:8px; border:1px solid var(--line); background:#11141a; color:#fff; margin:8px 0; }
+    .muted { color:var(--muted); } .hidden { display:none; } .row-actions { white-space:nowrap; }
+    a.ext { color:#7aa2ff; text-decoration:none; }
+  </style>
+</head>
+<body>
+  <!-- Login -->
+  <div id="login" class="login">
+    <h1>Sabalist Ingestion Admin</h1>
+    <p class="muted">Sign in with an authorized admin email.</p>
+    <input id="email" type="email" placeholder="you@email.com" />
+    <button id="googleBtn">Sign in with Google</button>
+    <p id="loginMsg" class="muted"></p>
+  </div>
+
+  <!-- App -->
+  <div id="app" class="hidden">
+    <header>
+      <h1>🌍 Sabalist Ingestion</h1>
+      <span class="tag" id="who"></span>
+      <span class="sp"></span>
+      <button class="ghost" id="refreshBtn">Refresh</button>
+      <button class="ghost" id="logoutBtn">Sign out</button>
+    </header>
+    <nav>
+      <a data-tab="overview" class="active">Overview</a>
+      <a data-tab="review">Review Queue</a>
+      <a data-tab="sources">Source Health</a>
+      <a data-tab="failed">Failed Imports</a>
+    </nav>
+    <main>
+      <section id="overview"></section>
+      <section id="review" class="hidden"></section>
+      <section id="sources" class="hidden"></section>
+      <section id="failed" class="hidden"></section>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="./config.js"></script>
+  <script>
+  (function () {
+    const CFG = window.SABALIST_ADMIN_CONFIG;
+    if (!CFG) { document.getElementById('loginMsg').textContent = 'Missing admin/config.js (copy from config.example.js).'; return; }
+    firebase.initializeApp(CFG.firebase);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s == null ? '' : s).replace(/[<>&]/g, (c) => ({ '<':'&lt;','>':'&gt;','&':'&amp;' }[c]));
+    const isAdmin = (u) => u && CFG.adminEmails.map((e)=>e.toLowerCase()).includes((u.email||'').toLowerCase());
+
+    // ---- auth ----
+    $('googleBtn').onclick = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch((e)=>$('loginMsg').textContent=e.message);
+    $('logoutBtn').onclick = () => auth.signOut();
+    auth.onAuthStateChanged((u) => {
+      if (u && isAdmin(u)) {
+        $('login').classList.add('hidden'); $('app').classList.remove('hidden');
+        $('who').textContent = u.email; loadAll();
+      } else {
+        $('app').classList.add('hidden'); $('login').classList.remove('hidden');
+        if (u && !isAdmin(u)) { $('loginMsg').textContent = 'Not an authorized admin.'; auth.signOut(); }
+      }
+    });
+
+    // ---- nav ----
+    document.querySelectorAll('nav a').forEach((a) => a.onclick = () => {
+      document.querySelectorAll('nav a').forEach((x)=>x.classList.remove('active'));
+      a.classList.add('active');
+      ['overview','review','sources','failed'].forEach((t)=>$(t).classList.toggle('hidden', t!==a.dataset.tab));
+    });
+    $('refreshBtn').onclick = loadAll;
+
+    async function loadAll() { await Promise.all([loadOverview(), loadReview(), loadSources(), loadFailed()]); }
+
+    // ---- Overview + Source Health (from ingestion_stats) ----
+    async function getRecentRuns(n=200){
+      const s = await db.collection('ingestion_stats').orderBy('at','desc').limit(n).get().catch(()=>({forEach(){}}));
+      const runs=[]; s.forEach((d)=>runs.push(d.data())); return runs;
+    }
+    async function loadOverview() {
+      const runs = await getRecentRuns();
+      const sum = runs.reduce((a,r)=>({published:a.published+(r.published||0),review:a.review+(r.review||0),rejected:a.rejected+(r.rejected||0),total:a.total+(r.total||0)}),{published:0,review:0,rejected:0,total:0});
+      let pending=0; try{ const p = await db.collection('listings_staging').where('status','==','pending').get(); pending=p.size; }catch(e){}
+      $('overview').innerHTML = `
+        <div class="cards">
+          <div class="card"><div class="n">${sum.published}</div><div class="l">Auto-published (recent)</div></div>
+          <div class="card"><div class="n">${pending}</div><div class="l">Pending review</div></div>
+          <div class="card"><div class="n">${sum.rejected}</div><div class="l">Rejected (recent)</div></div>
+          <div class="card"><div class="n">${sum.total}</div><div class="l">Records seen (recent)</div></div>
+          <div class="card"><div class="n">${runs.length}</div><div class="l">Sync runs logged</div></div>
+        </div>
+        <p class="muted">Recent stats from <code>ingestion_stats</code>. Pending from <code>listings_staging</code>.</p>`;
+    }
+    async function loadSources() {
+      const runs = await getRecentRuns(500);
+      const by = {};
+      for (const r of runs) { const k=r.sourceId||'?'; (by[k]=by[k]||[]).push(r); }
+      const rows = Object.entries(by).map(([id,rs])=>{
+        const last=rs[0]; const pub=rs.reduce((a,r)=>a+(r.published||0),0);
+        const health = (last.rejected||0) > (last.published||0) ? 'warn' : '';
+        return `<tr><td><b>${esc(id)}</b></td><td>${esc((last.finishedAt||'').slice(0,16).replace('T',' '))}</td>
+          <td>${last.published||0}</td><td>${last.review||0}</td><td>${last.rejected||0}</td>
+          <td>${pub}</td><td><span class="tag ${health}">${health?'check':'ok'}</span></td></tr>`;
+      }).join('');
+      $('sources').innerHTML = `<table><tr><th>Source</th><th>Last run</th><th>Pub</th><th>Review</th><th>Rej</th><th>Total pub</th><th>Health</th></tr>${rows||'<tr><td colspan=7 class=muted>No runs yet.</td></tr>'}</table>`;
+    }
+
+    // ---- Review queue (approve -> publish to listings, reject) ----
+    async function loadReview() {
+      let snap; try { snap = await db.collection('listings_staging').where('status','==','pending').limit(100).get(); }
+      catch(e){ $('review').innerHTML=`<p class="muted">Cannot read listings_staging (${esc(e.message)}). Deploy admin Firestore rules.</p>`; return; }
+      const rows=[]; snap.forEach((d)=>{ const x=d.data(); const l=x.listing||{};
+        const tag = x.reason && x.reason.startsWith('duplicate') ? 'dup' : 'warn';
+        rows.push(`<tr id="rev_${d.id}">
+          <td><b>${esc(l.title)}</b><br><span class="muted">${esc(l.category||l.categoryId)} · ${esc(l.city||l.country||'')} · ${esc(l.currency||'')} ${esc(l.amount||'')}</span>
+            ${l.sourceUrl?`<br><a class="ext" href="${esc(l.sourceUrl)}" target="_blank">source ↗</a>`:''}</td>
+          <td><span class="tag ${tag}">${esc(x.reason)}</span>${x.similarity?`<br><span class="muted">sim ${(x.similarity).toFixed(2)}</span>`:''}<br><span class="muted">q ${l.qualityScore??'?'}</span></td>
+          <td>${esc(x.source)}</td>
+          <td class="row-actions"><button class="ok" onclick="window.__approve('${d.id}')">Approve</button>
+            <button class="bad" onclick="window.__reject('${d.id}')">Reject</button></td></tr>`);
+      });
+      $('review').innerHTML = `<table><tr><th>Listing</th><th>Flag</th><th>Source</th><th>Action</th></tr>${rows.join('')||'<tr><td colspan=4 class=muted>Queue empty 🎉</td></tr>'}</table>`;
+    }
+    window.__approve = async (id) => {
+      const ref = db.collection('listings_staging').doc(id);
+      const doc = await ref.get(); const x = doc.data(); if (!x) return;
+      const listing = { ...(x.listing||{}), status:'active', approvedAt: firebase.firestore.FieldValue.serverTimestamp(), approvedBy: auth.currentUser.email, createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+      await db.collection('listings').add(listing);
+      await ref.update({ status:'approved', reviewedBy: auth.currentUser.email, reviewedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      const el=$('rev_'+id); if(el) el.remove();
+    };
+    window.__reject = async (id) => {
+      await db.collection('listings_staging').doc(id).update({ status:'rejected', reviewedBy: auth.currentUser.email, reviewedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      const el=$('rev_'+id); if(el) el.remove();
+    };
+
+    // ---- Failed imports ----
+    async function loadFailed() {
+      let snap; try { snap = await db.collection('import_failures').orderBy('createdAt','desc').limit(50).get(); }
+      catch(e){ $('failed').innerHTML=`<p class="muted">Cannot read import_failures (${esc(e.message)}).</p>`; return; }
+      const rows=[]; snap.forEach((d)=>{ const x=d.data();
+        rows.push(`<tr><td>${esc(x.source||'?')}</td><td>${esc(x.reason||x.error||'')}</td><td class="muted">${esc((x.raw&&(x.raw.title||x.raw.ext_id))||'')}</td></tr>`); });
+      $('failed').innerHTML = `<table><tr><th>Source</th><th>Reason</th><th>Item</th></tr>${rows.join('')||'<tr><td colspan=3 class=muted>None 🎉</td></tr>'}</table>`;
+    }
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+// Firestore rules for the ingestion/admin collections.
+// MERGE these match blocks into the project's main firestore.rules (inside the
+// `match /databases/{database}/documents { ... }` block), then deploy:
+//   npx firebase deploy --only firestore:rules
+//
+// Server-side writes from sync.js use the firebase-admin SDK, which BYPASSES
+// rules — so these only govern the admin DASHBOARD's reads + review actions.
+// Keep the admin allowlist here IN SYNC with admin/config.js (adminEmails).
+
+function isAdmin() {
+  return request.auth != null
+    && request.auth.token.email_verified == true
+    && request.auth.token.email in ['afesonabebe@yahoo.com'];
+}
+
+// Review queue — dashboard reads pending items and approves/rejects them.
+match /listings_staging/{id} {
+  allow read, update: if isAdmin();
+  allow create, delete: if false; // created by the admin-SDK pipeline only
+}
+
+// Per-run stats + source health — dashboard reads; writes are admin-SDK only.
+match /ingestion_stats/{id}  { allow read: if isAdmin(); allow write: if false; }
+match /import_failures/{id}  { allow read: if isAdmin(); allow write: if false; }
+
+// Optional: when sources move from JSON files into Firestore for UI CRUD.
+match /ingestion_sources/{id} { allow read, write: if isAdmin(); }
