@@ -66,6 +66,7 @@ export async function createListing(listingData, imageUris = [], videoData = nul
       userId: listingData.userId,
       images: [],
       coverImage: "",
+      hasImage: false,
       videoUrl: "",
       status: "active",
       views: 0,
@@ -128,6 +129,7 @@ export async function createListing(listingData, imageUris = [], videoData = nul
     await updateDoc(doc(firestore, "listings", listingId), {
       images: imageUrls,
       coverImage: imageUrls[0] || "",
+      hasImage: imageUrls.length > 0,
       videoUrl: videoUrl,
       updatedAt: serverTimestamp()
     });
@@ -290,8 +292,11 @@ export async function fetchListings(categoryFilter = null, limitCount = 20) {
         firestoreLimit(limitCount)
       );
     } else {
+      // Home feed: rank listings WITH images first, then newest (so the home
+      // isn't a wall of placeholders from imageless imported directory listings).
       q = query(
         collection(firestore, "listings"),
+        orderBy("hasImage", "desc"),
         orderBy("createdAt", "desc"),
         firestoreLimit(limitCount)
       );
@@ -580,8 +585,11 @@ export function subscribeToListings(callback, categoryFilter = null, limitCount 
         firestoreLimit(limitCount)
       );
     } else {
+      // Home feed: rank listings WITH images first, then newest (so the home
+      // isn't a wall of placeholders from imageless imported directory listings).
       q = query(
         collection(firestore, "listings"),
+        orderBy("hasImage", "desc"),
         orderBy("createdAt", "desc"),
         firestoreLimit(limitCount)
       );

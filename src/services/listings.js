@@ -82,6 +82,7 @@ export async function createListing(listingData, imageUris = []) {
       userId: listingData.userId,
       images: [],
       coverImage: "",
+      hasImage: false,
       status: "active",
       views: 0,
       createdAt: serverTimestamp(),
@@ -109,6 +110,7 @@ export async function createListing(listingData, imageUris = []) {
       await updateDoc(listingDocRef, {
         images: imageUrls,
         coverImage: imageUrls[0] || "",
+        hasImage: imageUrls.length > 0,
         updatedAt: serverTimestamp()
       });
 
@@ -172,8 +174,12 @@ export async function fetchListings({ category = null, maxResults = 50 } = {}) {
         limit(maxResults)
       );
     } else {
+      // Home feed: rank listings WITH images first, then newest. Keeps the
+      // marketplace from showing a wall of placeholder logos when imageless
+      // imported (directory) listings are the most recent.
       q = query(
         listingsRef,
+        orderBy("hasImage", "desc"),
         orderBy("createdAt", "desc"),
         limit(maxResults)
       );
