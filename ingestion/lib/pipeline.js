@@ -55,6 +55,7 @@ function toListingDoc(draft, meta) {
     phoneNumber: draft.phoneNumber || '',
     images: draft.images || [],
     coverImage: draft.coverImage || (draft.images || [])[0] || '',
+    hasImage: !!(draft.coverImage || (draft.images && draft.images.length)),
     status: 'active',
     views: 0,
     // provenance + dedup metadata (kept on the doc for re-sync + audits)
