@@ -99,4 +99,4 @@ async function fetchPayload(source, baseDir = process.cwd()) {
   }
 }
 
-module.exports = { fetchPayload, httpGet, interpolateEnv, buildUrl };
+module.exports = { fetchPayload, httpGet, httpRequest, interpolateEnv, buildUrl };

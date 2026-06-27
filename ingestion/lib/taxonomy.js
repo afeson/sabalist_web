@@ -58,6 +58,15 @@ const CATEGORIES = [
   { id: 'food', label: 'Food',
     subs: ['groceries', 'restaurants', 'catering'],
     keywords: ['food', 'grocery', 'restaurant', 'catering', 'meal'] },
+  { id: 'education', label: 'Education',
+    subs: ['universities', 'colleges', 'schools', 'training', 'tutoring'],
+    keywords: ['university', 'universities', 'college', 'school', 'institute', 'polytechnic', 'academy', 'education', 'campus'] },
+  { id: 'travel', label: 'Travel',
+    subs: ['hotels', 'attractions', 'tours', 'guesthouses'],
+    keywords: ['hotel', 'guesthouse', 'lodge', 'resort', 'tour', 'travel', 'attraction', 'museum', 'safari', 'tourism'] },
+  { id: 'sports-fitness', label: 'Sports & Fitness',
+    subs: ['gyms', 'equipment', 'clubs'],
+    keywords: ['gym', 'fitness', 'stadium', 'sports', 'football', 'workout'] },
 ];
 
 const CATEGORY_IDS = new Set(CATEGORIES.map((c) => c.id));
