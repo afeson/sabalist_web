@@ -49,11 +49,32 @@ export async function createListing(listingData, imageUris = []) {
   try {
     // Create listing document first to get listingId
     const listingsRef = collection(firestore, "listings");
+    // Build the canonical price fields (priceType, amount, currency,
+    // isNegotiable, displayPriceText, plus a legacy `price` mirror).
+    // If the caller already passed a priceType (the new path from
+    // CreateListingScreen), respect it; otherwise infer fixed-USD from
+    // the legacy `price`/`currency` fields.
+    const priceFields = listingData.priceType
+      ? {
+          priceType: listingData.priceType,
+          amount: listingData.amount ?? null,
+          minAmount: listingData.minAmount ?? null,
+          maxAmount: listingData.maxAmount ?? null,
+          currency: listingData.currency || "USD",
+          originalCurrency: listingData.originalCurrency || listingData.currency || "USD",
+          isNegotiable: !!listingData.isNegotiable,
+          displayPriceText: listingData.displayPriceText || "",
+          price: Number(listingData.price) || 0,
+        }
+      : {
+          price: parseFloat(listingData.price) || 0,
+          currency: listingData.currency || "USD",
+        };
+
     const docRef = await addDoc(listingsRef, {
       title: listingData.title,
       description: listingData.description || "",
-      price: parseFloat(listingData.price) || 0,
-      currency: listingData.currency || "USD",
+      ...priceFields,
       category: listingData.category,
       subcategory: listingData.subcategory || "",
       location: listingData.location || "Africa",
@@ -211,37 +232,32 @@ export async function searchListings(searchText = "", category = null, minPrice 
       console.log(`After subcategory filter: ${activeListings.length} listings`);
     }
 
-    // Apply price range filter
-    if (minPrice !== null && minPrice !== '') {
-      activeListings = activeListings.filter(listing => listing.price >= parseFloat(minPrice));
-    }
-    if (maxPrice !== null && maxPrice !== '') {
-      activeListings = activeListings.filter(listing => listing.price <= parseFloat(maxPrice));
+    // Apply price-range filter. Uses listingMatchesPriceRange so that:
+    //   - Fixed/Negotiable: compared against amount
+    //   - Range: overlap test (any part of [minAmount, maxAmount] in range)
+    //   - Free/Call-for-price/None: excluded from price-range searches
+    //     (buyers searching "items under X" don't want non-priced posts)
+    if ((minPrice !== null && minPrice !== '') || (maxPrice !== null && maxPrice !== '')) {
+      const { listingMatchesPriceRange } = require('../lib/pricing');
+      activeListings = activeListings.filter((l) =>
+        listingMatchesPriceRange(l, minPrice, maxPrice)
+      );
     }
 
-    // Apply location filter if provided
+    // Location is a best-effort PREFERENCE, not a hard filter. A hard filter
+    // returned ZERO on the app once imported listings filled the newest-N window
+    // with non-local results — showing "No listings yet" while the website had
+    // data. Sort local matches first but KEEP all active listings, so the app
+    // and website show the same data and counts match.
     if (userLocation && userLocation.city) {
-      console.log(`Filtering by location: ${userLocation.city}, ${userLocation.state}`);
-      activeListings = activeListings.filter(listing => {
-        // Include listings without location (graceful degradation)
-        if (!listing.location) return true;
-
-        const listingLocation = listing.location.toLowerCase();
-        const userCity = userLocation.city.toLowerCase();
-        const userState = userLocation.state?.toLowerCase() || '';
-        const userCountry = userLocation.country?.toLowerCase() || '';
-
-        // Match if listing contains city, state, or country
-        const matches = listingLocation.includes(userCity) ||
-                       listingLocation.includes(userState) ||
-                       listingLocation.includes(userCountry);
-
-        if (matches) {
-          console.log(`Location match: ${listing.title} at ${listing.location}`);
-        }
-        return matches;
-      });
-      console.log(`After location filter: ${activeListings.length} listings`);
+      const uc = userLocation.city.toLowerCase();
+      const us = (userLocation.state || '').toLowerCase();
+      const uco = (userLocation.country || '').toLowerCase();
+      const isLocal = (l) => {
+        const loc = (l.location || '').toLowerCase();
+        return !!loc && (loc.includes(uc) || (us && loc.includes(us)) || (uco && loc.includes(uco)));
+      };
+      activeListings = [...activeListings].sort((a, b) => (isLocal(b) ? 1 : 0) - (isLocal(a) ? 1 : 0));
     }
 
     // Apply text search
