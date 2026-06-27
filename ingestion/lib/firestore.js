@@ -50,15 +50,20 @@ function createFirestoreStore() {
       return [...out.values()];
     },
     async publish(listing) {
+      // IMPORTANT: existing app listings store createdAt/updatedAt as ISO STRINGS.
+      // Firestore orders strings after timestamps, so writing serverTimestamp()
+      // here makes imports sort BELOW all organic listings (invisible on the
+      // newest-first home feed). Match the app: ISO strings.
+      const now = new Date().toISOString();
       const ref = await LIVE.add({
         ...listing,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
+        createdAt: listing.importedAt || now,
+        updatedAt: listing.updatedAt || now,
       });
       return ref.id;
     },
     async update(id, listing) {
-      await LIVE.doc(id).set({ ...listing, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      await LIVE.doc(id).set({ ...listing, updatedAt: new Date().toISOString() }, { merge: true });
     },
     async enqueueReview(item) {
       const ref = await STAGING.add({
@@ -91,7 +96,8 @@ function createFirestoreStore() {
     },
     /** Expire live listings from a source not seen since `cutoffIso`. */
     async expireStale(sourceId, cutoffIso) {
-      const snap = await LIVE.where('source', '==', sourceId).where('updatedAt', '<', new Date(cutoffIso)).get();
+      // updatedAt is an ISO string (see publish/update) — compare as string.
+      const snap = await LIVE.where('source', '==', sourceId).where('updatedAt', '<', cutoffIso).get();
       const batch = db.batch();
       snap.forEach((d) => batch.update(d.ref, { status: 'expired', updatedAt: FieldValue.serverTimestamp() }));
       if (!snap.empty) await batch.commit();
