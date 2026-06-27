@@ -1,0 +1,25 @@
+{
+  "id": "jobicy-jobs",
+  "name": "Jobicy — Remote Jobs (public API)",
+  "enabled": true,
+  "format": "json",
+  "fetch": { "type": "http", "url": "https://jobicy.com/api/v2/remote-jobs", "query": { "count": "50" } },
+  "parseOptions": { "recordsPath": "jobs" },
+  "schedule": "0 */6 * * *",
+  "ownerUserId": "imported-listings",
+  "region": "Diaspora",
+  "license": "Public API (jobicy.com) — remote jobs; attribution via sourceUrl.",
+  "thresholds": { "autoPublishQuality": 0.7, "autoPublishConfidence": 0.7 },
+  "mapping": {
+    "externalId": "id",
+    "title": { "path": "jobTitle", "transform": "trim" },
+    "description": { "path": "jobDescription", "transform": ["stripHtml", "trim"] },
+    "category": { "const": "jobs" },
+    "company": "companyName",
+    "location": { "path": "jobGeo", "default": "Remote" },
+    "images": { "path": "companyLogo", "transform": "splitImages" },
+    "url": "url",
+    "priceType": { "const": "none" },
+    "postedAt": { "path": "pubDate", "transform": "isoDate" }
+  }
+}

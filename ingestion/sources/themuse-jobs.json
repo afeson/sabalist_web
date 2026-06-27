@@ -1,0 +1,24 @@
+{
+  "id": "themuse-jobs",
+  "name": "The Muse — Jobs (public API)",
+  "enabled": true,
+  "format": "json",
+  "fetch": { "type": "http", "url": "https://www.themuse.com/api/public/jobs", "query": { "page": "1" } },
+  "parseOptions": { "recordsPath": "results" },
+  "schedule": "0 */6 * * *",
+  "ownerUserId": "imported-listings",
+  "region": "Global",
+  "license": "Public API (themuse.com) — jobs; attribution via sourceUrl.",
+  "thresholds": { "autoPublishQuality": 0.7, "autoPublishConfidence": 0.7 },
+  "mapping": {
+    "externalId": "id",
+    "title": { "path": "name", "transform": "trim" },
+    "description": { "path": "contents", "transform": ["stripHtml", "trim"] },
+    "category": { "const": "jobs" },
+    "company": "company.name",
+    "location": { "path": "locations.0.name", "default": "Remote" },
+    "url": "refs.landing_page",
+    "priceType": { "const": "none" },
+    "postedAt": { "path": "publication_date", "transform": "isoDate" }
+  }
+}
