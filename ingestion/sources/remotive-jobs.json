@@ -1,0 +1,27 @@
+{
+  "id": "remotive-jobs",
+  "name": "Remotive — Remote Jobs (public API)",
+  "enabled": true,
+  "format": "json",
+  "fetch": { "type": "http", "url": "https://remotive.com/api/remote-jobs", "query": { "limit": "100" } },
+  "parseOptions": { "recordsPath": "jobs" },
+  "schedule": "0 */6 * * *",
+  "ownerUserId": "imported-listings",
+  "region": "Diaspora",
+  "license": "Public API (remotive.com) — remote jobs, attribution via sourceUrl.",
+  "thresholds": { "autoPublishQuality": 0.7, "autoPublishConfidence": 0.7 },
+  "mapping": {
+    "externalId": "id",
+    "title": { "path": "title", "transform": "trim" },
+    "description": { "path": "description", "transform": ["stripHtml", "trim"] },
+    "category": { "const": "jobs" },
+    "subcategory": { "const": "remote" },
+    "company": "company_name",
+    "location": { "path": "candidate_required_location", "default": "Remote" },
+    "images": { "path": "company_logo_url", "transform": "splitImages" },
+    "url": "url",
+    "currency": { "const": "USD" },
+    "priceType": { "const": "none" },
+    "postedAt": { "path": "publication_date", "transform": "isoDate" }
+  }
+}

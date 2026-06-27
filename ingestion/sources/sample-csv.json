@@ -1,0 +1,25 @@
+{
+  "id": "sample-csv",
+  "name": "Sample CSV Classifieds (demo)",
+  "enabled": true,
+  "format": "csv",
+  "fetch": { "type": "file", "path": "sample-data/listings.csv" },
+  "schedule": "0 */6 * * *",
+  "ownerUserId": "imported-listings",
+  "region": "Africa",
+  "thresholds": { "autoPublishQuality": 0.75, "autoPublishConfidence": 0.7 },
+  "mapping": {
+    "externalId": "ext_id",
+    "title": { "path": "title", "transform": "trim" },
+    "description": { "path": "details", "transform": ["stripHtml", "trim"] },
+    "amount": { "path": "cost", "transform": "priceAmount" },
+    "currency": { "path": "curr", "transform": "upper" },
+    "location": "where",
+    "country": "country",
+    "category": "cat",
+    "images": { "path": "pics", "transform": "splitImages" },
+    "phoneNumber": "phone",
+    "postedAt": { "path": "posted", "transform": "isoDate" },
+    "url": { "const": "" }
+  }
+}

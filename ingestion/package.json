@@ -1,0 +1,17 @@
+{
+  "name": "sabalist-ingestion",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sabalist global listing ingestion engine (adapters, mapping engine, intelligent pipeline).",
+  "main": "run.js",
+  "scripts": {
+    "ingest": "node run.js",
+    "ingest:dry": "node run.js --dry",
+    "demo": "node run.js --source sources/sample-csv.json --dry",
+    "test": "node test/pipeline.test.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  },
+  "engines": { "node": ">=18" }
+}

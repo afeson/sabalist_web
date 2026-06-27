@@ -1,0 +1,26 @@
+{
+  "id": "arbeitnow-jobs",
+  "name": "Arbeitnow — Europe Job Board (public API)",
+  "enabled": true,
+  "format": "json",
+  "fetch": { "type": "http", "url": "https://www.arbeitnow.com/api/job-board-api" },
+  "parseOptions": { "recordsPath": "data" },
+  "schedule": "30 */6 * * *",
+  "ownerUserId": "imported-listings",
+  "region": "Europe",
+  "license": "Public API (arbeitnow.com) — EU jobs, attribution via sourceUrl.",
+  "thresholds": { "autoPublishQuality": 0.7, "autoPublishConfidence": 0.7 },
+  "mapping": {
+    "externalId": "slug",
+    "title": { "path": "title", "transform": "trim" },
+    "description": { "path": "description", "transform": ["stripHtml", "trim"] },
+    "category": { "const": "jobs" },
+    "subcategory": { "const": "remote" },
+    "company": "company_name",
+    "location": { "path": "location", "default": "Europe" },
+    "url": "url",
+    "currency": { "const": "EUR" },
+    "priceType": { "const": "none" },
+    "postedAt": { "path": "created_at", "transform": "isoDate" }
+  }
+}
