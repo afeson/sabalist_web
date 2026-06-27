@@ -91,8 +91,10 @@ highest-risk path — keep it for sources that explicitly allow it.
 - **Registry** (`lib/registry.js`) discovers sources from `sources/*.json`
   (declarative) **and** `connectors/*.js` (code connectors with custom
   fetch/transform). Add a source → it's picked up automatically; the engine never changes.
-- **Live connectors shipped:** `remotive-jobs`, `arbeitnow-jobs` (public job
-  APIs; diaspora + Europe). Each is config-only — a template for adding more.
+- **Live connectors shipped:** `remotive-jobs`, `arbeitnow-jobs`, `themuse-jobs`,
+  `jobicy-jobs` (config-only) + `remoteok-jobs` (code connector — slices RemoteOK's
+  legal-notice element). Public job APIs (diaspora/Europe/global). `_template-licensed-feed.json`
+  (disabled) shows the keyed pattern for property/vehicle/classifieds feeds.
 - **Orchestrator** (`sync.js`) runs every enabled source, records per-run stats
   (`ingestion_stats`), and `--expire` marks stale listings expired.
 - **Scheduling:** `.github/workflows/ingestion-sync.yml` runs `sync.js` every

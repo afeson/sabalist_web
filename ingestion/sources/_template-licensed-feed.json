@@ -1,0 +1,32 @@
+{
+  "id": "TEMPLATE-licensed-feed",
+  "name": "TEMPLATE — licensed property/vehicle/classifieds feed",
+  "enabled": false,
+  "_comment": "Real estate, apartments, vehicles, electronics and most African classifieds (Property24, PrivateProperty, Jiji, Cheki, Tonaton, BrighterMonday, etc.) do NOT offer open public APIs and their ToS forbid scraping. Enable this only with a LICENSED key/partner feed. Put the key in an env var / GitHub secret and reference it as ${API_KEY} below (interpolated by lib/fetcher.js). Then set enabled:true and pick the correct category.",
+  "format": "json",
+  "fetch": {
+    "type": "http",
+    "url": "https://partner.example.com/v1/listings",
+    "query": { "country": "NG", "page": "1" },
+    "headers": { "Authorization": "Bearer ${PARTNER_API_KEY}" }
+  },
+  "parseOptions": { "recordsPath": "data" },
+  "schedule": "0 */6 * * *",
+  "ownerUserId": "imported-listings",
+  "region": "Africa",
+  "thresholds": { "autoPublishQuality": 0.8, "autoPublishConfidence": 0.8 },
+  "mapping": {
+    "externalId": ["id", "reference"],
+    "title": { "path": "title", "transform": "trim" },
+    "description": { "path": "description", "transform": ["stripHtml", "trim"] },
+    "amount": { "path": "price", "transform": "priceAmount" },
+    "currency": "currency",
+    "category": { "path": "category", "default": "real-estate" },
+    "subcategory": "subcategory",
+    "location": ["location", "address.city"],
+    "country": "address.country",
+    "images": { "path": "images", "transform": "splitImages" },
+    "phoneNumber": ["contact.phone", "phone"],
+    "url": ["url", "permalink"]
+  }
+}
