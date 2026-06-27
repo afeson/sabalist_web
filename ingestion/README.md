@@ -91,10 +91,25 @@ highest-risk path — keep it for sources that explicitly allow it.
 - **Registry** (`lib/registry.js`) discovers sources from `sources/*.json`
   (declarative) **and** `connectors/*.js` (code connectors with custom
   fetch/transform). Add a source → it's picked up automatically; the engine never changes.
-- **Live connectors shipped:** `remotive-jobs`, `arbeitnow-jobs`, `themuse-jobs`,
-  `jobicy-jobs` (config-only) + `remoteok-jobs` (code connector — slices RemoteOK's
-  legal-notice element). Public job APIs (diaspora/Europe/global). `_template-licensed-feed.json`
-  (disabled) shows the keyed pattern for property/vehicle/classifieds feeds.
+- **Live connectors shipped:**
+  - Jobs: `remotive-jobs`, `arbeitnow-jobs`, `themuse-jobs`, `jobicy-jobs` (config) + `remoteok-jobs` (code).
+  - Multi-category, **Africa-first**: `osm-africa-businesses` (code) — OpenStreetMap/Overpass
+    (ODbL) real businesses across Lagos/Nairobi/Accra/Addis/Joburg → food, services,
+    electronics, phones, computers, home-furniture, fashion, beauty, vehicles,
+    agriculture, business-industrial.
+  - `_template-licensed-feed.json` (disabled) — keyed pattern for property/vehicle/classifieds.
+
+### Category coverage (honest)
+| Category | Open source today | Notes |
+|---|---|---|
+| Jobs | ✅ 5 public APIs | diaspora/EU/global |
+| Food, Services, Electronics, Phones, Computers, Furniture, Fashion, Beauty, Vehicles (POIs), Agriculture, Business | ✅ OpenStreetMap (business directory) | real shops/services, Africa-first |
+| Houses for sale/rent, Apartments, Land, Commercial property | 🔒 needs licensed feed | Property24/PrivateProperty/Jiji etc. have no open API; use `_template-licensed-feed.json` + a partner key |
+| Used cars/motorcycles/trucks (for-sale items) | 🔒 needs licensed feed | Cheki/Jiji etc.; OSM covers dealers/services, not individual for-sale ads |
+| Community/events | ⚠️ partial | OSM community amenities; event APIs mostly keyed |
+
+The engine doesn't change to add any of these — a new source is a `sources/*.json`
+or a `connectors/*.js` (for custom fetch/transform, like Overpass's POST query).
 - **Orchestrator** (`sync.js`) runs every enabled source, records per-run stats
   (`ingestion_stats`), and `--expire` marks stale listings expired.
 - **Scheduling:** `.github/workflows/ingestion-sync.yml` runs `sync.js` every

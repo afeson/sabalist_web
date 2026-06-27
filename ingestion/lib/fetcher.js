@@ -32,17 +32,26 @@ function buildUrl(url, query) {
 }
 
 function httpGet(url, headers, redirectsLeft = 5) {
+  return httpRequest(url, { headers, redirectsLeft });
+}
+
+function httpRequest(url, { method = 'GET', headers = {}, body = null, redirectsLeft = 5 } = {}) {
   return new Promise((resolve, reject) => {
     const lib = url.startsWith('https') ? https : http;
-    const req = lib.get(url, {
+    const u = new URL(url);
+    const req = lib.request({
+      method,
+      hostname: u.hostname,
+      port: u.port,
+      path: u.pathname + u.search,
       headers: { 'User-Agent': 'SabalistIngestion/0.1 (+https://sabalist.com)', 'Accept-Encoding': 'gzip,deflate', Accept: '*/*', ...headers },
-      timeout: 30000,
+      timeout: 60000,
     }, (res) => {
       // redirects
       if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location && redirectsLeft > 0) {
         res.resume();
         const next = new URL(res.headers.location, url).toString();
-        return resolve(httpGet(next, headers, redirectsLeft - 1));
+        return resolve(httpRequest(next, { method, headers, body, redirectsLeft: redirectsLeft - 1 }));
       }
       if (res.statusCode >= 400) { res.resume(); return reject(new Error(`HTTP ${res.statusCode} for ${url}`)); }
       const chunks = [];
@@ -56,6 +65,8 @@ function httpGet(url, headers, redirectsLeft = 5) {
     });
     req.on('timeout', () => req.destroy(new Error(`timeout for ${url}`)));
     req.on('error', reject);
+    if (body) req.write(body);
+    req.end();
   });
 }
 
@@ -68,8 +79,21 @@ async function fetchPayload(source, baseDir = process.cwd()) {
     case 'inline':
       return typeof f.payload === 'string' ? f.payload : JSON.stringify(f.payload);
     case 'http':
-    case 'url':
-      return httpGet(buildUrl(f.url, f.query), f.headers || {});
+    case 'url': {
+      const headers = { ...(f.headers || {}) };
+      let body = null;
+      const method = (f.method || 'GET').toUpperCase();
+      if (method !== 'GET') {
+        if (f.form) {
+          body = Object.entries(f.form).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
+          headers['Content-Type'] = headers['Content-Type'] || 'application/x-www-form-urlencoded';
+        } else if (f.body != null) {
+          body = typeof f.body === 'string' ? f.body : JSON.stringify(f.body);
+          headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+        }
+      }
+      return httpRequest(buildUrl(f.url, f.query), { method, headers, body });
+    }
     default:
       throw new Error(`Unsupported fetch.type: ${f.type}`);
   }
