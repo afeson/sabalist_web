@@ -91,13 +91,19 @@ highest-risk path — keep it for sources that explicitly allow it.
 - **Registry** (`lib/registry.js`) discovers sources from `sources/*.json`
   (declarative) **and** `connectors/*.js` (code connectors with custom
   fetch/transform). Add a source → it's picked up automatically; the engine never changes.
-- **Live connectors shipped:**
-  - Jobs: `remotive-jobs`, `arbeitnow-jobs`, `themuse-jobs`, `jobicy-jobs` (config) + `remoteok-jobs` (code).
-  - Multi-category, **Africa-first**: `osm-africa-businesses` (code) — OpenStreetMap/Overpass
-    (ODbL) real businesses across Lagos/Nairobi/Accra/Addis/Joburg → food, services,
-    electronics, phones, computers, home-furniture, fashion, beauty, vehicles,
-    agriculture, business-industrial.
-  - `_template-licensed-feed.json` (disabled) — keyed pattern for property/vehicle/classifieds.
+- **Live connectors shipped (enabled, no key, tested):**
+  - Jobs: `remotive-jobs`, `arbeitnow-jobs`, `themuse-jobs`, `jobicy-jobs` (JSON API),
+    `remoteok-jobs` (code), `weworkremotely-jobs` (**RSS**).
+  - Multi-category, **Africa-first**: `osm-africa-businesses` (code, Overpass POST) —
+    food/services/electronics/phones/computers/home-furniture/fashion/beauty/vehicles/
+    agriculture/business across Lagos/Nairobi/Accra/Addis/Joburg.
+  - **African diaspora**: `osm-diaspora-african` (code) — African restaurants in
+    London/Toronto/Atlanta/DC/Houston/Minneapolis.
+- **Templates (disabled, `"_needs"` key/url):** `tmpl-realestate-api`, `tmpl-rentals-api`,
+  `tmpl-cars-api`, `tmpl-jobs-adzuna`, `tmpl-products-affiliate`, `tmpl-agriculture-feed`,
+  `tmpl-generic-rss`, `tmpl-generic-xml`, `_template-licensed-feed`. Cover API/RSS/XML/CSV
+  across property/rentals/cars/electronics/agriculture — flip `enabled:true` + add key/url.
+- **Enable/disable any source** via its `enabled` flag (registry skips `enabled:false`).
 
 ### Category coverage (honest)
 | Category | Open source today | Notes |

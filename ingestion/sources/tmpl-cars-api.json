@@ -1,0 +1,33 @@
+{
+  "id": "tmpl-cars-api",
+  "name": "TEMPLATE — Cars/vehicles for sale via API",
+  "enabled": false,
+  "_needs": "key",
+  "_howto": "Licensed vehicle-listings API (e.g. Marketcheck) or a dealer feed. Key as ${CARS_API_KEY}. Set enabled:true.",
+  "format": "json",
+  "fetch": {
+    "type": "http",
+    "url": "https://api.cars-provider.example/v2/search",
+    "query": { "country": "NG", "rows": "50" },
+    "headers": { "Authorization": "Bearer ${CARS_API_KEY}" }
+  },
+  "parseOptions": { "recordsPath": "listings" },
+  "schedule": "0 */6 * * *",
+  "ownerUserId": "imported-listings",
+  "region": "Africa",
+  "thresholds": { "autoPublishQuality": 0.8, "autoPublishConfidence": 0.8 },
+  "mapping": {
+    "externalId": ["id", "vin"],
+    "title": { "path": "heading", "transform": "trim" },
+    "description": { "path": "description", "transform": ["stripHtml", "trim"] },
+    "amount": { "path": "price", "transform": "priceAmount" },
+    "currency": "currency",
+    "category": { "const": "vehicles" },
+    "subcategory": { "const": "cars" },
+    "location": ["dealer.city", "city"],
+    "country": "country",
+    "images": { "path": "media.photo_links", "transform": "splitImages" },
+    "phoneNumber": ["dealer.phone"],
+    "url": ["vdp_url", "url"]
+  }
+}

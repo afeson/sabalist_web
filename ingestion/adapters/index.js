@@ -49,11 +49,16 @@ function parseXml(text, { itemTag = 'item' } = {}) {
   const s = String(text);
   const re = new RegExp(`<${itemTag}[\\s>][\\s\\S]*?<\\/${itemTag}>`, 'gi');
   const blocks = s.match(re) || [];
+  const openRe = new RegExp(`^<${itemTag}[^>]*>`, 'i');
+  const closeRe = new RegExp(`<\\/${itemTag}>\\s*$`, 'i');
   return blocks.map((block) => {
+    // Strip the wrapping <item>…</item> so the field regex doesn't match the
+    // wrapper itself (which would capture only a single "item" key).
+    const inner = block.replace(openRe, '').replace(closeRe, '');
     const rec = {};
     const fieldRe = /<([a-zA-Z0-9:_-]+)(?:\s[^>]*)?>([\s\S]*?)<\/\1>/g;
     let m;
-    while ((m = fieldRe.exec(block)) !== null) {
+    while ((m = fieldRe.exec(inner)) !== null) {
       const key = m[1].replace(/^.*:/, ''); // drop namespace prefix
       let val = m[2].trim();
       const cdata = val.match(/^<!\[CDATA\[([\s\S]*?)\]\]>$/);
