@@ -13,12 +13,14 @@ const zlib = require('zlib');
 
 function getBuffer(url) {
   return new Promise((resolve, reject) => {
-    https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SabalistIngestion/0.1)' } }, (r) => {
+    const req = https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SabalistIngestion/0.1)' } }, (r) => {
       if (r.statusCode >= 400) { r.resume(); return reject(new Error(`HTTP ${r.statusCode}`)); }
       const chunks = [];
       r.on('data', (c) => chunks.push(c));
       r.on('end', () => resolve(Buffer.concat(chunks)));
-    }).on('error', reject);
+    });
+    req.on('error', reject);
+    req.setTimeout(45000, () => req.destroy(new Error('timeout'))); // a stalled city must not hang the whole run
   });
 }
 const titleize = (s) => String(s || '').replace(/-/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
@@ -48,8 +50,8 @@ module.exports = {
       // Prefer a diverse spread: dedup by city, prioritize big/African/diaspora hubs.
       const PRIORITY = /cape-town|nairobi|marrakech|lagos|new-york|london|paris|toronto|sydney|berlin|amsterdam|barcelona|rome|los-angeles|washington|chicago|melbourne|dublin|lisbon|madrid/i;
       const sorted = [...all].sort((a, b) => (PRIORITY.test(b) ? 1 : 0) - (PRIORITY.test(a) ? 1 : 0));
-      const MAX_CITIES = opts && opts.limit ? 1 : 22;
-      const PER_CITY = 350;
+      const MAX_CITIES = opts && opts.limit ? 1 : 15;
+      const PER_CITY = 250;
 
       for (const url of sorted.slice(0, MAX_CITIES)) {
         try {
