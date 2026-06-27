@@ -1,0 +1,33 @@
+{
+  "id": "tmpl-realestate-api",
+  "name": "TEMPLATE — Real estate (houses for sale) via API",
+  "enabled": false,
+  "_needs": "key",
+  "_howto": "Use a licensed real-estate API/feed (RESO Web API, a portal partner feed, or a brokerage export). Put the key in a GitHub secret and reference as ${REALESTATE_API_KEY}. Set enabled:true.",
+  "format": "json",
+  "fetch": {
+    "type": "http",
+    "url": "https://api.realestate-provider.example/v1/listings",
+    "query": { "type": "sale", "country": "NG", "page": "1" },
+    "headers": { "Authorization": "Bearer ${REALESTATE_API_KEY}" }
+  },
+  "parseOptions": { "recordsPath": "data" },
+  "schedule": "0 */6 * * *",
+  "ownerUserId": "imported-listings",
+  "region": "Africa",
+  "thresholds": { "autoPublishQuality": 0.8, "autoPublishConfidence": 0.8 },
+  "mapping": {
+    "externalId": ["id", "listingId"],
+    "title": { "path": "title", "transform": "trim" },
+    "description": { "path": "description", "transform": ["stripHtml", "trim"] },
+    "amount": { "path": "price", "transform": "priceAmount" },
+    "currency": "currency",
+    "category": { "const": "real-estate" },
+    "subcategory": { "const": "houses-sale" },
+    "location": ["address.city", "location"],
+    "country": "address.country",
+    "images": { "path": "images", "transform": "splitImages" },
+    "phoneNumber": ["agent.phone", "contact.phone"],
+    "url": ["url", "permalink"]
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "id": "tmpl-agriculture-feed",
+  "name": "TEMPLATE — Agriculture (produce/livestock/equipment) via CSV/XML feed",
+  "enabled": false,
+  "_needs": "url",
+  "_howto": "Point to a cooperative/marketplace CSV or XML export (e.g. an ag-coop product export). Set fetch.url (+ key header if needed), confirm column/tag names in mapping, set enabled:true.",
+  "format": "csv",
+  "fetch": { "type": "http", "url": "https://example.coop/exports/listings.csv" },
+  "schedule": "0 */6 * * *",
+  "ownerUserId": "imported-listings",
+  "region": "Africa",
+  "thresholds": { "autoPublishQuality": 0.7, "autoPublishConfidence": 0.7 },
+  "mapping": {
+    "externalId": "id",
+    "title": { "path": "name", "transform": "trim" },
+    "description": { "path": "description", "transform": ["stripHtml", "trim"] },
+    "amount": { "path": "price", "transform": "priceAmount" },
+    "currency": "currency",
+    "category": { "const": "agriculture" },
+    "location": "location",
+    "country": "country",
+    "images": { "path": "image_urls", "transform": "splitImages" },
+    "phoneNumber": "phone",
+    "url": "url"
+  }
+}

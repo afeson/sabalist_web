@@ -1,0 +1,29 @@
+{
+  "id": "tmpl-products-affiliate",
+  "name": "TEMPLATE — Electronics/shop products via affiliate API",
+  "enabled": false,
+  "_needs": "key",
+  "_howto": "Affiliate product feed (Amazon PA-API, eBay Browse API, AliExpress, or a retailer feed). Authorized once you join the program. Key as ${AFFILIATE_API_KEY}; map to electronics/phones/computers/fashion as needed. Set enabled:true.",
+  "format": "json",
+  "fetch": {
+    "type": "http",
+    "url": "https://api.affiliate-provider.example/products/search",
+    "query": { "category": "electronics", "limit": "50" },
+    "headers": { "Authorization": "Bearer ${AFFILIATE_API_KEY}" }
+  },
+  "parseOptions": { "recordsPath": "items" },
+  "schedule": "0 */6 * * *",
+  "ownerUserId": "imported-listings",
+  "region": "Global",
+  "thresholds": { "autoPublishQuality": 0.75, "autoPublishConfidence": 0.75 },
+  "mapping": {
+    "externalId": ["id", "sku", "asin"],
+    "title": { "path": "title", "transform": "trim" },
+    "description": { "path": "description", "transform": ["stripHtml", "trim"] },
+    "amount": { "path": "price", "transform": "priceAmount" },
+    "currency": "currency",
+    "category": { "const": "electronics" },
+    "images": { "path": "images", "transform": "splitImages" },
+    "url": ["url", "detail_url"]
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "tmpl-rentals-api",
+  "name": "TEMPLATE — Rentals (houses/apartments for rent) via API",
+  "enabled": false,
+  "_needs": "key",
+  "_howto": "Licensed rentals API/portal feed. Key as ${RENTALS_API_KEY}. Set enabled:true.",
+  "format": "json",
+  "fetch": {
+    "type": "http",
+    "url": "https://api.rentals-provider.example/v1/listings",
+    "query": { "type": "rent", "country": "KE", "page": "1" },
+    "headers": { "Authorization": "Bearer ${RENTALS_API_KEY}" }
+  },
+  "parseOptions": { "recordsPath": "data" },
+  "schedule": "0 */6 * * *",
+  "ownerUserId": "imported-listings",
+  "region": "Africa",
+  "thresholds": { "autoPublishQuality": 0.8, "autoPublishConfidence": 0.8 },
+  "mapping": {
+    "externalId": ["id", "ref"],
+    "title": { "path": "title", "transform": "trim" },
+    "description": { "path": "description", "transform": ["stripHtml", "trim"] },
+    "amount": { "path": "rent", "transform": "priceAmount" },
+    "currency": "currency",
+    "category": { "const": "real-estate" },
+    "subcategory": { "const": "houses-rent" },
+    "location": ["address.city", "location"],
+    "country": "address.country",
+    "images": { "path": "images", "transform": "splitImages" },
+    "phoneNumber": ["agent.phone", "contact.phone"],
+    "url": ["url", "permalink"]
+  }
+}

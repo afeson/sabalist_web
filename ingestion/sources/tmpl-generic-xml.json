@@ -1,0 +1,27 @@
+{
+  "id": "tmpl-generic-xml",
+  "name": "TEMPLATE — Any XML/export feed (set url + itemTag + category)",
+  "enabled": false,
+  "_needs": "url",
+  "_howto": "For partner/portal XML exports. Set fetch.url, set parseOptions.itemTag to the repeating element (e.g. 'listing'/'property'/'vehicle'), map fields, set enabled:true. Add a key header if the export requires one.",
+  "format": "xml",
+  "fetch": { "type": "http", "url": "https://partner.example/export/listings.xml" },
+  "parseOptions": { "itemTag": "listing" },
+  "schedule": "0 */6 * * *",
+  "ownerUserId": "imported-listings",
+  "region": "Global",
+  "thresholds": { "autoPublishQuality": 0.75, "autoPublishConfidence": 0.7 },
+  "mapping": {
+    "externalId": ["id", "reference"],
+    "title": { "path": "title", "transform": "trim" },
+    "description": { "path": "description", "transform": ["stripHtml", "trim"] },
+    "amount": { "path": "price", "transform": "priceAmount" },
+    "currency": "currency",
+    "category": { "path": "category", "default": "services" },
+    "location": "city",
+    "country": "country",
+    "images": { "path": "image", "transform": "splitImages" },
+    "phoneNumber": "phone",
+    "url": "url"
+  }
+}

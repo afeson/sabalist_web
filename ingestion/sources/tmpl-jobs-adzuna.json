@@ -1,0 +1,29 @@
+{
+  "id": "tmpl-jobs-adzuna",
+  "name": "TEMPLATE — Adzuna jobs (Africa/diaspora countries) via API",
+  "enabled": false,
+  "_needs": "key",
+  "_howto": "Free Adzuna API (developer.adzuna.com) — needs app_id + app_key. Set ${ADZUNA_APP_ID}/${ADZUNA_APP_KEY}, pick the country code in the URL path (za/eg/ng-supported set varies), set enabled:true. Covers many countries incl diaspora (gb/us/ca/au).",
+  "format": "json",
+  "fetch": {
+    "type": "http",
+    "url": "https://api.adzuna.com/v1/api/jobs/gb/search/1",
+    "query": { "app_id": "${ADZUNA_APP_ID}", "app_key": "${ADZUNA_APP_KEY}", "results_per_page": "50" }
+  },
+  "parseOptions": { "recordsPath": "results" },
+  "schedule": "0 */6 * * *",
+  "ownerUserId": "imported-listings",
+  "region": "Diaspora",
+  "thresholds": { "autoPublishQuality": 0.7, "autoPublishConfidence": 0.7 },
+  "mapping": {
+    "externalId": "id",
+    "title": { "path": "title", "transform": ["stripHtml", "trim"] },
+    "description": { "path": "description", "transform": ["stripHtml", "trim"] },
+    "category": { "const": "jobs" },
+    "company": "company.display_name",
+    "location": "location.display_name",
+    "url": "redirect_url",
+    "priceType": { "const": "none" },
+    "postedAt": { "path": "created", "transform": "isoDate" }
+  }
+}

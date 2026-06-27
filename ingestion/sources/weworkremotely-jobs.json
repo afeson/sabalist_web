@@ -1,0 +1,24 @@
+{
+  "id": "weworkremotely-jobs",
+  "name": "We Work Remotely — Jobs (RSS)",
+  "enabled": true,
+  "format": "rss",
+  "fetch": { "type": "http", "url": "https://weworkremotely.com/remote-jobs.rss", "headers": { "User-Agent": "Mozilla/5.0 (compatible; SabalistIngestion/0.1; +https://sabalist.com)" } },
+  "parseOptions": { "itemTag": "item" },
+  "schedule": "0 */6 * * *",
+  "ownerUserId": "imported-listings",
+  "region": "Diaspora",
+  "license": "Public RSS feed (weworkremotely.com); attribution via sourceUrl.",
+  "thresholds": { "autoPublishQuality": 0.7, "autoPublishConfidence": 0.7 },
+  "mapping": {
+    "externalId": ["guid", "link"],
+    "title": { "path": "title", "transform": "trim" },
+    "description": { "path": "description", "transform": ["stripHtml", "trim"] },
+    "category": { "const": "jobs" },
+    "subcategory": { "const": "remote" },
+    "location": { "path": "region", "default": "Remote" },
+    "url": "link",
+    "priceType": { "const": "none" },
+    "postedAt": { "path": "pubDate", "transform": "isoDate" }
+  }
+}
