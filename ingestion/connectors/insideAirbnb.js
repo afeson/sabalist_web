@@ -76,7 +76,7 @@ module.exports = {
               description: (desc || `${name} — ${r.room_type || 'rental'} in ${city}, ${country}.`).slice(0, 600),
               amount,
               currency: 'USD',
-              category: 'real-estate',
+              category: 'rentals',
               subcategory: /entire/i.test(r.room_type || '') ? 'apartments' : 'houses-rent',
               location: [r.neighbourhood_cleansed || r.neighbourhood || '', city].filter(Boolean).join(', '),
               country,

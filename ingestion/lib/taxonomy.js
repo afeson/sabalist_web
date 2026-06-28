@@ -67,6 +67,21 @@ const CATEGORIES = [
   { id: 'sports-fitness', label: 'Sports & Fitness',
     subs: ['gyms', 'equipment', 'clubs'],
     keywords: ['gym', 'fitness', 'stadium', 'sports', 'football', 'workout'] },
+  { id: 'rentals', label: 'Rentals',
+    subs: ['apartments', 'houses-rent', 'rooms', 'short-let'],
+    keywords: ['for rent', 'to let', 'rental', 'apartment', 'short let', 'bedroom flat'] },
+  { id: 'entertainment', label: 'Entertainment',
+    subs: ['cinema', 'theatre', 'nightlife', 'arts'],
+    keywords: ['cinema', 'theatre', 'theater', 'nightclub', 'arts centre', 'entertainment'] },
+  { id: 'community', label: 'Community',
+    subs: ['centres', 'worship', 'libraries', 'nonprofit'],
+    keywords: ['community centre', 'church', 'mosque', 'temple', 'library', 'community'] },
+  { id: 'construction', label: 'Construction',
+    subs: ['materials', 'equipment', 'contractors'],
+    keywords: ['construction', 'hardware', 'building materials', 'cement', 'contractor'] },
+  { id: 'repair-services', label: 'Repair Services',
+    subs: ['auto-repair', 'electronics-repair', 'home-repair'],
+    keywords: ['repair', 'mechanic', 'plumber', 'electrician', 'fix', 'workshop'] },
 ];
 
 const CATEGORY_IDS = new Set(CATEGORIES.map((c) => c.id));

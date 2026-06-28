@@ -48,35 +48,46 @@ const SHOP_MAP = {
   clothes: 'fashion', shoes: 'fashion', boutique: 'fashion', fashion: 'fashion', bag: 'fashion', jewelry: 'fashion', watches: 'fashion',
   beauty: 'beauty', hairdresser: 'beauty', cosmetics: 'beauty', perfumery: 'beauty',
   supermarket: 'food', convenience: 'food', greengrocer: 'food', butcher: 'food', bakery: 'food', deli: 'food',
-  car: 'vehicles', car_repair: 'vehicles', car_parts: 'vehicles', motorcycle: 'vehicles', tyres: 'vehicles',
-  hardware: 'business-industrial', doityourself: 'business-industrial', trade: 'business-industrial', building_materials: 'business-industrial',
+  car: 'vehicles', car_parts: 'vehicles', motorcycle: 'vehicles', tyres: 'vehicles',
+  car_repair: 'repair-services', electronics_repair: 'repair-services', mobile_phone_repair: 'repair-services',
+  hardware: 'construction', doityourself: 'construction', trade: 'construction', building_materials: 'construction',
+  toys: 'baby-kids', baby_goods: 'baby-kids', sports: 'sports-fitness', outdoor: 'sports-fitness',
   pet: 'animals-pets', florist: 'agriculture', farm: 'agriculture', garden_centre: 'agriculture', agrarian: 'agriculture',
+  variety_store: 'services', general: 'services', wholesale: 'business-industrial',
 };
 const AMENITY_MAP = {
   restaurant: 'food', cafe: 'food', fast_food: 'food', marketplace: 'food', food_court: 'food',
   fuel: 'vehicles',
-  school: 'education', college: 'education', university: 'education',
+  school: 'education', college: 'education', university: 'education', kindergarten: 'baby-kids',
   pharmacy: 'services', hospital: 'services', clinic: 'services', bank: 'services',
+  veterinary: 'animals-pets',
+  cinema: 'entertainment', theatre: 'entertainment', nightclub: 'entertainment', arts_centre: 'entertainment',
+  community_centre: 'community', place_of_worship: 'community', library: 'community', social_facility: 'community', townhall: 'community',
 };
 const TOURISM_MAP = { hotel: 'travel', guest_house: 'travel', hostel: 'travel', attraction: 'travel', museum: 'travel' };
 
 function categoryFor(tags) {
   if (tags.shop) return SHOP_MAP[tags.shop] || 'services';
   if (tags.tourism) return TOURISM_MAP[tags.tourism] || 'travel';
-  if (tags.leisure === 'fitness_centre') return 'sports-fitness';
+  if (tags.office === 'estate_agent') return 'real-estate';
+  if (tags.craft) return 'repair-services';
+  if (/^(fitness_centre|sports_centre|stadium|pitch|sports_hall)$/.test(tags.leisure || '')) return 'sports-fitness';
   if (tags.amenity) return AMENITY_MAP[tags.amenity] || 'services';
   return 'services';
 }
 function titleCaseWord(s) { return String(s || '').replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase()); }
 
 function cityQuery(lat, lon) {
-  const a = 'restaurant|cafe|fast_food|marketplace|pharmacy|fuel|bank|hospital|clinic|school|college|university';
+  const a = 'restaurant|cafe|fast_food|marketplace|pharmacy|fuel|bank|hospital|clinic|school|college|university|kindergarten|veterinary|cinema|theatre|nightclub|arts_centre|community_centre|place_of_worship|library|social_facility|townhall';
   const t = 'hotel|guest_house|hostel|attraction|museum';
-  return `[out:json][timeout:50];(` +
+  const l = 'fitness_centre|sports_centre|stadium|sports_hall';
+  return `[out:json][timeout:60];(` +
     `node[shop](around:${RADIUS},${lat},${lon});` +
     `node[amenity~"^(${a})$"](around:${RADIUS},${lat},${lon});` +
     `node[tourism~"^(${t})$"](around:${RADIUS},${lat},${lon});` +
-    `node[leisure=fitness_centre](around:${RADIUS},${lat},${lon});` +
+    `node[leisure~"^(${l})$"](around:${RADIUS},${lat},${lon});` +
+    `node[craft](around:${RADIUS},${lat},${lon});` +
+    `node[office=estate_agent](around:${RADIUS},${lat},${lon});` +
     `);out center ${PER_CITY};`;
 }
 
