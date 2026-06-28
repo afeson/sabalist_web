@@ -10,6 +10,9 @@ import { CATEGORIES, resolveCategoryId, getLegacyAliasesFor } from "../config/ca
 
 const VALID_CATEGORY_KEYS = new Set(CATEGORIES.map((c) => c.key));
 
+// Categories sampled for the diverse home feed (one bucket each).
+const HOME_CATEGORIES = CATEGORIES.map((c) => c.id).filter(Boolean);
+
 function expandCategoryIds(inputId) {
   if (!inputId || inputId === "All") return null;
   const canonical = resolveCategoryId(inputId);
@@ -292,14 +295,24 @@ export async function fetchListings(categoryFilter = null, limitCount = 20) {
         firestoreLimit(limitCount)
       );
     } else {
-      // Home feed: rank listings WITH images first, then newest (so the home
-      // isn't a wall of placeholders from imageless imported directory listings).
-      q = query(
-        collection(firestore, "listings"),
-        orderBy("hasImage", "desc"),
-        orderBy("createdAt", "desc"),
-        firestoreLimit(limitCount)
-      );
+      // Home feed: fetch a sample from EACH category in parallel so no single
+      // large import (rentals, pets, food…) can dominate the homepage. The
+      // caller (searchListings) then ranks + round-robins for a diverse feed.
+      // Uses the existing categoryId+createdAt index — no new index required.
+      const perCat = Math.max(8, Math.ceil(limitCount / 12));
+      const results = await Promise.all(HOME_CATEGORIES.map(async (cid) => {
+        try {
+          const cq = query(
+            collection(firestore, "listings"),
+            where("categoryId", "==", cid),
+            firestoreLimit(perCat)
+          );
+          const snap = await getDocsFromServer(cq);
+          return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        } catch (e) { return []; }
+      }));
+      const merged = results.flat();
+      return merged.filter((l) => l.status === 'active' || !l.status);
     }
 
     // Force fetch from server to bypass cache and get latest data
@@ -559,6 +572,22 @@ export async function searchListings(searchText = "", category = null, minPrice 
         const lo = (isLocal(b) ? 1 : 0) - (isLocal(a) ? 1 : 0); if (lo) return lo;
         return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
       });
+      // Diversify by category (round-robin) so one large import (e.g. pets or
+      // rentals) can't dominate the homepage. Lead = photo'd marketplace +
+      // organic (tier >= 2); trailing = directory + jobs (tier < 2) stay last.
+      // Only applied to the unfiltered home feed, not category/search results.
+      if (!searchText.trim() && !category && !subcategoryId) {
+        const roundRobin = (arr) => {
+          const m = new Map();
+          for (const l of arr) { const k = l.categoryId || 'other'; if (!m.has(k)) m.set(k, []); m.get(k).push(l); }
+          const buckets = [...m.values()]; const out = []; let any = true;
+          while (any) { any = false; for (const b of buckets) { if (b.length) { out.push(b.shift()); any = true; } } }
+          return out;
+        };
+        const lead = activeListings.filter((l) => tier(l) >= 2);
+        const trail = activeListings.filter((l) => tier(l) < 2);
+        activeListings = [...roundRobin(lead), ...roundRobin(trail)];
+      }
     }
 
     // Apply text search
