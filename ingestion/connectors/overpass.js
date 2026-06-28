@@ -12,8 +12,8 @@
  * rate-limited — instead of one giant query. Engine is unchanged.
  */
 const OVERPASS = 'https://overpass-api.de/api/interpreter';
-const RADIUS = 2500;
-const PER_CITY = 120;
+const RADIUS = 3000;
+const PER_CITY = 250;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Africa-first, 20+ countries. [city, lat, lon, country].
@@ -34,6 +34,11 @@ const CITIES = [
   ['Lusaka', -15.3875, 28.3228, 'Zambia'], ['Harare', -17.8252, 31.0335, 'Zimbabwe'],
   ['Maputo', -25.9692, 32.5732, 'Mozambique'], ['Windhoek', -22.5609, 17.0658, 'Namibia'],
   ['Bamako', 12.6392, -8.0029, 'Mali'], ['Douala', 4.0511, 9.7679, 'Cameroon'],
+  ['Ibadan', 7.3776, 3.9470, 'Nigeria'], ['Kigali', -1.9536, 30.0606, 'Rwanda'],
+  ['Lome', 6.1375, 1.2123, 'Togo'], ['Cotonou', 6.3703, 2.3912, 'Benin'],
+  ['Conakry', 9.6412, -13.5784, 'Guinea'], ['Freetown', 8.4657, -13.2317, 'Sierra Leone'],
+  ['Pretoria', -25.7479, 28.2293, 'South Africa'], ['Mombasa', -4.0435, 39.6682, 'Kenya'],
+  ['Alexandria', 31.2001, 29.9187, 'Egypt'], ['Marrakech', 31.6295, -7.9811, 'Morocco'],
 ];
 
 const SHOP_MAP = {

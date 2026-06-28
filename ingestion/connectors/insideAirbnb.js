@@ -50,8 +50,8 @@ module.exports = {
       // Prefer a diverse spread: dedup by city, prioritize big/African/diaspora hubs.
       const PRIORITY = /cape-town|nairobi|marrakech|lagos|new-york|london|paris|toronto|sydney|berlin|amsterdam|barcelona|rome|los-angeles|washington|chicago|melbourne|dublin|lisbon|madrid/i;
       const sorted = [...all].sort((a, b) => (PRIORITY.test(b) ? 1 : 0) - (PRIORITY.test(a) ? 1 : 0));
-      const MAX_CITIES = opts && opts.limit ? 1 : 15;
-      const PER_CITY = 250;
+      const MAX_CITIES = opts && opts.limit ? 1 : 35;
+      const PER_CITY = 300;
 
       for (const url of sorted.slice(0, MAX_CITIES)) {
         try {
