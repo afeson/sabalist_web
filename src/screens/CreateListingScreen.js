@@ -61,7 +61,9 @@ import {
 import { DEFAULT_CURRENCY } from '../lib/currencies';
 
 // All canonical category keys (source of truth in src/config/categories.js)
-const CATEGORY_KEYS = CATEGORIES.map((c) => c.key);
+// Validate against the LIVE taxonomy (reflects backend config) at call time,
+// not a module-load snapshot, so remotely added/renamed categories validate.
+const isValidCategoryKey = (k) => CATEGORIES.some((c) => c.key === k);
 
 export default function CreateListingScreen({ navigation }) {
   const { t, i18n } = useTranslation();
@@ -589,7 +591,7 @@ export default function CreateListingScreen({ navigation }) {
         imageCount: images.length,
       });
 
-      if (!CATEGORY_KEYS.includes(category)) {
+      if (!isValidCategoryKey(category)) {
         throw new Error(`Invalid category: ${category}`);
       }
 
