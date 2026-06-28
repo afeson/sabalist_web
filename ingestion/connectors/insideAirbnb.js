@@ -55,7 +55,10 @@ module.exports = {
 
       for (const url of sorted.slice(0, MAX_CITIES)) {
         try {
-          const csv = zlib.gunzipSync(await getBuffer(url)).toString('utf8');
+          // Cap each city's CSV to a few thousand rows' worth before parsing —
+          // big-city detailed files are 50k+ rows × ~75 cols and parsing them
+          // whole exhausts memory (OOM). We only keep PER_CITY per city anyway.
+          const csv = zlib.gunzipSync(await getBuffer(url)).toString('utf8').slice(0, 2500000);
           const rows = parse('csv', csv);
           const m = url.match(/data\.insideairbnb\.com\/([^/]+)\/[^/]+\/([^/]+)\//);
           const country = m ? titleize(m[1]) : '';
