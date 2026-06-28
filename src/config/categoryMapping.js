@@ -9,33 +9,39 @@
 
 import { CATEGORIES, LEGACY_CATEGORY_ALIASES, resolveCategoryKey, resolveCategoryId } from './categories';
 
-// Canonical key -> id, e.g. 'Electronics' -> 'electronics'
-export const CATEGORY_ID_MAP = Object.fromEntries(
-  CATEGORIES.map((c) => [c.key, c.id])
-);
+// Canonical key <-> id maps. Mutated IN PLACE by rebuildCategoryMaps() (never
+// reassigned) so the runtime config layer can swap the taxonomy at startup
+// without invalidating these exported references.
+export const CATEGORY_ID_MAP = {};
+export const CATEGORY_NAME_MAP = {};
 
-// Canonical id -> key, e.g. 'electronics' -> 'Electronics'
-export const CATEGORY_NAME_MAP = Object.fromEntries(
-  CATEGORIES.map((c) => [c.id, c.key])
-);
-
-// Also resolve legacy display-name aliases to a slug so callers that hold
-// old category names (e.g. listings created before the redesign) still work.
-for (const [legacyKey, modernKey] of Object.entries(LEGACY_CATEGORY_ALIASES)) {
-  // Only display-name aliases (have spaces or uppercase)
-  if (/[A-Z\s&]/.test(legacyKey)) {
-    const modernId = CATEGORY_ID_MAP[modernKey];
-    if (modernId && !CATEGORY_ID_MAP[legacyKey]) {
-      CATEGORY_ID_MAP[legacyKey] = modernId;
-    }
-  } else {
-    // slug alias — point old slug at the modern display name
-    const modernName = CATEGORY_NAME_MAP[modernKey];
-    if (modernName && !CATEGORY_NAME_MAP[legacyKey]) {
-      CATEGORY_NAME_MAP[legacyKey] = modernName;
+/**
+ * (Re)build CATEGORY_ID_MAP / CATEGORY_NAME_MAP from the current CATEGORIES,
+ * then overlay legacy aliases. Clears + refills in place. Legacy entries are
+ * never removed, so old listings keep resolving even if a category is hidden
+ * or relabeled.
+ */
+export function rebuildCategoryMaps() {
+  for (const k of Object.keys(CATEGORY_ID_MAP)) delete CATEGORY_ID_MAP[k];
+  for (const k of Object.keys(CATEGORY_NAME_MAP)) delete CATEGORY_NAME_MAP[k];
+  for (const c of CATEGORIES) {
+    CATEGORY_ID_MAP[c.key] = c.id;   // 'Electronics' -> 'electronics'
+    CATEGORY_NAME_MAP[c.id] = c.key; // 'electronics' -> 'Electronics'
+  }
+  // Resolve legacy aliases so callers holding old category names/slugs still work.
+  for (const [legacyKey, modernKey] of Object.entries(LEGACY_CATEGORY_ALIASES)) {
+    if (/[A-Z\s&]/.test(legacyKey)) {
+      const modernId = CATEGORY_ID_MAP[modernKey];
+      if (modernId && !CATEGORY_ID_MAP[legacyKey]) CATEGORY_ID_MAP[legacyKey] = modernId;
+    } else {
+      const modernName = CATEGORY_NAME_MAP[modernKey];
+      if (modernName && !CATEGORY_NAME_MAP[legacyKey]) CATEGORY_NAME_MAP[legacyKey] = modernName;
     }
   }
 }
+
+// Build once at module load (bundled defaults).
+rebuildCategoryMaps();
 
 export function getCategoryId(categoryName) {
   if (!categoryName) return categoryName;

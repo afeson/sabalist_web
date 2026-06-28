@@ -57,12 +57,14 @@
       <a data-tab="review">Review Queue</a>
       <a data-tab="sources">Source Health</a>
       <a data-tab="failed">Failed Imports</a>
+      <a data-tab="config">Marketplace Config</a>
     </nav>
     <main>
       <section id="overview"></section>
       <section id="review" class="hidden"></section>
       <section id="sources" class="hidden"></section>
       <section id="failed" class="hidden"></section>
+      <section id="config" class="hidden"></section>
     </main>
   </div>
 
@@ -98,11 +100,55 @@
     document.querySelectorAll('nav a').forEach((a) => a.onclick = () => {
       document.querySelectorAll('nav a').forEach((x)=>x.classList.remove('active'));
       a.classList.add('active');
-      ['overview','review','sources','failed'].forEach((t)=>$(t).classList.toggle('hidden', t!==a.dataset.tab));
+      ['overview','review','sources','failed','config'].forEach((t)=>$(t).classList.toggle('hidden', t!==a.dataset.tab));
     });
     $('refreshBtn').onclick = loadAll;
 
-    async function loadAll() { await Promise.all([loadOverview(), loadReview(), loadSources(), loadFailed()]); }
+    async function loadAll() { await Promise.all([loadOverview(), loadReview(), loadSources(), loadFailed(), loadConfig()]); }
+
+    // ---- marketplace config editor ----
+    const CONFIG_SCHEMA_VERSION = 1;
+    async function loadConfig() {
+      try {
+        const snap = await db.collection('marketplace_config').doc('live').get();
+        const cfg = snap.exists ? snap.data() : {};
+        // Strip server-managed fields from the editable view.
+        const view = { ...cfg }; delete view.updatedAt;
+        $('config').innerHTML =
+          '<h2>Marketplace Config <small style="color:#888">v' + (cfg.version || '?') + ' · schema ' + (cfg.schemaVersion || '?') + '</small></h2>' +
+          '<p style="color:#666">Edits apply to the live website immediately and to apps on next launch/refresh — no app-store update needed. Saving validates JSON and bumps the version.</p>' +
+          '<div id="cfgMsg" style="margin:8px 0;font-weight:600"></div>' +
+          '<textarea id="cfgText" spellcheck="false" style="width:100%;height:60vh;font-family:monospace;font-size:13px;padding:10px;border:1px solid #ccc;border-radius:8px"></textarea>' +
+          '<div style="margin-top:10px"><button id="cfgValidate">Validate</button> <button id="cfgSave">Save</button></div>';
+        $('cfgText').value = JSON.stringify(view, null, 2);
+        $('cfgValidate').onclick = () => { const r = validateCfg(); $('cfgMsg').textContent = r.ok ? '✓ Valid JSON' : '✗ ' + r.error; $('cfgMsg').style.color = r.ok ? '#137333' : '#c5221f'; };
+        $('cfgSave').onclick = saveConfig;
+      } catch (e) { $('config').innerHTML = '<p style="color:#c5221f">Failed to load config: ' + esc(e.message) + '</p>'; }
+    }
+    function validateCfg() {
+      try {
+        const parsed = JSON.parse($('cfgText').value);
+        if (typeof parsed !== 'object' || !parsed) return { ok: false, error: 'Top level must be an object' };
+        if (parsed.schemaVersion != null && Number(parsed.schemaVersion) !== CONFIG_SCHEMA_VERSION)
+          return { ok: false, error: 'schemaVersion must be ' + CONFIG_SCHEMA_VERSION + ' (the app ignores unknown schemas)' };
+        return { ok: true, parsed };
+      } catch (e) { return { ok: false, error: e.message }; }
+    }
+    async function saveConfig() {
+      const r = validateCfg();
+      if (!r.ok) { $('cfgMsg').textContent = '✗ ' + r.error; $('cfgMsg').style.color = '#c5221f'; return; }
+      try {
+        const cfg = r.parsed;
+        cfg.schemaVersion = CONFIG_SCHEMA_VERSION;
+        cfg.version = (Number(cfg.version) || 0) + 1;
+        cfg.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+        cfg.updatedBy = (auth.currentUser && auth.currentUser.email) || 'admin';
+        await db.collection('marketplace_config').doc('live').set(cfg, { merge: false });
+        $('cfgMsg').textContent = '✓ Saved (version ' + cfg.version + ')';
+        $('cfgMsg').style.color = '#137333';
+        loadConfig();
+      } catch (e) { $('cfgMsg').textContent = '✗ Save failed: ' + e.message; $('cfgMsg').style.color = '#c5221f'; }
+    }
 
     // ---- Overview + Source Health (from ingestion_stats) ----
     async function getRecentRuns(n=200){

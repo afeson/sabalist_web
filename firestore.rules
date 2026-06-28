@@ -60,6 +60,14 @@ service cloud.firestore {
     // Source configs (when moved into Firestore for UI CRUD).
     match /ingestion_sources/{id} { allow read, write: if isAdmin(); }
 
+    // Backend-driven marketplace config — public read (logged-out web + first
+    // app launch need it); only the admin dashboard may write (the seeder uses
+    // the admin SDK, which bypasses rules).
+    match /marketplace_config/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // Deny all other collections by default
     match /{document=**} {
       allow read, write: if false;

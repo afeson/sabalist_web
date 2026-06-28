@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -26,14 +26,17 @@ import {
   removeFromFavorites
 } from '../services/favoritesService';
 import { getCategoryId } from '../config/categoryMapping';
-import { CATEGORIES } from '../config/categories';
+import { CATEGORIES, getCategoryByKey } from '../config/categories';
 import { getTranslatedCategoryLabel } from '../utils/categoryI18n';
 import CategorySelector from '../components/CategorySelector';
 import LocationSelector from '../components/LocationSelector';
 import { getUserLocation } from '../services/locationService';
 import SEO from '../components/SEO';
 import { generateWebsiteSchema, generateOrganizationSchema } from '../utils/seo';
-import { SEO_COUNTRIES, SEO_CATEGORY_SLUGS } from '../config/cityRoutes';
+import { getActiveCountries } from '../config/cityRoutes';
+import { getNavChips, getFlags } from '../config/runtimeConfig';
+import { useConfigVersion } from '../contexts/ConfigContext';
+import HomeSections from '../components/home/HomeSections';
 
 // Platform-aware listings imports
 let searchListings;
@@ -84,20 +87,30 @@ export default function HomeScreenSimple({ navigation }) {
     }, [i18n.language])
   );
 
-  // Build the horizontal category strip from the source of truth.
-  // The pill at position 0 is a virtual 'All' filter; the rest mirror
-  // src/config/categories.js order. An 'All Categories' trailing pill opens
-  // the searchable modal for the long tail.
-  const CATEGORY_STRIP = [
-    { id: 'All', key: 'All', label: t('categories.all') || 'All', icon: 'apps' },
-    ...CATEGORIES.map((c) => ({
-      id: c.key,
-      key: c.key,
-      label: getTranslatedCategoryLabel(c.key, t),
-      icon: c.icon,
-    })),
-    { id: '__more__', key: '__more__', label: t('categories.allCategories') || 'All Categories', icon: 'grid' },
-  ];
+  // Re-render when backend config refreshes (nav chips, sections, flags, …).
+  const configVersion = useConfigVersion();
+  const flags = getFlags();
+
+  // Build the horizontal category strip from backend-driven nav chips. Each
+  // chip is a category key (resolved to its live icon/label, hidden ones
+  // dropped), plus the virtual 'All' and trailing 'All Categories' pills. The
+  // jobs chip is gated by the showJobs feature flag.
+  const CATEGORY_STRIP = useMemo(() => {
+    const out = [];
+    for (const chip of getNavChips()) {
+      if (chip === 'All') {
+        out.push({ id: 'All', key: 'All', label: t('categories.all') || 'All', icon: 'apps' });
+      } else if (chip === '__more__') {
+        out.push({ id: '__more__', key: '__more__', label: t('categories.allCategories') || 'All Categories', icon: 'grid' });
+      } else {
+        const cat = getCategoryByKey(chip);
+        if (!cat || cat.hidden) continue;
+        if (cat.id === 'jobs' && flags.showJobs === false) continue;
+        out.push({ id: cat.key, key: cat.key, label: getTranslatedCategoryLabel(cat.key, t, cat.label), icon: cat.icon });
+      }
+    }
+    return out;
+  }, [t, configVersion, flags.showJobs]);
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const { user } = useAuth();
   const [listings, setListings] = useState([]);
@@ -357,6 +370,10 @@ export default function HomeScreenSimple({ navigation }) {
           contentContainerStyle={styles.categoryList}
         />
       </View>
+
+      {/* Backend-driven homepage sections (banners, featured, trending). Renders
+          nothing by default — opt-in via marketplace_config home.sections. */}
+      <HomeSections navigation={navigation} configVersion={configVersion} />
     </View>
   );
 
@@ -389,10 +406,10 @@ export default function HomeScreenSimple({ navigation }) {
         contentContainerStyle={styles.listingContent}
         columnWrapperStyle={styles.listingRow}
         ListEmptyComponent={renderEmpty}
-        ListFooterComponent={Platform.OS === 'web' ? (
+        ListFooterComponent={Platform.OS === 'web' && flags.showRegionsNav !== false ? (
           <View style={styles.seoCityLinks}>
             <Text style={styles.seoCityLinksTitle}>Browse by City</Text>
-            {Object.entries(SEO_COUNTRIES).map(([countrySlug, country]) => (
+            {Object.entries(getActiveCountries()).map(([countrySlug, country]) => (
               <View key={countrySlug} style={styles.seoCityCountryBlock}>
                 <Text style={styles.seoCityCountryName}>{country.name}</Text>
                 <View style={styles.seoCityRow}>

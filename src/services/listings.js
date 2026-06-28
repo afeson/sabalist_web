@@ -22,10 +22,8 @@ import {
   increment,
   onSnapshot
 } from "../lib/firebase";
-import { CATEGORIES, resolveCategoryId, getLegacyAliasesFor } from "../config/categories";
-
-// Categories sampled for the diverse home feed (one bucket each).
-const HOME_CATEGORIES = CATEGORIES.map((c) => c.id).filter(Boolean);
+import { CATEGORIES, resolveCategoryId, getLegacyAliasesFor, getVisibleCategories } from "../config/categories";
+import { getRanking } from "../config/runtimeConfig";
 
 /**
  * Returns the set of categoryId values to query when the caller asks for
@@ -181,8 +179,10 @@ export async function fetchListings({ category = null, maxResults = 50 } = {}) {
       // large import (rentals, pets, food…) can dominate the homepage. The
       // caller ranks + round-robins for a diverse feed. Uses the existing
       // categoryId+createdAt index — no new index required.
-      const perCat = Math.max(8, Math.ceil(maxResults / 12));
-      const results = await Promise.all(HOME_CATEGORIES.map(async (cid) => {
+      const rk = getRanking().perCategory;
+      const perCat = Math.max(rk.min, Math.ceil(maxResults / rk.divisor));
+      const homeCategories = getVisibleCategories().map((c) => c.id).filter(Boolean);
+      const results = await Promise.all(homeCategories.map(async (cid) => {
         try {
           const cq = query(
             listingsRef,
@@ -276,18 +276,20 @@ export async function searchListings(searchText = "", category = null, minPrice 
         const loc = (l.location || '').toLowerCase();
         return !!uc && !!loc && (loc.includes(uc) || (us && loc.includes(us)) || (uco && loc.includes(uco)));
       };
-      // Classifieds-first ranking (jobs LAST, directory next):
-      //   5 organic + photo  4 marketplace import + photo  3 organic no photo
-      //   2 marketplace import no photo  1 business directory (OSM/universities)
-      //   0 jobs
-      const isDir = (s) => /^(osm-|hipolabs-)/.test(s || '');
+      // Classifieds-first ranking — tier weights, jobs-last, directory prefixes
+      // and round-robin all come from backend config (getRanking); the algorithm
+      // stays here. Defaults reproduce: 5 organic+photo, 4 import+photo,
+      // 3 organic no-photo, 2 import no-photo, 1 directory, 0 jobs.
+      const rank = getRanking();
+      const tw = rank.tierWeights;
+      const isDir = (s) => rank.directorySourcePrefixes.some((p) => (s || '').startsWith(p));
       const tier = (l) => {
-        if (l.categoryId === 'jobs') return 0;
-        if (isDir(l.source)) return 1;
-        if (!l.source && l.hasImage) return 5;
-        if (l.source && l.hasImage) return 4;
-        if (!l.source) return 3;
-        return 2;
+        if (rank.jobsLast && l.categoryId === 'jobs') return tw.jobs;
+        if (isDir(l.source)) return tw.directory;
+        if (!l.source && l.hasImage) return tw.organicPhoto;
+        if (l.source && l.hasImage) return tw.importPhoto;
+        if (!l.source) return tw.organicNoPhoto;
+        return tw.importNoPhoto;
       };
       activeListings = [...activeListings].sort((a, b) => {
         const t = tier(b) - tier(a); if (t) return t;
@@ -295,9 +297,8 @@ export async function searchListings(searchText = "", category = null, minPrice 
         return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
       });
       // Diversify by category (round-robin) so one large import can't dominate
-      // the homepage. Lead = photo'd marketplace + organic (tier >= 2); trailing
-      // = directory + jobs (tier < 2) stay last. Home feed only.
-      if (!searchText.trim() && !category && !subcategoryId) {
+      // the homepage. Lead = tier >= leadMinTier; trailing stays last. Home feed only.
+      if (rank.roundRobin.enabled && !searchText.trim() && !category && !subcategoryId) {
         const roundRobin = (arr) => {
           const m = new Map();
           for (const l of arr) { const k = l.categoryId || 'other'; if (!m.has(k)) m.set(k, []); m.get(k).push(l); }
@@ -305,8 +306,9 @@ export async function searchListings(searchText = "", category = null, minPrice 
           while (any) { any = false; for (const b of buckets) { if (b.length) { out.push(b.shift()); any = true; } } }
           return out;
         };
-        const lead = activeListings.filter((l) => tier(l) >= 2);
-        const trail = activeListings.filter((l) => tier(l) < 2);
+        const leadMin = rank.roundRobin.leadMinTier;
+        const lead = activeListings.filter((l) => tier(l) >= leadMin);
+        const trail = activeListings.filter((l) => tier(l) < leadMin);
         activeListings = [...roundRobin(lead), ...roundRobin(trail)];
       }
     }

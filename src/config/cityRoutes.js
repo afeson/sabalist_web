@@ -5,6 +5,20 @@
  */
 
 import { CATEGORY_ID_MAP, CATEGORY_NAME_MAP } from './categoryMapping';
+import { getRegions } from './runtimeConfig';
+
+// Runtime regions come from backend config when present (same shape as
+// SEO_COUNTRIES / SEO_CATEGORY_SLUGS); otherwise fall back to the bundled
+// values below. Build-time sitemap generation always uses the bundled values
+// (no config is applied in that context).
+function activeCountries() {
+  const r = getRegions();
+  return (r && r.countries) || SEO_COUNTRIES;
+}
+function activeCategorySlugs() {
+  const r = getRegions();
+  return (r && r.categorySlugs) || SEO_CATEGORY_SLUGS;
+}
 
 // Countries and their cities with URL slugs and location match terms
 export const SEO_COUNTRIES = {
@@ -62,27 +76,34 @@ export const SEO_CATEGORY_SLUGS = {
 };
 
 export function getCountryBySlug(slug) {
-  return SEO_COUNTRIES[slug] || null;
+  return activeCountries()[slug] || null;
 }
 
 export function getCityBySlug(countrySlug, citySlug) {
-  const country = SEO_COUNTRIES[countrySlug];
-  if (!country) return null;
+  const country = activeCountries()[countrySlug];
+  if (!country || !country.cities) return null;
   return country.cities[citySlug] || null;
 }
 
 export function getCategoryForSeoSlug(categorySlug) {
-  const name = SEO_CATEGORY_SLUGS[categorySlug];
+  const name = activeCategorySlugs()[categorySlug];
   if (!name) return null;
   return { slug: categorySlug, name };
 }
 
 export function isValidCityRoute(countrySlug, citySlug, categorySlug) {
+  const countries = activeCountries();
   return !!(
-    SEO_COUNTRIES[countrySlug] &&
-    SEO_COUNTRIES[countrySlug].cities[citySlug] &&
-    SEO_CATEGORY_SLUGS[categorySlug]
+    countries[countrySlug] &&
+    countries[countrySlug].cities &&
+    countries[countrySlug].cities[citySlug] &&
+    activeCategorySlugs()[categorySlug]
   );
+}
+
+/** All countries for the runtime regions nav (remote-aware). */
+export function getActiveCountries() {
+  return activeCountries();
 }
 
 /**

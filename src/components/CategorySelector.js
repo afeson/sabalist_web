@@ -20,8 +20,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { CATEGORIES } from '../config/categories';
+import { getVisibleCategories } from '../config/categories';
 import { getTranslatedCategoryLabel } from '../utils/categoryI18n';
+import { useConfigVersion } from '../contexts/ConfigContext';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 
 const NUM_COLUMNS = 3;
@@ -29,15 +30,17 @@ const NUM_COLUMNS = 3;
 export default function CategorySelector({ visible, onClose, onSelect, selectedKey }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
+  const configVersion = useConfigVersion();
 
   const filtered = useMemo(() => {
+    const all = getVisibleCategories();
     const q = query.trim().toLowerCase();
-    if (!q) return CATEGORIES;
-    return CATEGORIES.filter((c) => {
-      const label = getTranslatedCategoryLabel(c.key, t).toLowerCase();
+    if (!q) return all;
+    return all.filter((c) => {
+      const label = getTranslatedCategoryLabel(c.key, t, c.label).toLowerCase();
       return label.includes(q) || c.key.toLowerCase().includes(q) || c.id.includes(q);
     });
-  }, [query, t]);
+  }, [query, t, configVersion]);
 
   const handlePick = (cat) => {
     setQuery('');

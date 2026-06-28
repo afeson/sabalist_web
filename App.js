@@ -6,10 +6,17 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
 import * as Linking from 'expo-linking';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { ConfigProvider } from './src/contexts/ConfigContext';
 import AuthScreen from './src/screens/AuthScreen';
 import MainTabNavigator from './src/navigation/MainTabNavigator';
 import { COLORS } from './src/theme';
 import { registerSession } from './src/services/reviewService';
+
+// Backend-driven marketplace config (platform-split like the listings service).
+// Applied at startup before first render; falls back to bundled config offline.
+const { fetchMarketplaceConfig } = Platform.OS === 'web'
+  ? require('./src/services/appConfig.web')
+  : require('./src/services/appConfig');
 
 // SEO: HelmetProvider for web only
 const HelmetProvider = Platform.OS === 'web'
@@ -96,6 +103,16 @@ function AppContent() {
 
         // Initialize i18n
         await initializeI18n();
+
+        // Hydrate backend-driven marketplace config (categories, ranking,
+        // sections, regions, flags, …) before first render. Applies the cached
+        // config instantly then refreshes from Firestore; on any failure the
+        // bundled config stays active. Never throws.
+        try {
+          await fetchMarketplaceConfig();
+        } catch (cfgErr) {
+          console.warn('Marketplace config hydration failed (using bundled):', cfgErr?.message);
+        }
 
         // Count this app launch as a session for the in-app review policy
         // (native only; no-ops on web). May trigger the native rating prompt
@@ -238,7 +255,9 @@ export default function App() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
           <AuthProvider>
-            <AppContent />
+            <ConfigProvider>
+              <AppContent />
+            </ConfigProvider>
           </AuthProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>

@@ -9,18 +9,27 @@
 
 import { CATEGORIES, getCategoryByKey, LEGACY_CATEGORY_ALIASES } from '../config/categories';
 
-// Canonical key -> i18n translation key
-export const CATEGORY_I18N_MAP = {
-  All: 'categories.all',
-  ...Object.fromEntries(CATEGORIES.map((c) => [c.key, c.labelKey])),
-};
+// Canonical key -> i18n translation key. Mutated IN PLACE by
+// rebuildCategoryI18n() (never reassigned) so the runtime config layer can swap
+// the taxonomy at startup without invalidating this exported reference.
+export const CATEGORY_I18N_MAP = {};
 
-// Legacy display names also resolve so old listings render correctly.
-for (const [legacyKey, modernKey] of Object.entries(LEGACY_CATEGORY_ALIASES)) {
-  if (/[A-Z\s&]/.test(legacyKey) && CATEGORY_I18N_MAP[modernKey] && !CATEGORY_I18N_MAP[legacyKey]) {
-    CATEGORY_I18N_MAP[legacyKey] = CATEGORY_I18N_MAP[modernKey];
+/** (Re)build CATEGORY_I18N_MAP from the current CATEGORIES + legacy aliases. */
+export function rebuildCategoryI18n() {
+  for (const k of Object.keys(CATEGORY_I18N_MAP)) delete CATEGORY_I18N_MAP[k];
+  CATEGORY_I18N_MAP.All = 'categories.all';
+  for (const c of CATEGORIES) {
+    if (c.labelKey) CATEGORY_I18N_MAP[c.key] = c.labelKey;
+  }
+  for (const [legacyKey, modernKey] of Object.entries(LEGACY_CATEGORY_ALIASES)) {
+    if (/[A-Z\s&]/.test(legacyKey) && CATEGORY_I18N_MAP[modernKey] && !CATEGORY_I18N_MAP[legacyKey]) {
+      CATEGORY_I18N_MAP[legacyKey] = CATEGORY_I18N_MAP[modernKey];
+    }
   }
 }
+
+// Build once at module load (bundled defaults).
+rebuildCategoryI18n();
 
 export function getCategoryI18nKey(categoryKey) {
   return CATEGORY_I18N_MAP[categoryKey] || `categories.${categoryKey}`;
@@ -31,9 +40,11 @@ export function getCategoryI18nKey(categoryKey) {
  * Order of preference:
  *   1. Translation found for the mapped i18n key
  *   2. English `fallback` declared in CATEGORIES
- *   3. The categoryKey itself
+ *   3. A plain `fallbackLabel` (e.g. a label from a Firestore-defined category
+ *      that has no i18n key)
+ *   4. The categoryKey itself
  */
-export function getTranslatedCategoryLabel(categoryKey, t) {
+export function getTranslatedCategoryLabel(categoryKey, t, fallbackLabel = null) {
   if (!categoryKey) return '';
   const i18nKey = CATEGORY_I18N_MAP[categoryKey];
   if (i18nKey) {
@@ -43,6 +54,7 @@ export function getTranslatedCategoryLabel(categoryKey, t) {
   }
   const cat = getCategoryByKey(categoryKey);
   if (cat?.fallback) return cat.fallback;
+  if (fallbackLabel) return fallbackLabel;
   return categoryKey;
 }
 

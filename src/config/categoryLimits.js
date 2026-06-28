@@ -45,20 +45,25 @@ export const CATEGORY_IMAGE_LIMITS = {
     max: 15,
     description: 'Furniture, appliances, decor',
   },
+  // Informational / service-oriented categories where photos are
+  // optional. A job posting or service offering doesn't need a product
+  // photo to be useful — the description is the value. Keeping `max`
+  // moderate lets sellers attach a logo, certificate, or sample if
+  // they want to.
   'Jobs': {
-    min: 1,
+    min: 0,
     max: 5,
-    description: 'Job postings',
+    description: 'Job postings — photos optional (e.g. company logo)',
   },
   'Services': {
-    min: 1,
+    min: 0,
     max: 5,
-    description: 'Service offerings',
+    description: 'Service offerings — photos optional (e.g. previous work)',
   },
   'Repair Services': {
-    min: 1,
+    min: 0,
     max: 5,
-    description: 'Repair offerings',
+    description: 'Repair offerings — photos optional',
   },
   'Rentals': {
     min: 3,
@@ -96,14 +101,14 @@ export const CATEGORY_IMAGE_LIMITS = {
     description: 'B2B and industrial items',
   },
   'Events & Tickets': {
-    min: 1,
+    min: 0,
     max: 5,
-    description: 'Event details',
+    description: 'Event posts — photos optional (e.g. poster, venue)',
   },
   'Education': {
-    min: 1,
+    min: 0,
     max: 8,
-    description: 'Books and learning materials',
+    description: 'Educational posts — photos optional (e.g. course flyer, book cover)',
   },
   'Travel': {
     min: 1,
@@ -131,6 +136,25 @@ export const CATEGORY_IMAGE_LIMITS = {
     description: 'Miscellaneous',
   },
 };
+
+/**
+ * Merge remote image-limit overrides into CATEGORY_IMAGE_LIMITS in place
+ * (keyed by category display name). Never reassigns the exported object.
+ */
+export function rebuildImageLimits(overrides) {
+  if (!overrides || typeof overrides !== 'object') return;
+  for (const [name, limits] of Object.entries(overrides)) {
+    if (!limits || typeof limits !== 'object') continue;
+    const min = Number(limits.min);
+    const max = Number(limits.max);
+    CATEGORY_IMAGE_LIMITS[name] = {
+      ...(CATEGORY_IMAGE_LIMITS[name] || {}),
+      ...(Number.isFinite(min) ? { min } : {}),
+      ...(Number.isFinite(max) ? { max } : {}),
+      ...(limits.description ? { description: String(limits.description) } : {}),
+    };
+  }
+}
 
 // Default limits for unlisted categories
 export const DEFAULT_IMAGE_LIMITS = {

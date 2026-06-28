@@ -105,6 +105,7 @@ export const CATEGORIES = [
       { id: 'womens-clothing', labelKey: 'subCategories.womensClothing', icon: 'woman', fallback: "Women's Clothing" },
       { id: 'shoes', labelKey: 'subCategories.shoes', icon: 'footsteps', fallback: 'Shoes' },
       { id: 'bags', labelKey: 'subCategories.bags', icon: 'bag', fallback: 'Bags' },
+      { id: 'accessories', labelKey: 'subCategories.accessories', icon: 'glasses-outline', fallback: 'Accessories' },
       { id: 'watches-jewelry', labelKey: 'subCategories.watchesJewelry', icon: 'watch', fallback: 'Watches & Jewelry' },
       { id: 'traditional-wear', labelKey: 'subCategories.traditionalWear', icon: 'shirt', fallback: 'Traditional Wear' },
     ],
@@ -146,6 +147,13 @@ export const CATEGORIES = [
     labelKey: 'categories.jobs',
     fallback: 'Jobs',
     icon: 'briefcase',
+    // Job postings, services, community announcements, education
+    // listings, and events frequently have no fixed price — recruiters
+    // post job openings without a salary, tutors quote per-job, event
+    // organisers post free events, etc. We let sellers in these
+    // categories choose "No price" or "Call for price" without blocking
+    // the post. Buyers can still see the listing.
+    pricingRequired: false,
     subCategories: [
       { id: 'full-time', labelKey: 'subCategories.fullTime', icon: 'briefcase', fallback: 'Full-Time' },
       { id: 'part-time', labelKey: 'subCategories.partTime', icon: 'time', fallback: 'Part-Time' },
@@ -160,6 +168,7 @@ export const CATEGORIES = [
     labelKey: 'categories.services',
     fallback: 'Services',
     icon: 'construct',
+    pricingRequired: false,
     subCategories: [
       { id: 'cleaning', labelKey: 'subCategories.cleaning', icon: 'sparkles', fallback: 'Cleaning' },
       { id: 'electrical', labelKey: 'subCategories.electrical', icon: 'flash', fallback: 'Electrical' },
@@ -260,6 +269,7 @@ export const CATEGORIES = [
     labelKey: 'categories.eventsTickets',
     fallback: 'Events & Tickets',
     icon: 'ticket',
+    pricingRequired: false,
     subCategories: [
       { id: 'concerts', labelKey: 'subCategories.concerts', icon: 'musical-notes', fallback: 'Concerts' },
       { id: 'sports-events', labelKey: 'subCategories.sportsEvents', icon: 'football', fallback: 'Sports Events' },
@@ -273,6 +283,7 @@ export const CATEGORIES = [
     id: 'education',
     labelKey: 'categories.education',
     fallback: 'Education',
+    pricingRequired: false,
     icon: 'school',
     subCategories: [
       { id: 'books', labelKey: 'subCategories.books', icon: 'book', fallback: 'Books' },
@@ -357,6 +368,7 @@ export const CATEGORIES = [
     labelKey: 'categories.community',
     fallback: 'Community',
     icon: 'people',
+    pricingRequired: false,
     subCategories: [
       { id: 'lost-found', labelKey: 'subCategories.lostFound', icon: 'help-circle', fallback: 'Lost & Found' },
       { id: 'free-items', labelKey: 'subCategories.freeItems', icon: 'gift', fallback: 'Free Items' },
@@ -383,6 +395,20 @@ export const CATEGORIES = [
  * home. When the user filters by a new category, query results expand to
  * include legacy IDs.
  */
+/**
+ * Returns true when the given category (display key OR id slug) requires
+ * a numeric price on listing creation. Defaults to true — categories
+ * must explicitly set `pricingRequired: false` to opt out.
+ */
+export function categoryRequiresPricing(categoryKeyOrId) {
+  if (!categoryKeyOrId) return true;
+  const cat = CATEGORIES.find(
+    (c) => c.key === categoryKeyOrId || c.id === categoryKeyOrId
+  );
+  if (!cat) return true;
+  return cat.pricingRequired !== false;
+}
+
 export const LEGACY_CATEGORY_ALIASES = {
   // by display name
   'Furniture': 'Home & Furniture',
@@ -412,7 +438,9 @@ export const LEGACY_REVERSE_ALIASES = (() => {
   return reverse;
 })();
 
-// ---- Derived lookups (memoized at module load) ----
+// ---- Derived lookups (rebuilt in place when remote config is applied) ----
+// These are mutated in place (never reassigned) so that the runtime config
+// layer can swap the taxonomy at startup without breaking existing imports.
 
 const BY_KEY = Object.fromEntries(CATEGORIES.map((c) => [c.key, c]));
 const BY_ID = Object.fromEntries(CATEGORIES.map((c) => [c.id, c]));
@@ -478,3 +506,40 @@ export function findSubCategoryById(subId) {
 export const CATEGORIES_WITH_SUBS = Object.fromEntries(
   CATEGORIES.map((c) => [c.key, { icon: c.icon, subCategories: c.subCategories }])
 );
+
+// ---- Runtime (backend-driven) config support ----
+
+/**
+ * Rebuild the in-place lookup objects from the current CATEGORIES array.
+ * Mutates BY_KEY / BY_ID / CATEGORIES_WITH_SUBS in place so existing imports
+ * (which hold these object references) stay valid.
+ */
+function rebuildBundledLookups() {
+  for (const k of Object.keys(BY_KEY)) delete BY_KEY[k];
+  for (const k of Object.keys(BY_ID)) delete BY_ID[k];
+  for (const k of Object.keys(CATEGORIES_WITH_SUBS)) delete CATEGORIES_WITH_SUBS[k];
+  for (const c of CATEGORIES) {
+    BY_KEY[c.key] = c;
+    BY_ID[c.id] = c;
+    CATEGORIES_WITH_SUBS[c.key] = { icon: c.icon, subCategories: c.subCategories };
+  }
+}
+
+/**
+ * Replace the live taxonomy with a merged (remote-over-bundled) list. Mutates
+ * the CATEGORIES array IN PLACE (never reassigns) so live-render consumers that
+ * read CATEGORIES each render pick up the change. Callers must also rebuild the
+ * derived maps in categoryMapping / categoryI18n (the runtimeConfig layer does
+ * this in the correct order).
+ */
+export function applyCategoryConfig(merged) {
+  if (!Array.isArray(merged) || merged.length === 0) return;
+  CATEGORIES.length = 0;
+  CATEGORIES.push(...merged);
+  rebuildBundledLookups();
+}
+
+/** Categories minus any flagged `hidden` — for render lists (nav, pickers). */
+export function getVisibleCategories() {
+  return CATEGORIES.filter((c) => !c.hidden);
+}

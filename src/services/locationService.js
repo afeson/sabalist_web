@@ -6,8 +6,18 @@
 import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getLocationConfig } from '../config/runtimeConfig';
 
 const LOCATION_STORAGE_KEY = '@sabalist:userLocation';
+
+/** Backend-configured default location (used only when nothing else is known). */
+export function getDefaultLocation() {
+  const cfg = getLocationConfig();
+  if (cfg.defaultCountry || cfg.defaultCity) {
+    return { country: cfg.defaultCountry || null, city: cfg.defaultCity || null, isDefault: true };
+  }
+  return null;
+}
 
 /**
  * Get user's saved location from AsyncStorage first, then Firestore as fallback
@@ -26,7 +36,7 @@ export async function getUserLocation(userId) {
   }
 
   // Fall back to Firestore if user is logged in
-  if (!userId) return null;
+  if (!userId) return getDefaultLocation();
 
   try {
     const db = getFirestore();
@@ -39,10 +49,10 @@ export async function getUserLocation(userId) {
       await AsyncStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(location));
       return location;
     }
-    return null;
+    return getDefaultLocation();
   } catch (error) {
     console.error('Error getting user location from Firestore:', error);
-    return null;
+    return getDefaultLocation();
   }
 }
 
@@ -223,6 +233,8 @@ const LOCALE_COUNTRY_MAP = {
  */
 function getCountryFromBrowserLocale() {
   try {
+    // Backend can disable locale-based country guessing.
+    if (getLocationConfig().localeMapEnabled === false) return null;
     // Try navigator.language first
     if (typeof navigator !== 'undefined' && navigator.language) {
       const locale = navigator.language;
