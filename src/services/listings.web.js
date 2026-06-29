@@ -7,7 +7,7 @@ import { firestore, storage } from "../lib/firebase.web";
 import { collection, addDoc, updateDoc, doc, serverTimestamp, query, where, orderBy, limit as firestoreLimit, deleteDoc, increment, getDocsFromServer, getDocFromServer, onSnapshot } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { CATEGORIES, resolveCategoryId, getLegacyAliasesFor, getVisibleCategories } from "../config/categories";
-import { getRanking } from "../config/runtimeConfig";
+import { getRanking, getFlags } from "../config/runtimeConfig";
 
 // Validate a listing's category against the LIVE taxonomy (reflects remote config).
 const isValidCategoryKey = (k) => !!k && CATEGORIES.some((c) => c.key === k);
@@ -555,6 +555,12 @@ export async function searchListings(searchText = "", category = null, minPrice 
         const loc = (l.location || '').toLowerCase();
         return !!uc && !!loc && (loc.includes(uc) || (us && loc.includes(us)) || (uco && loc.includes(uco)));
       };
+      // Front page = pictures only: drop image-less listings (seeds, directory,
+      // no-photo organics) from the unfiltered home feed so it never shows
+      // placeholder cards. They still appear in category/search views.
+      if (!searchText.trim() && !category && !subcategoryId && getFlags().homePhotoOnly !== false) {
+        activeListings = activeListings.filter((l) => !!(l.coverImage || (l.images && l.images.length) || l.hasImage));
+      }
       // Classifieds-first ranking — tier weights, jobs-last, directory prefixes
       // and round-robin all come from backend config (getRanking); the algorithm
       // stays here. Defaults reproduce: 5 organic+photo, 4 import+photo,

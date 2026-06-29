@@ -34,6 +34,7 @@ const RANKING_DEFAULT = {
 const FLAGS_DEFAULT = {
   showJobs: true, showBanners: true, enableTrending: true,
   enableReviews: true, monetizationEnabled: false, showRegionsNav: true,
+  homePhotoOnly: true, // front page shows only listings with images (no placeholders)
 };
 const SECTIONS_DEFAULT = [{ id: 'feed', type: 'feed', enabled: true }];
 const LOCATION_DEFAULT = {

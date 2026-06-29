@@ -23,7 +23,7 @@ import {
   onSnapshot
 } from "../lib/firebase";
 import { CATEGORIES, resolveCategoryId, getLegacyAliasesFor, getVisibleCategories } from "../config/categories";
-import { getRanking } from "../config/runtimeConfig";
+import { getRanking, getFlags } from "../config/runtimeConfig";
 
 /**
  * Returns the set of categoryId values to query when the caller asks for
@@ -276,6 +276,12 @@ export async function searchListings(searchText = "", category = null, minPrice 
         const loc = (l.location || '').toLowerCase();
         return !!uc && !!loc && (loc.includes(uc) || (us && loc.includes(us)) || (uco && loc.includes(uco)));
       };
+      // Front page = pictures only: drop image-less listings from the unfiltered
+      // home feed so it never shows placeholder cards (they still appear in
+      // category/search views).
+      if (!searchText.trim() && !category && !subcategoryId && getFlags().homePhotoOnly !== false) {
+        activeListings = activeListings.filter((l) => !!(l.coverImage || (l.images && l.images.length) || l.hasImage));
+      }
       // Classifieds-first ranking — tier weights, jobs-last, directory prefixes
       // and round-robin all come from backend config (getRanking); the algorithm
       // stays here. Defaults reproduce: 5 organic+photo, 4 import+photo,
