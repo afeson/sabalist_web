@@ -150,4 +150,46 @@ function categorize({ title = '', description = '', rawCategory = '' } = {}) {
   return { categoryId: best.id, subcategory: sub, confidence };
 }
 
-module.exports = { CATEGORIES, CATEGORY_IDS, SUB_IDS, resolveCategory, categorize };
+// Per-category keyword → subcategory rules (kept in sync with
+// scripts/backfill-subcategories.js). Used at ingest time so every imported
+// listing lands in a subcategory section, not just a category.
+const VALID_SUBS = Object.fromEntries(CATEGORIES.map((c) => [c.id, new Set(c.subs)]));
+const SUB_RULES = {
+  vehicles: [[/motorcycle|scooter|\bbike\b|moped/, 'motorcycles'], [/truck|lorry|trailer|pickup/, 'trucks'], [/\bbus\b|coaster|minibus/, 'buses'], [/bicycle|cycling/, 'bicycles'], [/boat|yacht|canoe|jetski/, 'boats'], [/spare|tyre|tire|\bpart|engine|battery|rim/, 'spare-parts'], [/./, 'cars']],
+  'real-estate': [[/\bland\b|plot|acre/, 'land'], [/office|shop|commercial|warehouse/, 'commercial-property'], [/short.?let|short stay|nightly/, 'short-let'], [/for sale|\bsale\b/, 'houses-sale'], [/apartment|flat|condo|studio/, 'apartments'], [/./, 'houses-rent']],
+  electronics: [[/\btv\b|television/, 'tvs'], [/speaker|audio|headphone|earbud|soundbar/, 'audio-speakers'], [/camera|dslr|gopro|lens/, 'cameras'], [/playstation|\bps5\b|\bps4\b|xbox|nintendo|console/, 'gaming-consoles'], [/smart (home|device)|alexa|echo|iot/, 'smart-devices'], [/watch|wearable|fitbit|band/, 'wearables'], [/./, 'accessories']],
+  'phones-tablets': [[/tablet|ipad/, 'tablets'], [/feature phone|keypad/, 'feature-phones'], [/\bsim\b/, 'sim-cards'], [/case|charger|cable|cover|accessor/, 'phone-accessories'], [/./, 'smartphones']],
+  computers: [[/laptop|macbook|notebook|chromebook/, 'laptops'], [/desktop|tower|imac/, 'desktops'], [/\bram\b|\bcpu\b|\bgpu\b|motherboard|component|ssd/, 'components'], [/printer|scanner|toner/, 'printers'], [/router|network|switch|modem/, 'networking'], [/software|license|windows|antivirus/, 'software'], [/./, 'laptops']],
+  fashion: [[/shoe|sneaker|boot|heel|sandal/, 'shoes'], [/\bbag\b|handbag|backpack|purse|wallet/, 'bags'], [/watch|jewel|ring|necklace|bracelet|earring/, 'watches-jewelry'], [/traditional|ankara|kente|dashiki|kaftan|abaya/, 'traditional-wear'], [/women|woman|ladies|dress|skirt|blouse/, 'womens-clothing'], [/\bmen\b|\bman\b|shirt|trouser|suit/, 'mens-clothing'], [/./, 'accessories']],
+  beauty: [[/skin|lotion|cream|serum|moistur/, 'skincare'], [/makeup|lipstick|foundation|mascara/, 'makeup'], [/hair|shampoo|wig|conditioner|braid/, 'haircare'], [/perfume|fragrance|cologne|scent/, 'fragrances'], [/./, 'beauty-tools']],
+  'home-furniture': [[/sofa|couch|chair|recliner/, 'sofas-chairs'], [/\bbed\b|mattress|bunk/, 'beds-mattresses'], [/table|desk/, 'tables-desks'], [/wardrobe|closet|dresser/, 'wardrobes'], [/kitchen|cookware|\bwok\b|\bpot\b|\bpan\b|utensil/, 'kitchen'], [/fridge|refrigerator|washing machine|microwave|appliance|blender|oven/, 'home-appliances'], [/office/, 'office-furniture'], [/./, 'decor']],
+  jobs: [[/part.?time/, 'part-time'], [/freelance|contract|gig/, 'freelance'], [/intern/, 'internships'], [/remote|work from home|wfh/, 'remote'], [/./, 'full-time']],
+  services: [[/clean/, 'cleaning'], [/electric/, 'electrical'], [/plumb/, 'plumbing'], [/design|graphic|logo/, 'graphic-design'], [/tutor|lesson|teach/, 'tutoring'], [/photo|video|film/, 'photography'], [/salon|spa|barber|\bhair\b|\bnail\b|beauty/, 'beauty-services'], [/./, 'cleaning']],
+  food: [[/restaurant|cafe|diner|eatery|fast.?food/, 'restaurants'], [/cater/, 'catering'], [/grocer|supermarket|market|provision/, 'groceries'], [/bakery|bread|cake|pastry/, 'bakery'], [/drink|beverage|juice|coffee|tea|soda/, 'beverages'], [/./, 'groceries']],
+  agriculture: [[/seed/, 'seeds'], [/fertiliz|manure/, 'fertilizers'], [/tractor|plough|harvester|equipment|machine/, 'farm-equipment'], [/feed|fodder/, 'livestock-feed'], [/./, 'crops']],
+  'animals-pets': [[/\bcat\b|kitten/, 'cats'], [/bird|parrot|poultry|chicken/, 'birds'], [/goat|cattle|\bcow\b|sheep|livestock/, 'livestock'], [/pet food|dog food|cat food/, 'pet-food'], [/leash|cage|kennel|collar|accessor/, 'pet-accessories'], [/./, 'dogs']],
+  'baby-kids': [[/cloth|wear|onesie|romper/, 'baby-clothing'], [/\btoy|lego|doll|puzzle/, 'toys'], [/stroller|pram|pushchair|car seat/, 'strollers'], [/school|\bbook|crayon|supply/, 'school-supplies'], [/baby food|formula|cereal/, 'baby-food'], [/./, 'toys']],
+  'sports-fitness': [[/gym|weight|dumbbell|treadmill|fitness/, 'gym-equipment'], [/cycl|bicycle/, 'cycling'], [/outdoor|camp|hik|tent/, 'outdoor'], [/football|basketball|soccer|team|jersey/, 'team-sports'], [/apparel|wear|kit/, 'sports-apparel'], [/./, 'gym-equipment']],
+  'business-industrial': [[/office/, 'office-equipment'], [/wholesale|bulk|distributor/, 'wholesale'], [/\btool/, 'industrial-tools'], [/./, 'machinery']],
+  'events-tickets': [[/concert|gig|live music/, 'concerts'], [/sport|match|game/, 'sports-events'], [/theat|drama|play\b/, 'theater'], [/conference|summit|seminar|expo/, 'conferences'], [/./, 'festivals']],
+  education: [[/\bbook|textbook|novel/, 'books'], [/course|class|program|degree|diploma/, 'courses'], [/tutor|lesson/, 'tutoring-edu'], [/stationery|\bpen\b|notebook|pencil/, 'stationery'], [/./, 'courses']],
+  travel: [[/flight|airline|airfare/, 'flights'], [/hotel|guesthouse|lodge|resort|hostel/, 'hotels'], [/tour|safari|excursion|attraction|museum/, 'tours'], [/luggage|suitcase/, 'luggage'], [/./, 'hotels']],
+  construction: [[/cement|mixer|concrete/, 'cement-mixers'], [/generator/, 'generators'], [/excavat|bulldozer|loader/, 'excavators'], [/drill/, 'drilling-machines'], [/\btool|grinder|saw|hammer/, 'power-tools'], [/./, 'building-materials']],
+  'repair-services': [[/car|auto|mechanic|vehicle/, 'car-repair'], [/phone|mobile/, 'phone-repair'], [/appliance|fridge|washing|air condition/, 'appliance-repair'], [/plumb/, 'plumbing-repair'], [/electric/, 'electrical-repair'], [/./, 'appliance-repair']],
+  rentals: [[/car|vehicle/, 'car-rentals'], [/equipment|\btool|machine/, 'equipment-rentals'], [/event|party|tent/, 'event-rentals'], [/./, 'property-rentals']],
+  entertainment: [[/music|album|song|vinyl/, 'music'], [/movie|film|\bdvd\b|cinema/, 'movies'], [/\bgame|gaming/, 'games'], [/instrument|guitar|piano|drum/, 'instruments'], [/./, 'art-collectibles']],
+  community: [[/lost|found/, 'lost-found'], [/\bfree\b|giveaway|donat/, 'free-items'], [/volunteer/, 'volunteers'], [/./, 'announcements']],
+};
+
+/** Assign a canonical subcategory for a categoryId from title/description text. */
+function classifySubcategory(categoryId, title = '', description = '', source = '') {
+  const rules = SUB_RULES[categoryId];
+  if (!rules) return null;
+  if (categoryId === 'rentals' && /airbnb/.test(source || '')) return 'property-rentals';
+  if (categoryId === 'animals-pets' && (source || '').startsWith('dog')) return 'dogs';
+  const t = `${title} ${description}`.toLowerCase();
+  for (const [re, sub] of rules) if (re.test(t)) return sub;
+  return null;
+}
+
+module.exports = { CATEGORIES, CATEGORY_IDS, SUB_IDS, VALID_SUBS, resolveCategory, categorize, classifySubcategory };

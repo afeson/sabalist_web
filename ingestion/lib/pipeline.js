@@ -16,7 +16,7 @@
 
 const { mapRecord } = require('./mappingEngine');
 const { enrichGeo } = require('./geo');
-const { categorize, resolveCategory } = require('./taxonomy');
+const { categorize, resolveCategory, classifySubcategory, VALID_SUBS } = require('./taxonomy');
 const { scoreQuality } = require('./quality');
 const dedup = require('./dedup');
 
@@ -92,6 +92,13 @@ async function processRecord(raw, source, store, opts = {}) {
     : categorize({ title: draft.title, description: draft.description, rawCategory: draft.category });
   draft.categoryId = cat.categoryId;
   if (cat.subcategory && !draft.subcategory) draft.subcategory = cat.subcategory;
+  // Ensure every listing lands in a subcategory section: if none was provided/
+  // inferred, or the provided one isn't valid for this category, classify from text.
+  const validSet = VALID_SUBS[draft.categoryId];
+  if (draft.categoryId && validSet && validSet.size && (!draft.subcategory || !validSet.has(draft.subcategory))) {
+    const sub = classifySubcategory(draft.categoryId, draft.title, draft.description, draft.source || source.id);
+    if (sub) draft.subcategory = sub;
+  }
   const confidence = cat.confidence;
 
   // 4) IMAGE VERIFY (structural)
