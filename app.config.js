@@ -84,7 +84,7 @@ module.exports = ({ config }) => {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.sabalist.app',
-      buildNumber: '22',
+      buildNumber: '23',
       icon: './assets/branding/sabalist-icon-square.png',
       googleServicesFile: process.env.GOOGLE_SERVICES_PLIST || './ios/GoogleService-Info.plist',
       usesAppleSignIn: true,
@@ -129,7 +129,7 @@ module.exports = ({ config }) => {
     },
     android: {
       package: 'com.sabalist.app',
-      versionCode: 29,
+      versionCode: 30,
       icon: './assets/branding/sabalist-icon-square.png',
       adaptiveIcon: {
         foregroundImage: './assets/branding/sabalist-icon-square.png',
