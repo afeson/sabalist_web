@@ -76,6 +76,7 @@ function buildConfig(prevVersion) {
     featureFlags: {
       showJobs: true, showBanners: true, enableTrending: true,
       enableReviews: true, monetizationEnabled: false, showRegionsNav: true,
+      homePhotoOnly: true, // toggle the photo-only front page from here
     },
     categories: { order: CATEGORY_ORDER, overrides: {} },
     navChips: ['All', ...CATEGORY_KEYS, '__more__'],
