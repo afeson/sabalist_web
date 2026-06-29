@@ -56,18 +56,29 @@ function applyIngestionConfig(sources, cfg) {
 
 async function main() {
   const dry = !!arg('dry', false);
-  const only = arg('source', null);
+  const only = arg('source', null);            // single source id
+  const onlyList = arg('only', null);          // comma-separated group, e.g. --only a,b,c
   const doExpire = !!arg('expire', false);
   const limit = arg('limit', null);
 
-  let sources = only ? [getSource(only)].filter(Boolean) : listSources();
-  if (!sources.length) { console.error('No enabled sources found.'); process.exit(1); }
+  let sources;
+  if (only) {
+    sources = [getSource(only)].filter(Boolean);
+  } else if (onlyList) {
+    const ids = new Set(String(onlyList).split(',').map((s) => s.trim()).filter(Boolean));
+    sources = listSources().filter((s) => ids.has(s.id));
+    const missing = [...ids].filter((id) => !sources.some((s) => s.id === id));
+    if (missing.length) console.warn(`⚠️  --only: unknown/disabled source id(s): ${missing.join(', ')}`);
+  } else {
+    sources = listSources();
+  }
+  if (!sources.length) { console.error('No matching sources found.'); process.exit(1); }
 
   const store = dry ? createMemoryStore() : require('./lib/firestore').createFirestoreStore();
 
-  // Backend-driven ingestion config (priorities / disabled / cap). Live runs
-  // only; a specific --source run is left as-is. Falls back to bundled flags.
-  if (!dry && !only) {
+  // Backend-driven ingestion config (priorities / disabled / cap). Applies to the
+  // full "all sources" run only; an explicit --source/--only selection is authoritative.
+  if (!dry && !only && !onlyList) {
     const ingestionCfg = await getIngestionConfig();
     if (ingestionCfg) {
       const before = sources.length;
@@ -78,7 +89,7 @@ async function main() {
 
   console.log(`\n🌍 Sabalist sync — ${sources.length} source(s) ${dry ? '[DRY]' : '[LIVE → Firestore]'} @ ${new Date().toISOString()}`);
 
-  const totals = { published: 0, updated: 0, review: 0, rejected: 0, total: 0 };
+  const totals = { published: 0, updated: 0, skipped: 0, review: 0, rejected: 0, total: 0 };
   for (const source of sources) {
     process.stdout.write(`\n• ${source.id} (${source.region || '—'}) … `);
     try {
@@ -86,7 +97,7 @@ async function main() {
       if (limit) opts.limit = Number(limit);
       const stats = await ingestSource(source, store, opts);
       for (const k of Object.keys(totals)) totals[k] += stats[k] || 0;
-      console.log(`pub ${stats.published} | upd ${stats.updated} | review ${stats.review} | rej ${stats.rejected} (of ${stats.total})`);
+      console.log(`pub ${stats.published} | upd ${stats.updated} | unchanged ${stats.skipped || 0} | review ${stats.review} | rej ${stats.rejected} (of ${stats.total})`);
       if (!dry) {
         if (store.recordRun) await store.recordRun(source.id, stats);
         if (doExpire && store.expireStale) {
@@ -102,7 +113,7 @@ async function main() {
     }
   }
 
-  console.log(`\n─ TOTAL ─ published ${totals.published} | updated ${totals.updated} | review ${totals.review} | rejected ${totals.rejected} | seen ${totals.total}\n`);
+  console.log(`\n─ TOTAL ─ published ${totals.published} | updated ${totals.updated} | unchanged ${totals.skipped} | review ${totals.review} | rejected ${totals.rejected} | seen ${totals.total}\n`);
 }
 
 main().catch((e) => { console.error('sync failed:', e); process.exit(1); });

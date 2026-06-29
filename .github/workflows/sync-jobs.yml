@@ -1,0 +1,38 @@
+name: Sync — Jobs (6h)
+
+# Lightweight job feeds. Fast (~1 min). Runs every 6 hours and expires stale
+# job listings. Independent of the marketplace workflows so a heavy importer can
+# never block fresh jobs (and vice-versa).
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # 00:00, 06:00, 12:00, 18:00 UTC
+  workflow_dispatch:
+    inputs:
+      dry: { description: 'Dry run (no writes)', type: boolean, default: false }
+
+concurrency:
+  group: sync-jobs
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Sync job feeds
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          GROUP="arbeitnow-jobs,jobicy-jobs,remotive-jobs,themuse-jobs,weworkremotely-jobs,remoteok-jobs"
+          if [ "${{ inputs.dry }}" = "true" ]; then
+            node sync.js --only "$GROUP" --dry
+          else
+            node sync.js --only "$GROUP" --expire
+          fi

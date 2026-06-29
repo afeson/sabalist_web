@@ -127,6 +127,12 @@ async function processRecord(raw, source, store, opts = {}) {
   const listing = toListingDoc(draft, meta);
 
   if (verdict.kind === 'update') {
+    // Incremental: if the matched doc's content fingerprint is unchanged, skip the
+    // write entirely (no-op re-sync). Makes weekly heavy re-imports cheap.
+    const match = existing.find((e) => e.id === verdict.matchId);
+    if (match && match.fingerprint && match.fingerprint === fingerprint) {
+      return { decision: 'skip', reason: 'unchanged', matchId: verdict.matchId, meta };
+    }
     return { decision: 'update', reason: 'resync', listing, matchId: verdict.matchId, confidence, quality: q, meta };
   }
   if (verdict.kind === 'duplicate') {
@@ -153,7 +159,7 @@ async function processRecord(raw, source, store, opts = {}) {
  * Returns aggregate stats.
  */
 async function runBatch(records, source, store, opts = {}) {
-  const stats = { total: records.length, published: 0, updated: 0, review: 0, rejected: 0, byReason: {} };
+  const stats = { total: records.length, published: 0, updated: 0, skipped: 0, review: 0, rejected: 0, byReason: {} };
   for (const raw of records) {
     let res;
     try {
@@ -166,6 +172,7 @@ async function runBatch(records, source, store, opts = {}) {
     stats.byReason[res.reason] = (stats.byReason[res.reason] || 0) + 1;
     if (res.decision === 'publish') { await store.publish(res.listing); stats.published++; }
     else if (res.decision === 'update') { await store.update(res.matchId, res.listing); stats.updated++; }
+    else if (res.decision === 'skip') { stats.skipped++; } // incremental: unchanged, no write
     else if (res.decision === 'review') { await store.enqueueReview(res); stats.review++; }
     else { await store.reject({ raw, reason: res.reason, sourceId: source.id }); stats.rejected++; }
   }

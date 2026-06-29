@@ -1,0 +1,43 @@
+name: Sync — Rentals & Real Estate (weekly)
+
+# Heaviest importers: Inside Airbnb gzipped CSVs (tens of thousands of rows per
+# city). Each source runs as its own parallel matrix job with a long timeout, so
+# they neither block each other nor any other workflow. Weekly cadence — this
+# data changes slowly and re-syncs are mostly no-op updates (dedup by id).
+on:
+  schedule:
+    - cron: '0 4 * * 1'    # Mondays 04:00 UTC
+  workflow_dispatch:
+    inputs:
+      dry: { description: 'Dry run (no writes)', type: boolean, default: false }
+
+concurrency:
+  group: sync-rentals
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        source: [insideairbnb-rentals, insideairbnb-rentals-extra]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Sync ${{ matrix.source }}
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          NODE_OPTIONS: --max-old-space-size=3072   # large gzip CSV parse
+        run: |
+          if [ "${{ inputs.dry }}" = "true" ]; then
+            node sync.js --source ${{ matrix.source }} --dry
+          else
+            node sync.js --source ${{ matrix.source }} --expire
+          fi

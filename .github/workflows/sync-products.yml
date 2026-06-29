@@ -1,0 +1,38 @@
+name: Sync — Products & catalog (daily)
+
+# Photo'd product/catalog APIs (fast JSON). Refreshes electronics, phones,
+# computers, fashion, beauty, home, food/beauty products, pets, and events
+# (holidays). Daily is plenty for these slow-changing catalogs.
+on:
+  schedule:
+    - cron: '0 2 * * *'    # 02:00 UTC daily
+  workflow_dispatch:
+    inputs:
+      dry: { description: 'Dry run (no writes)', type: boolean, default: false }
+
+concurrency:
+  group: sync-products
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Sync product/catalog sources
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          GROUP="dummyjson-products,openfacts-products,dogceo-pets,nager-holidays-events"
+          if [ "${{ inputs.dry }}" = "true" ]; then
+            node sync.js --only "$GROUP" --dry
+          else
+            node sync.js --only "$GROUP" --expire
+          fi

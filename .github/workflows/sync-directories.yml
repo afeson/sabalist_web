@@ -1,0 +1,42 @@
+name: Sync — Directories OSM/Universities (weekly)
+
+# Heavy crawls: OpenStreetMap businesses across ~40 African cities + diaspora
+# restaurants + African universities. Many rate-limited requests → slow. Runs
+# weekly in its own workflow with a generous timeout so it can never block the
+# job/product feeds. Fills services, food, education, vehicles, travel, etc.
+on:
+  schedule:
+    - cron: '0 3 * * 1'    # Mondays 03:00 UTC
+  workflow_dispatch:
+    inputs:
+      dry: { description: 'Dry run (no writes)', type: boolean, default: false }
+
+concurrency:
+  group: sync-directories
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false      # one directory source failing must not stop the others
+      matrix:
+        source: [osm-africa-businesses, osm-diaspora-african, hipolabs-universities-africa]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Sync ${{ matrix.source }}
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ "${{ inputs.dry }}" = "true" ]; then
+            node sync.js --source ${{ matrix.source }} --dry
+          else
+            node sync.js --source ${{ matrix.source }} --expire
+          fi
