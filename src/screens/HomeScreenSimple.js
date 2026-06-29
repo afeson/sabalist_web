@@ -400,11 +400,10 @@ export default function HomeScreenSimple({ navigation }) {
 
       <AppHeader navigation={navigation} />
 
-      {/* On web, hero/search/location/category render INSIDE the list header
-          (see topSections) so the whole page is one scroll surface — wheeling
-          anywhere scrolls. On native they stay fixed above the scrolling list,
-          preserving the existing mobile layout. */}
-      {!isWeb && topSections}
+      {/* Hero/search/categories/featured/trending render INSIDE the list header
+          on BOTH web and native, so the whole page is one scroll surface — the
+          Featured/Trending carousels scroll up and out of the way to reveal
+          listings, instead of sitting in a fixed header that covers them. */}
 
       {/* Listings Grid */}
       <FlatList
@@ -414,7 +413,7 @@ export default function HomeScreenSimple({ navigation }) {
         numColumns={numCols}
         key={`grid-${numCols}`}
         style={isWeb ? styles.listWeb : undefined}
-        ListHeaderComponent={isWeb ? topSections : undefined}
+        ListHeaderComponent={topSections}
         contentContainerStyle={styles.listingContent}
         columnWrapperStyle={styles.listingRow}
         ListEmptyComponent={renderEmpty}
