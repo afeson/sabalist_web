@@ -19,12 +19,19 @@ import { getTranslatedCategoryLabel } from '../../utils/categoryI18n';
 import { COLORS } from '../../theme';
 import BannerCarousel from './BannerCarousel';
 
-function CategoryRail({ title, categoryIds, t, navigation }) {
+function CategoryRail({ title, categoryIds, t, navigation, onSeeAll }) {
   const cats = (categoryIds || []).map((id) => getCategoryById(id)).filter((c) => c && !c.hidden);
   if (!cats.length) return null;
   return (
     <View style={styles.section}>
-      {!!title && <Text style={styles.title}>{title}</Text>}
+      <View style={styles.header}>
+        {!!title && <Text style={styles.title}>{title}</Text>}
+        {!!onSeeAll && (
+          <TouchableOpacity onPress={onSeeAll} hitSlop={8}>
+            <Text style={styles.seeAll}>{(() => { const v = t('common.seeAll'); return v && v !== 'common.seeAll' ? v : 'See all'; })()}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
         {cats.map((c) => (
           <TouchableOpacity
@@ -45,7 +52,7 @@ function CategoryRail({ title, categoryIds, t, navigation }) {
 }
 
 // configVersion is accepted only to force a re-render when config refreshes.
-export default function HomeSections({ navigation, configVersion }) {
+export default function HomeSections({ navigation, configVersion, onSeeAll }) {
   const { t } = useTranslation();
   const flags = getFlags();
 
@@ -59,13 +66,13 @@ export default function HomeSections({ navigation, configVersion }) {
           case 'featured':
             return (
               <CategoryRail key={section.id} title={section.title || t('home.featured') || 'Featured'}
-                categoryIds={getFeaturedCategories()} t={t} navigation={navigation} />
+                categoryIds={getFeaturedCategories()} t={t} navigation={navigation} onSeeAll={onSeeAll} />
             );
           case 'trending':
             if (flags.enableTrending === false) return null;
             return (
               <CategoryRail key={section.id} title={section.title || t('home.trending') || 'Trending'}
-                categoryIds={getTrendingCategories()} t={t} navigation={navigation} />
+                categoryIds={getTrendingCategories()} t={t} navigation={navigation} onSeeAll={onSeeAll} />
             );
           case 'feed':
           default:
@@ -77,13 +84,18 @@ export default function HomeSections({ navigation, configVersion }) {
 }
 
 const styles = StyleSheet.create({
-  section: { marginTop: 8, marginBottom: 4 },
-  title: { fontSize: 16, fontWeight: '700', color: COLORS.text || '#111', paddingHorizontal: 16, marginBottom: 8 },
-  rail: { paddingHorizontal: 12 },
-  card: { width: 88, alignItems: 'center', marginHorizontal: 4 },
-  iconWrap: {
-    width: 56, height: 56, borderRadius: 28, backgroundColor: (COLORS.primary || '#E50914') + '14',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 6,
+  section: { marginTop: 6, marginBottom: 2 },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, marginBottom: 6,
   },
-  cardLabel: { fontSize: 12, color: COLORS.textMuted || '#555', textAlign: 'center' },
+  title: { fontSize: 15, fontWeight: '700', color: COLORS.text || '#111' },
+  seeAll: { fontSize: 13, fontWeight: '600', color: COLORS.primary || '#E50914' },
+  rail: { paddingHorizontal: 12 },
+  card: { width: 72, alignItems: 'center', marginHorizontal: 4 },
+  iconWrap: {
+    width: 48, height: 48, borderRadius: 24, backgroundColor: (COLORS.primary || '#E50914') + '14',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 5,
+  },
+  cardLabel: { fontSize: 11, color: COLORS.textMuted || '#555', textAlign: 'center' },
 });

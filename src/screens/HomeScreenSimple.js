@@ -13,6 +13,7 @@ import {
   ScrollView,
   Platform,
   Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -56,10 +57,12 @@ import { ListingCard } from '../components/ui';
 // 70dp tab bar -> needs ~140dp of safe space at the end of the list).
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IS_ANDROID_PHONE = Platform.OS === 'android' && SCREEN_WIDTH < 600;
-const HERO_TITLE_SIZE = IS_ANDROID_PHONE ? 24 : 32;
-const HERO_TITLE_LINE = IS_ANDROID_PHONE ? 30 : 38;
-const HERO_SUBTITLE_SIZE = IS_ANDROID_PHONE ? 13 : 15;
-const HERO_PAD = IS_ANDROID_PHONE ? PREMIUM_SPACING.base : PREMIUM_SPACING.xl;
+// Compact, listings-first hero (~60% smaller footprint): single-size title,
+// tight padding, subtitle hidden on mobile so listings surface immediately.
+const HERO_TITLE_SIZE = IS_ANDROID_PHONE ? 16 : 20;
+const HERO_TITLE_LINE = IS_ANDROID_PHONE ? 20 : 25;
+const HERO_SUBTITLE_SIZE = IS_ANDROID_PHONE ? 12 : 13;
+const HERO_PAD = IS_ANDROID_PHONE ? PREMIUM_SPACING.base : PREMIUM_SPACING.base;
 const SECTION_H_PAD = IS_ANDROID_PHONE ? PREMIUM_SPACING.base : PREMIUM_SPACING.xl;
 const SEARCH_PAD = IS_ANDROID_PHONE ? PREMIUM_SPACING.sm : PREMIUM_SPACING.base;
 const SEARCH_FONT = IS_ANDROID_PHONE ? 14 : 15;
@@ -90,6 +93,12 @@ export default function HomeScreenSimple({ navigation }) {
   // Re-render when backend config refreshes (nav chips, sections, flags, …).
   const configVersion = useConfigVersion();
   const flags = getFlags();
+
+  // Responsive grid: web shows more columns on wider screens (mobile stays 2-up).
+  // Combined with the compact card, this fills the first viewport with listings.
+  const { width: winW } = useWindowDimensions();
+  const numCols = Platform.OS !== 'web' ? 2 : winW < 640 ? 2 : winW < 980 ? 3 : winW < 1340 ? 4 : 5;
+  const cardWidthPct = numCols === 2 ? '48%' : numCols === 3 ? '32%' : numCols === 4 ? '24%' : '19%';
 
   // Build the horizontal category strip from backend-driven nav chips. Each
   // chip is a category key (resolved to its live icon/label, hidden ones
@@ -277,7 +286,7 @@ export default function HomeScreenSimple({ navigation }) {
     // DEBUG: Confirm this code is running
     console.log('🏠 HOME renderListing using ListingCard for:', item?.id);
     return (
-      <View style={styles.listingCardWrapper}>
+      <View style={[styles.listingCardWrapper, Platform.OS === 'web' && { width: cardWidthPct }]}>
         <ListingCard
           listing={item}
           onPress={() => navigation?.navigate('ListingDetail', { listingId: item.id })}
@@ -316,10 +325,12 @@ export default function HomeScreenSimple({ navigation }) {
     <View>
       {/* Hero Section */}
       <View style={styles.heroSection}>
-        <Text style={styles.heroTitle}>{t('home.heroTitle') || 'Discover Something\nExtraordinary'}</Text>
-        <Text style={styles.heroSubtitle}>
-          {t('home.heroSubtitle') || 'Browse thousands of listings from sellers across Africa'}
-        </Text>
+        <Text style={styles.heroTitle} numberOfLines={1}>{t('home.heroTitle') || 'Discover Something Extraordinary'}</Text>
+        {isWeb && (
+          <Text style={styles.heroSubtitle} numberOfLines={1}>
+            {t('home.heroSubtitle') || 'Browse thousands of listings from sellers across Africa'}
+          </Text>
+        )}
       </View>
 
       {/* Search Card */}
@@ -373,7 +384,7 @@ export default function HomeScreenSimple({ navigation }) {
 
       {/* Backend-driven homepage sections (banners, featured, trending). Renders
           nothing by default — opt-in via marketplace_config home.sections. */}
-      <HomeSections navigation={navigation} configVersion={configVersion} />
+      <HomeSections navigation={navigation} configVersion={configVersion} onSeeAll={() => setCategoryPickerOpen(true)} />
     </View>
   );
 
@@ -400,7 +411,8 @@ export default function HomeScreenSimple({ navigation }) {
         data={listings}
         keyExtractor={(item) => item.id}
         renderItem={renderListing}
-        numColumns={2}
+        numColumns={numCols}
+        key={`grid-${numCols}`}
         style={isWeb ? styles.listWeb : undefined}
         ListHeaderComponent={isWeb ? topSections : undefined}
         contentContainerStyle={styles.listingContent}
@@ -475,8 +487,9 @@ const styles = StyleSheet.create({
     minHeight: 0,
   },
   heroSection: {
-    padding: HERO_PAD,
-    paddingBottom: PREMIUM_SPACING.base,
+    paddingHorizontal: HERO_PAD,
+    paddingTop: PREMIUM_SPACING.sm,
+    paddingBottom: PREMIUM_SPACING.sm,
   },
   heroTitle: {
     fontSize: HERO_TITLE_SIZE,
@@ -493,7 +506,7 @@ const styles = StyleSheet.create({
   searchCard: {
     backgroundColor: PREMIUM_COLORS.card,
     marginHorizontal: SECTION_H_PAD,
-    marginBottom: PREMIUM_SPACING.base,
+    marginBottom: PREMIUM_SPACING.sm,
     borderRadius: PREMIUM_RADIUS.lg,
     padding: SEARCH_PAD,
     ...PREMIUM_SHADOWS.card,
@@ -510,7 +523,7 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   categorySection: {
-    marginBottom: PREMIUM_SPACING.base,
+    marginBottom: PREMIUM_SPACING.xs,
   },
   categoryList: {
     paddingHorizontal: SECTION_H_PAD,
@@ -562,7 +575,7 @@ const styles = StyleSheet.create({
   },
   listingRow: {
     justifyContent: 'space-between',
-    marginBottom: LIST_PAD,
+    marginBottom: PREMIUM_SPACING.sm,
   },
   listingCardWrapper: {
     width: '48%',
