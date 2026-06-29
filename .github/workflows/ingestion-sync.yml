@@ -20,7 +20,10 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 30 min was too tight: heavy bulk seeders (now gated off the cron via
+    # marketplace_config ingestion.disabledSources) blew the budget and cancelled
+    # the run before --expire. 60 gives headroom for the light job feeds.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
