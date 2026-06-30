@@ -56,6 +56,8 @@
       <a data-tab="overview" class="active">Overview</a>
       <a data-tab="review">Review Queue</a>
       <a data-tab="sources">Source Health</a>
+      <a data-tab="sourcetoggle">Sources</a>
+      <a data-tab="quality">Source Quality</a>
       <a data-tab="failed">Failed Imports</a>
       <a data-tab="config">Marketplace Config</a>
     </nav>
@@ -63,6 +65,8 @@
       <section id="overview"></section>
       <section id="review" class="hidden"></section>
       <section id="sources" class="hidden"></section>
+      <section id="sourcetoggle" class="hidden"></section>
+      <section id="quality" class="hidden"></section>
       <section id="failed" class="hidden"></section>
       <section id="config" class="hidden"></section>
     </main>
@@ -100,11 +104,11 @@
     document.querySelectorAll('nav a').forEach((a) => a.onclick = () => {
       document.querySelectorAll('nav a').forEach((x)=>x.classList.remove('active'));
       a.classList.add('active');
-      ['overview','review','sources','failed','config'].forEach((t)=>$(t).classList.toggle('hidden', t!==a.dataset.tab));
+      ['overview','review','sources','sourcetoggle','quality','failed','config'].forEach((t)=>$(t).classList.toggle('hidden', t!==a.dataset.tab));
     });
     $('refreshBtn').onclick = loadAll;
 
-    async function loadAll() { await Promise.all([loadOverview(), loadReview(), loadSources(), loadFailed(), loadConfig()]); }
+    async function loadAll() { await Promise.all([loadOverview(), loadReview(), loadSources(), loadSourceToggle(), loadQuality(), loadFailed(), loadConfig()]); }
 
     // ---- marketplace config editor ----
     const CONFIG_SCHEMA_VERSION = 1;
@@ -148,6 +152,101 @@
         $('cfgMsg').style.color = '#137333';
         loadConfig();
       } catch (e) { $('cfgMsg').textContent = '✗ Save failed: ' + e.message; $('cfgMsg').style.color = '#c5221f'; }
+    }
+
+    // ---- Sources: enable/disable (writes marketplace_config/live .ingestion.disabledSources) ----
+    // Canonical source ids come from the ingestion registry (sources/*.json +
+    // connectors/*.js). The engine (sync.js) skips any id listed in
+    // .ingestion.disabledSources. Keep this list in sync with the registry.
+    const SOURCE_IDS = [
+      'adzuna-jobs','arbeitnow-jobs','jobicy-jobs','remotive-jobs','remoteok-jobs',
+      'themuse-jobs','weworkremotely-jobs','sample-csv',
+      'insideairbnb-rentals','insideairbnb-rentals-extra',
+      'osm-africa-businesses','osm-diaspora-african','hipolabs-universities-africa',
+      'openfacts-products','dummyjson-products','ebay-products','dogceo-pets',
+      'nager-holidays-events',
+      'tmpl-agriculture-feed','tmpl-cars-api','tmpl-events-api','tmpl-generic-rss',
+      'tmpl-generic-xml','tmpl-jobs-adzuna','tmpl-pets-petfinder','tmpl-products-affiliate',
+      'tmpl-realestate-api','tmpl-rentals-api','TEMPLATE-licensed-feed',
+    ];
+    async function loadSourceToggle() {
+      let disabled = [];
+      try {
+        const snap = await db.collection('marketplace_config').doc('live').get();
+        const cfg = snap.exists ? snap.data() : {};
+        disabled = (cfg.ingestion && Array.isArray(cfg.ingestion.disabledSources)) ? cfg.ingestion.disabledSources : [];
+      } catch (e) {
+        $('sourcetoggle').innerHTML = '<p style="color:#c5221f">Failed to load config: ' + esc(e.message) + '</p>'; return;
+      }
+      const disabledSet = new Set(disabled);
+      // Surface any disabled id not in the known list (e.g. a retired source) so it
+      // can still be re-enabled from the UI rather than being silently dropped.
+      const ids = [...SOURCE_IDS];
+      for (const id of disabled) if (!ids.includes(id)) ids.push(id);
+      const rows = ids.map((id) => {
+        const off = disabledSet.has(id);
+        return `<tr><td><b>${esc(id)}</b>${SOURCE_IDS.includes(id)?'':' <span class="tag warn">unknown</span>'}</td>
+          <td>${off ? '<span class="tag warn">disabled</span>' : '<span class="tag">enabled</span>'}</td>
+          <td class="row-actions"><button class="${off?'bad':'ok'}" onclick="window.__toggleSource('${esc(id)}', ${off})">${off?'Enable':'Disable'}</button></td></tr>`;
+      }).join('');
+      $('sourcetoggle').innerHTML =
+        '<h2>Sources <small style="color:#888">enable / disable ingestion (no app build)</small></h2>' +
+        '<p class="muted">Toggling writes <code>ingestion.disabledSources</code> in <code>marketplace_config/live</code>. The sync engine skips disabled sources on its next run. Other config fields are untouched.</p>' +
+        '<div id="srcMsg" style="margin:8px 0;font-weight:600"></div>' +
+        `<table><tr><th>Source ID</th><th>State</th><th>Action</th></tr>${rows}</table>`;
+    }
+    window.__toggleSource = async (id, currentlyOff) => {
+      const msg = $('srcMsg'); if (msg) { msg.textContent = 'Saving…'; msg.style.color = '#888'; }
+      try {
+        const ref = db.collection('marketplace_config').doc('live');
+        const snap = await ref.get();
+        const cfg = snap.exists ? snap.data() : {};
+        const cur = (cfg.ingestion && Array.isArray(cfg.ingestion.disabledSources)) ? cfg.ingestion.disabledSources : [];
+        const set = new Set(cur);
+        if (currentlyOff) set.delete(id); else set.add(id);   // toggle OFF -> add, ON -> remove
+        const next = [...set].sort();
+        // Merge: only touch ingestion.disabledSources, never clobber other config.
+        await ref.set({
+          ingestion: { disabledSources: next },
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedBy: (auth.currentUser && auth.currentUser.email) || 'admin',
+        }, { merge: true });
+        if (msg) { msg.textContent = '✓ ' + id + (currentlyOff ? ' enabled' : ' disabled'); msg.style.color = '#137333'; }
+        loadSourceToggle();
+      } catch (e) {
+        if (msg) { msg.textContent = '✗ Save failed: ' + e.message; msg.style.color = '#c5221f'; }
+      }
+    };
+
+    // ---- Source Quality (reads data_stats/source_quality, written by ingestion/compute-source-quality.js) ----
+    async function loadQuality() {
+      let x;
+      try {
+        const snap = await db.collection('data_stats').doc('source_quality').get();
+        if (!snap.exists) { $('quality').innerHTML = '<p class="muted">No data yet. Run <code>node ingestion/compute-source-quality.js</code> (or the daily workflow) to populate <code>data_stats/source_quality</code>.</p>'; return; }
+        x = snap.data();
+      } catch (e) { $('quality').innerHTML = '<p style="color:#c5221f">Failed to load: ' + esc(e.message) + '</p>'; return; }
+      const when = x.computedAt && x.computedAt.toDate ? x.computedAt.toDate().toISOString().slice(0,16).replace('T',' ') : (x.computedAtIso || '').slice(0,16).replace('T',' ');
+      const catRows = Object.entries(x.byCategory || {}).map(([k,v]) => `<tr><td>${esc(k)}</td><td>${v}</td></tr>`).join('');
+      const srcRows = Object.entries(x.bySource || {}).map(([k,v]) => `<tr><td>${esc(k)}</td><td>${v}</td></tr>`).join('');
+      const empty = x.emptySubcategories || [];
+      const emptyList = empty.length ? empty.map((s)=>`<span class="tag warn" style="margin:2px;display:inline-block">${esc(s)}</span>`).join(' ') : '<span class="muted">None — every subcategory has listings 🎉</span>';
+      $('quality').innerHTML = `
+        <h2>Source Quality <small style="color:#888">read-only · last updated ${esc(when)} UTC</small></h2>
+        <div class="cards">
+          <div class="card"><div class="n">${x.total||0}</div><div class="l">Active listings</div></div>
+          <div class="card"><div class="n">${x.noContact||0}</div><div class="l">No-contact listings</div></div>
+          <div class="card"><div class="n">${Object.keys(x.byCategory||{}).length}</div><div class="l">Categories</div></div>
+          <div class="card"><div class="n">${Object.keys(x.bySource||{}).length}</div><div class="l">Sources</div></div>
+          <div class="card"><div class="n">${(empty).length}</div><div class="l">Empty subcategories</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div><h3>By category</h3><table><tr><th>Category</th><th>Listings</th></tr>${catRows||'<tr><td colspan=2 class=muted>—</td></tr>'}</table></div>
+          <div><h3>By source</h3><table><tr><th>Source</th><th>Listings</th></tr>${srcRows||'<tr><td colspan=2 class=muted>—</td></tr>'}</table></div>
+        </div>
+        <h3 style="margin-top:24px">Empty subcategories (${empty.length})</h3>
+        <p class="muted">Taxonomy subcategories with zero active listings — ingestion gaps to fill.</p>
+        <div>${emptyList}</div>`;
     }
 
     // ---- Overview + Source Health (from ingestion_stats) ----
