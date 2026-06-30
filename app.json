@@ -82,7 +82,7 @@
       ]
     },
     "web": {
-      "bundler": "webpack",
+      "bundler": "metro",
       "favicon": "./assets/branding/sabalist-icon-safe.png"
     },
     "extra": {

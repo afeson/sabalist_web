@@ -18,7 +18,7 @@
     ],
     "headers": [
       {
-        "source": "/static/**",
+        "source": "/_expo/static/**",
         "headers": [
           {
             "key": "Cache-Control",
@@ -70,10 +70,3 @@
     ]
   }
 }
-
-
-
-
-
-
-

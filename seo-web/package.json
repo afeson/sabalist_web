@@ -1,0 +1,24 @@
+{
+  "name": "sabalist-seo-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Server-rendered (SSR/ISR) Next.js SEO layer for Sabalist — indexable category, location, listing and guide pages reading the same Firestore backend.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "sync-taxonomy": "node scripts/sync-taxonomy.mjs"
+  },
+  "dependencies": {
+    "firebase": "^12.8.0",
+    "next": "^15.1.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.7.0"
+  }
+}

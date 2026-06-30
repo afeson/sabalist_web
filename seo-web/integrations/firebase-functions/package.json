@@ -1,0 +1,11 @@
+{
+  "name": "sabalist-seo-revalidate-functions",
+  "description": "Firestore trigger that revalidates the Next.js SEO layer on listing changes.",
+  "engines": { "node": "20" },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-functions": "^6.0.0",
+    "firebase-admin": "^12.0.0"
+  },
+  "private": true
+}

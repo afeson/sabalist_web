@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sabalist SEO Dashboard</title>
+<style>
+  :root{--brand:#E50914;--bg:#0f1115;--card:#171a21;--line:#272b35;--txt:#e8eaed;--mut:#9aa0ab;
+        --p0:#ff4d4f;--p1:#ffa940;--p2:#52c41a;--ok:#52c41a;--warn:#ffa940;--bad:#ff4d4f;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+  .wrap{max-width:1180px;margin:0 auto;padding:24px 18px 64px}
+  header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:8px}
+  h1{font-size:22px;margin:0}.brand{color:var(--brand);font-weight:800}
+  .sub{color:var(--mut);font-size:13px;margin:0 0 22px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:26px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .card .label{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .card .val{font-size:30px;font-weight:800;margin:6px 0 2px}
+  .card .note{color:var(--mut);font-size:12px}
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .pill.p0{background:rgba(255,77,79,.15);color:var(--p0)}
+  .pill.p1{background:rgba(255,169,64,.15);color:var(--p1)}
+  .pill.p2{background:rgba(82,196,26,.15);color:var(--p2)}
+  .pill.ok{background:rgba(82,196,26,.15);color:var(--ok)}
+  .pill.warn{background:rgba(255,169,64,.15);color:var(--warn)}
+  .pill.bad{background:rgba(255,77,79,.15);color:var(--bad)}
+  h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);margin:30px 0 12px;border-bottom:1px solid var(--line);padding-bottom:8px}
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top;font-size:14px}
+  th{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.03em;background:#13161c}
+  tr:last-child td{border-bottom:none}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#cdd2db}
+  .bar{height:8px;border-radius:6px;background:#23262e;overflow:hidden}
+  .bar > i{display:block;height:100%}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:760px){.two{grid-template-columns:1fr}}
+  footer{color:var(--mut);font-size:12px;margin-top:34px;border-top:1px solid var(--line);padding-top:16px}
+  code{background:#23262e;padding:1px 6px;border-radius:5px;font-size:12px}
+  .legend{color:var(--mut);font-size:12px;margin:-6px 0 18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="brand">Sabalist</span> · SEO Dashboard</h1>
+    <div class="sub">Baseline from audit · 30 Jun 2026 · canonical host <span class="mono">www.sabalist.com</span></div>
+  </header>
+  <p class="legend">Severity: <span class="pill p0">P0</span> blocks ranking now &nbsp; <span class="pill p1">P1</span> major &nbsp; <span class="pill p2">P2</span> polish. Metrics marked <span class="pill warn">live</span> need API wiring (see footer).</p>
+
+  <!-- KPI cards -->
+  <div class="grid">
+    <div class="card"><div class="label">Render mode</div><div class="val" style="color:var(--bad)">CSR</div><div class="note">SPA shell on every route — the root issue <span class="pill p0">P0</span></div></div>
+    <div class="card"><div class="label">Indexable HTML pages</div><div class="val" style="color:var(--bad)">~0</div><div class="note">No server-rendered content for non-JS crawlers</div></div>
+    <div class="card"><div class="label">Pages w/ unique metadata</div><div class="val" style="color:var(--bad)">1</div><div class="note">All routes share the shell's title/desc</div></div>
+    <div class="card"><div class="label">Structured data visible</div><div class="val" style="color:var(--bad)">0</div><div class="note">JSON-LD is client-injected only</div></div>
+    <div class="card"><div class="label">Sitemap status</div><div class="val" style="color:var(--warn)">Partial</div><div class="note">www XML ok; apex serves HTML; no index/locations/images</div></div>
+    <div class="card"><div class="label">Listing URLs in sitemap</div><div class="val">≤45k</div><div class="note">Single 4.2&nbsp;MB file; cap at 45k</div></div>
+    <div class="card"><div class="label">Canonical host</div><div class="val" style="color:var(--warn)">Split</div><div class="note">apex vs www mismatch <span class="pill p0">P0</span></div></div>
+    <div class="card"><div class="label">Debug pages exposed</div><div class="val" style="color:var(--bad)">18+</div><div class="note">*.html test files public <span class="pill p1">P1</span></div></div>
+  </div>
+
+  <h2>Core Web Vitals <span class="pill warn">live</span></h2>
+  <table>
+    <tr><th>Metric</th><th>Status (expected)</th><th>Why</th><th>Fix</th></tr>
+    <tr><td>LCP</td><td><span class="pill bad">At risk</span></td><td>Full RN-Web bundle hydration before content paints</td><td>SSR/ISR pages + <code>next/image</code></td></tr>
+    <tr><td>INP</td><td><span class="pill warn">At risk</span></td><td>Heavy JS main-thread on interaction</td><td>Server components; ship less JS on indexable pages</td></tr>
+    <tr><td>CLS</td><td><span class="pill warn">Check</span></td><td>Images without width/height</td><td>Fixed dimensions + responsive variants</td></tr>
+    <tr><td colspan="4" class="note" style="color:var(--mut)">Wire real field data via PageSpeed Insights API per top URL (see footer).</td></tr>
+  </table>
+
+  <h2>Schema validation</h2>
+  <div class="two">
+    <table>
+      <tr><th>Type</th><th>In code</th><th>Reaches crawler</th></tr>
+      <tr><td>Organization / WebSite</td><td><span class="pill ok">Yes</span></td><td><span class="pill bad">No (CSR)</span></td></tr>
+      <tr><td>Product / Offer</td><td><span class="pill ok">Yes</span></td><td><span class="pill bad">No (CSR)</span></td></tr>
+      <tr><td>BreadcrumbList</td><td><span class="pill ok">Yes</span></td><td><span class="pill bad">No (CSR)</span></td></tr>
+      <tr><td>ItemList / FAQ</td><td><span class="pill ok">Yes</span></td><td><span class="pill bad">No (CSR)</span></td></tr>
+      <tr><td>CollectionPage / City</td><td><span class="pill warn">Added in seo-web</span></td><td><span class="pill ok">Yes (SSR)</span></td></tr>
+    </table>
+    <table>
+      <tr><th>Health check</th><th>State</th></tr>
+      <tr><td>robots.txt reachable</td><td><span class="pill ok">Yes</span></td></tr>
+      <tr><td>robots → working sitemap host</td><td><span class="pill ok">Fixed → www</span></td></tr>
+      <tr><td>AI-crawler directives</td><td><span class="pill ok">Added</span></td></tr>
+      <tr><td>Real 404 status</td><td><span class="pill bad">Soft-404 (200)</span></td></tr>
+      <tr><td>Image sitemap</td><td><span class="pill ok">Added in seo-web</span></td></tr>
+    </table>
+  </div>
+
+  <h2>Top keyword opportunities (Pan-African)</h2>
+  <p class="legend">Seed targets by page type — validate volumes in Search Console / a keyword tool, then prioritize by inventory.</p>
+  <table>
+    <tr><th>Query pattern</th><th>Target page</th><th>Intent</th></tr>
+    <tr><td class="mono">used cars in lagos / nairobi / accra</td><td>/{country}/{city}/vehicles</td><td>High commercial</td></tr>
+    <tr><td class="mono">houses for rent in {city}</td><td>/{country}/{city}/real-estate</td><td>High commercial</td></tr>
+    <tr><td class="mono">{brand} phone price in {country}</td><td>/category/phones-tablets + listing</td><td>Commercial</td></tr>
+    <tr><td class="mono">free classifieds {city}</td><td>/{country}/{city}</td><td>Navigational</td></tr>
+    <tr><td class="mono">sell my car fast {city}</td><td>/guides/how-to-sell-fast-in-africa</td><td>Informational → conversion</td></tr>
+    <tr><td class="mono">is {marketplace} safe / avoid scams</td><td>/guides/avoiding-scams-on-classifieds</td><td>Informational (AI-cited)</td></tr>
+  </table>
+
+  <h2>Priority fixes</h2>
+  <table>
+    <tr><th>#</th><th>Sev</th><th>Fix</th><th>Status</th></tr>
+    <tr><td>1</td><td><span class="pill p0">P0</span></td><td>Server-render indexable pages (Next.js SEO layer)</td><td><span class="pill warn">Scaffolded · /seo-web</span></td></tr>
+    <tr><td>2</td><td><span class="pill p0">P0</span></td><td>Standardize canonical host → www; 301 apex→www</td><td><span class="pill ok">Code aligned</span> · edge 301 to set</td></tr>
+    <tr><td>3</td><td><span class="pill p0">P0</span></td><td>Segmented sitemap index + locations + images</td><td><span class="pill ok">Built · seo-web</span></td></tr>
+    <tr><td>4</td><td><span class="pill p1">P1</span></td><td>Remove/secure debug *.html from production</td><td><span class="pill warn">robots-blocked; delete next</span></td></tr>
+    <tr><td>5</td><td><span class="pill p1">P1</span></td><td>Real 404 status for unknown listing/category IDs</td><td><span class="pill ok">not-found.tsx</span></td></tr>
+    <tr><td>6</td><td><span class="pill p1">P1</span></td><td>1200×630 OG default + per-listing OG = cover photo</td><td><span class="pill warn">add /og asset</span></td></tr>
+    <tr><td>7</td><td><span class="pill p1">P1</span></td><td>Quality gate (noindex &lt; N listings) on category/location</td><td><span class="pill ok">INDEX_MIN_LISTINGS</span></td></tr>
+    <tr><td>8</td><td><span class="pill p1">P1</span></td><td>AI-crawler robots allowances</td><td><span class="pill ok">Done</span></td></tr>
+    <tr><td>9</td><td><span class="pill p2">P2</span></td><td>Allow pinch-zoom on indexable pages (viewport)</td><td><span class="pill warn">Open</span></td></tr>
+    <tr><td>10</td><td><span class="pill p2">P2</span></td><td>noindex/301 sabalist.web.app mirror</td><td><span class="pill warn">Open</span></td></tr>
+  </table>
+
+  <footer>
+    <strong>Make this dashboard live.</strong> Wire real numbers by adding, server-side: (1) <em>Google Search Console API</em> — Search Analytics for clicks/impressions/positions + Index Coverage for "indexed pages"; (2) <em>PageSpeed Insights API</em> for field CWV per top URL; (3) a nightly crawl (e.g. a small script hitting the sitemap) for broken links, missing metadata, and duplicate-title detection; (4) the <em>Rich Results Test API</em> for schema validation. Populate the cards from a small JSON the cron writes. Until then, values reflect the 30 Jun 2026 audit baseline.<br><br>
+    Static snapshot · pairs with <code>SEO_SYSTEM_AUDIT_AND_ARCHITECTURE.md</code> and the <code>seo-web/</code> implementation.
+  </footer>
+</div>
+</body>
+</html>

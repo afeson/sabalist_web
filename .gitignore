@@ -69,3 +69,6 @@ ios/build/
 .vercel
 
 
+
+# SEO migration scratch backups (do not commit)
+*.bak-seo

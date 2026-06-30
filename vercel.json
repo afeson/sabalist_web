@@ -5,90 +5,38 @@
   "framework": null,
   "routes": [
     {
-      "src": "/static/js/(.*)",
-      "dest": "/static/js/$1",
+      "src": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "sabalist.com"
+        }
+      ],
+      "status": 308,
       "headers": {
-        "Cache-Control": "public, max-age=0, must-revalidate"
+        "Location": "https://www.sabalist.com/$1"
       }
     },
     {
-      "src": "/static/(.*)",
-      "dest": "/static/$1",
+      "src": "/_expo/static/(.*)",
       "headers": {
         "Cache-Control": "public, max-age=31536000, immutable"
-      }
+      },
+      "dest": "/_expo/static/$1"
     },
     {
-      "src": "/manifest.json",
-      "dest": "/manifest.json"
+      "src": "/assets/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "dest": "/assets/$1"
     },
     {
-      "src": "/favicon(-\\d+)?.png",
-      "dest": "/favicon$1.png"
-    },
-    {
-      "src": "/favicon.ico",
-      "dest": "/favicon.ico"
-    },
-    {
-      "src": "/favicon-96x96.png",
-      "dest": "/favicon-96x96.png"
-    },
-    {
-      "src": "/apple-touch-icon.png",
-      "dest": "/apple-touch-icon.png"
-    },
-    {
-      "src": "/web-app-manifest-(.*).png",
-      "dest": "/web-app-manifest-$1.png"
-    },
-    {
-      "src": "/site.webmanifest",
-      "dest": "/site.webmanifest"
-    },
-    {
-      "src": "/pwa/(.*)",
-      "dest": "/pwa/$1"
-    },
-    {
-      "src": "/robots.txt",
-      "dest": "/robots.txt"
-    },
-    {
-      "src": "/sitemap.xml",
-      "dest": "/sitemap.xml"
+      "handle": "filesystem"
     },
     {
       "src": "/delete-account",
       "dest": "/delete-account.html"
-    },
-    {
-      "src": "/firestore-test.html",
-      "dest": "/firestore-test.html"
-    },
-    {
-      "src": "/app-firebase-test.html",
-      "dest": "/app-firebase-test.html"
-    },
-    {
-      "src": "/test-firestore.html",
-      "dest": "/test-firestore.html"
-    },
-    {
-      "src": "/check-auth.html",
-      "dest": "/check-auth.html"
-    },
-    {
-      "src": "/direct-firestore-write-test.html",
-      "dest": "/direct-firestore-write-test.html"
-    },
-    {
-      "src": "/simple-write-test.html",
-      "dest": "/simple-write-test.html"
-    },
-    {
-      "src": "/google22ac299e2979bc6d.html",
-      "dest": "/google22ac299e2979bc6d.html"
     },
     {
       "src": "/(.*)",

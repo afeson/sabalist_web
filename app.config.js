@@ -183,8 +183,16 @@ module.exports = ({ config }) => {
     },
     plugins,
     web: {
-      bundler: 'webpack',
+      bundler: 'metro',
       favicon: './assets/branding/sabalist-icon-square.png',
+    },
+    experiments: {
+      // Web asset base path. The interactive SPA now lives under /app so the
+      // Next.js SEO layer can own the site root. With baseUrl "/app" the export
+      // references its bundle/assets at /app/_expo/...; front it with the Next
+      // rewrite /app/:path* -> ${SPA_ORIGIN}/:path* (which strips /app).
+      // Set EXPO_WEB_BASE_URL='' to serve the SPA at root again (pre-migration).
+      baseUrl: process.env.EXPO_WEB_BASE_URL ?? '/app',
     },
     extra: {
       eas: {

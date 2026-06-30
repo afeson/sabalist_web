@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Verify your phone — Sabalist</title>
+  <style>
+    html, body { margin: 0; padding: 0; background: #fff; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; -webkit-font-smoothing: antialiased; color: #1a1a1a; }
+    .wrap { padding: 24px 24px 80px; max-width: 480px; margin: 0 auto; }
+    .title { font-size: 22px; font-weight: 700; margin: 8px 0 4px; }
+    .subtitle { font-size: 14px; color: #555; margin-bottom: 24px; line-height: 1.4; }
+    .phone { font-weight: 700; color: #1a1a1a; }
+    .step { color: #888; font-size: 13px; margin: 24px 0 8px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+    .card { background: #f7f7f7; padding: 20px; border-radius: 12px; border: 1px solid #e5e5e5; margin-bottom: 16px; }
+    .help { font-size: 13px; color: #777; margin-top: 12px; }
+    .status { background: #f0f7ff; border: 1px solid #c5dcfd; border-radius: 12px; padding: 14px; font-size: 14px; color: #1d4ed8; margin: 16px 0; display: flex; align-items: center; gap: 10px; }
+    .status .spinner { width: 16px; height: 16px; border: 2px solid #c5dcfd; border-top-color: #1d4ed8; border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+    .error { background: #fff0f0; border: 1px solid #fca5a5; color: #b91c1c; border-radius: 12px; padding: 14px; font-size: 13px; margin: 16px 0; line-height: 1.4; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .log { font-family: monospace; font-size: 10px; color: #999; padding: 8px; background: #fafafa; border-radius: 6px; margin-top: 16px; max-height: 100px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="title">Verify it's you</div>
+    <div class="subtitle">We need to verify <span class="phone" id="phoneEcho"></span> before sending the SMS.</div>
+
+    <div class="step">Step 1 — Security check</div>
+    <div class="card">
+      <div id="recaptcha-container"></div>
+      <div class="help">Tap the checkbox above to continue.</div>
+    </div>
+
+    <div id="status" class="status" style="display:none;">
+      <span class="spinner"></span>
+      <span id="statusText">Working...</span>
+    </div>
+
+    <div id="errorBox" class="error" style="display:none;"></div>
+
+    <div id="diagLog" class="log"></div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+  <script>
+    (function() {
+      var FIREBASE_CONFIG = {
+        apiKey: "AIzaSyBTy0WJrU9YCCBzlseDjpbhu9RGYvyQ7sk",
+        authDomain: "sabalist.firebaseapp.com",
+        projectId: "sabalist",
+        storageBucket: "sabalist.firebasestorage.app",
+        messagingSenderId: "231273918004",
+        appId: "1:231273918004:web:0020dcc14b7f52e3356461"
+      };
+
+      function getQueryParam(name) {
+        var m = window.location.search.match(new RegExp('[?&]' + name + '=([^&]+)'));
+        return m ? decodeURIComponent(m[1]) : '';
+      }
+      var phone = getQueryParam('phone');
+      document.getElementById('phoneEcho').textContent = phone || '(no number)';
+
+      function log(msg) {
+        var el = document.getElementById('diagLog');
+        var t = new Date().toISOString().slice(11, 19);
+        el.textContent = t + ' ' + msg + '\n' + el.textContent;
+      }
+      function post(msg) {
+        try {
+          if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+            window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+          }
+        } catch (e) {}
+      }
+      function setStatus(s) {
+        var el = document.getElementById('status');
+        var txt = document.getElementById('statusText');
+        if (s) { el.style.display = 'flex'; txt.textContent = s; }
+        else { el.style.display = 'none'; }
+      }
+      function showError(code, message) {
+        var el = document.getElementById('errorBox');
+        el.style.display = 'block';
+        el.textContent = '[' + (code || 'error') + '] ' + (message || 'Unknown error');
+        post({ type: 'error', code: code, message: message });
+        log('ERROR ' + code + ' ' + message);
+      }
+
+      window.addEventListener('error', function (e) {
+        showError('web/uncaught', (e && e.message) || 'uncaught error');
+      });
+      window.addEventListener('unhandledrejection', function (e) {
+        showError('web/unhandled-rejection',
+                  (e && e.reason && (e.reason.message || String(e.reason))) || 'unhandled rejection');
+      });
+
+      if (!phone) {
+        showError('web/no-phone', 'Phone number missing from URL');
+        return;
+      }
+
+      if (typeof firebase === 'undefined') {
+        showError('web/sdk-missing', 'Firebase Web SDK did not load. Check internet.');
+        return;
+      }
+      log('sdk loaded');
+      post({ type: 'log', step: 'sdk.loaded' });
+
+      try {
+        firebase.initializeApp(FIREBASE_CONFIG);
+      } catch (e) {
+        if (!/already exists/i.test(e.message || '')) {
+          showError('web/init-failed', e.message);
+          return;
+        }
+      }
+
+      var auth = firebase.auth();
+      try { auth.useDeviceLanguage(); } catch (e) {}
+      log('auth ready');
+      post({ type: 'log', step: 'auth.ready' });
+
+      try {
+        var verifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+          size: 'normal',
+          callback: function (token) {
+            log('recaptcha solved');
+            post({ type: 'log', step: 'recaptcha.solved' });
+            setStatus('Sending SMS to ' + phone + '...');
+            auth.signInWithPhoneNumber(phone, verifier)
+              .then(function (confirmation) {
+                log('sms sent');
+                post({ type: 'log', step: 'sms.sent' });
+                setStatus('Code sent — return to the app to enter the SMS code.');
+                post({ type: 'verificationId', verificationId: confirmation.verificationId });
+              })
+              .catch(function (e) {
+                showError(e.code || 'web/sms-failed', e.message || 'verification failed');
+                try { verifier.clear(); } catch (_) {}
+              });
+          },
+          'expired-callback': function () {
+            showError('web/recaptcha-expired', 'Security check expired. Please tap the checkbox again.');
+          },
+          'error-callback': function () {
+            showError('web/recaptcha-error', 'Security check failed to load.');
+          },
+        });
+
+        verifier.render().then(function () {
+          log('verifier rendered');
+          post({ type: 'log', step: 'verifier.rendered' });
+        }).catch(function (e) {
+          showError('web/render-failed', e.message);
+        });
+      } catch (e) {
+        showError('web/verifier-failed', e.message);
+      }
+    })();
+  </script>
+</body>
+</html>

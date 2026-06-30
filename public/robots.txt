@@ -1,3 +1,4 @@
+# Sabalist — canonical host: https://www.sabalist.com
 User-agent: *
 Allow: /
 Allow: /listing/
@@ -12,5 +13,46 @@ Disallow: /edit-profile
 Disallow: /create
 Disallow: /auth
 Disallow: /notifications
+# Internal debug/test pages must not be indexed
+Disallow: /firestore-test.html
+Disallow: /app-firebase-test.html
+Disallow: /test-firestore.html
+Disallow: /check-auth.html
+Disallow: /direct-firestore-write-test.html
+Disallow: /simple-write-test.html
+Disallow: /check-firestore-direct.html
+Disallow: /check-images.html
+Disallow: /check-version.html
+Disallow: /migrate-categoryid.html
+Disallow: /test-firebase-factory.html
+Disallow: /test-firestore-write.html
+Disallow: /test-image-upload.html
+Disallow: /test-listing-images.html
+Disallow: /test-upload-new.html
+Disallow: /verify-upload-fix.html
+Disallow: /verify_firebase.html
+Disallow: /phone-auth.html
+Disallow: /quick-signin.html
 
-Sitemap: https://sabalist.com/sitemap.xml
+# AI search agents — explicitly allowed
+User-agent: GPTBot
+Allow: /
+User-agent: OAI-SearchBot
+Allow: /
+User-agent: ChatGPT-User
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: Claude-Web
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+User-agent: Amazonbot
+Allow: /
+User-agent: Bingbot
+Allow: /
+
+Sitemap: https://www.sabalist.com/sitemap-index.xml
+Sitemap: https://www.sabalist.com/sitemap.xml

@@ -2,7 +2,7 @@
 // src/components/SEO.js, robots.txt and sitemap.xml (all https://sabalist.com)
 // so structured-data URLs reinforce ONE domain instead of advertising the
 // Firebase mirror (sabalist.web.app) and fragmenting ranking signals.
-const BASE_URL = 'https://sabalist.com';
+const BASE_URL = 'https://www.sabalist.com';
 
 export function buildCanonicalUrl(path) {
   return `${BASE_URL}${path}`;
