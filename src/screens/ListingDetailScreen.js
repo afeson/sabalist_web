@@ -162,6 +162,8 @@ export default function ListingDetailScreen({ route, navigation }) {
     }
 
     const phone = (listing.phoneNumber || '').trim();
+    const website = (listing.website || '').trim();
+    const email = (listing.email || '').trim();
     const sourceUrl = listing.sourceUrl || listing.url || '';
     const title = t('contact.title') !== 'contact.title' ? t('contact.title') : 'Contact Seller';
 
@@ -178,11 +180,11 @@ export default function ListingDetailScreen({ route, navigation }) {
       return;
     }
 
-    // Imported listings carry the original source link — that's where contact lives.
-    if (/^https?:\/\//.test(sourceUrl)) {
-      openUrl(sourceUrl);
-      return;
-    }
+    // Next best contact: business website, then email, then the source link
+    // (imported listings carry the original listing URL where contact lives).
+    if (/^https?:\/\//.test(website)) { openUrl(website); return; }
+    if (email && /@/.test(email)) { openUrl(`mailto:${email}`); return; }
+    if (/^https?:\/\//.test(sourceUrl)) { openUrl(sourceUrl); return; }
 
     notify(
       t('alerts.info') !== 'alerts.info' ? t('alerts.info') : 'Contact',

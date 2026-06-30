@@ -103,7 +103,7 @@ module.exports = {
     mapping: {
       externalId: 'externalId', title: 'title', description: 'description',
       category: 'category', location: 'location', country: 'country',
-      phoneNumber: 'phoneNumber', url: 'url', priceType: { const: 'none' },
+      phoneNumber: 'phoneNumber', website: 'website', email: 'email', url: 'url', priceType: { const: 'none' },
     },
 
     async load({ httpRequest, opts }) {
@@ -130,7 +130,9 @@ module.exports = {
               category: categoryFor(tags),
               location: `${city}, ${country}`,
               country,
-              phoneNumber: tags.phone || tags['contact:phone'] || '',
+              phoneNumber: tags.phone || tags['contact:phone'] || tags['contact:mobile'] || tags.mobile || '',
+              website: (() => { const w = tags.website || tags['contact:website'] || tags.url || ''; return /^https?:\/\//.test(w) ? w : (w ? 'https://' + w.replace(/^\/+/, '') : ''); })(),
+              email: tags.email || tags['contact:email'] || '',
               url: `https://www.openstreetmap.org/${el.type}/${el.id}`,
             });
           }

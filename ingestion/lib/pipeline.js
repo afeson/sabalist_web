@@ -53,6 +53,8 @@ function toListingDoc(draft, meta) {
     location: draft.location || [draft.city, draft.country].filter(Boolean).join(', '),
     language: draft.language || 'en',
     phoneNumber: draft.phoneNumber || '',
+    website: draft.website || '',
+    email: draft.email || '',
     images: draft.images || [],
     coverImage: draft.coverImage || (draft.images || [])[0] || '',
     hasImage: !!(draft.coverImage || (draft.images && draft.images.length)),
