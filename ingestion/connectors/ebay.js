@@ -51,7 +51,7 @@ module.exports = {
   source: {
     id: 'ebay-products',
     name: 'eBay Browse — real for-sale products (photos+price+listing URL)',
-    enabled: true,
+    enabled: false, // international sellers, not Africa-relevant — kept for possible diaspora use only
     ownerUserId: 'imported-listings',
     region: 'Worldwide',
     license: 'eBay Browse API (official) — real seller listings; contact via item URL.',

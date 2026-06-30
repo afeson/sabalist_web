@@ -43,7 +43,7 @@ jobs:
           ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
           ADZUNA_COUNTRIES: ${{ secrets.ADZUNA_COUNTRIES }}
         run: |
-          GROUP="ebay-products,adzuna-jobs"
+          GROUP="adzuna-jobs"   # eBay disabled (international, not Africa-relevant); Adzuna = real ZA jobs
           if [ "${{ inputs.dry }}" = "true" ]; then
             node sync.js --only "$GROUP" --dry
           else
