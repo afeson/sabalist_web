@@ -133,8 +133,12 @@ const AMENITY_MAP = {
   fast_food: ['food', 'restaurants'], food_court: ['food', 'restaurants'],
   marketplace: ['food', 'groceries'],
   fuel: ['vehicles', 'spare-parts'],
+  car_rental: ['rentals', 'car-rentals'],
   school: ['education', 'courses'], college: ['education', 'courses'],
   university: ['education', 'courses'], kindergarten: ['baby-kids', 'school-supplies'],
+  // vocational / specialist schools — fill the (empty) education/tutoring sub
+  driving_school: ['education', 'tutoring-edu'], language_school: ['education', 'tutoring-edu'],
+  music_school: ['education', 'tutoring-edu'], training: ['education', 'tutoring-edu'],
   pharmacy: ['services', 'cleaning'], hospital: ['services', 'cleaning'],
   clinic: ['services', 'cleaning'], bank: ['services', 'cleaning'],
   veterinary: ['animals-pets', 'pet-accessories'],
@@ -188,6 +192,7 @@ function mapFor(tags) {
   if (tags.shop) return SHOP_MAP[tags.shop] || ['services', null];
   if (tags.tourism) return TOURISM_MAP[tags.tourism] || ['travel', null];
   if (tags.office === 'estate_agent') return ['real-estate', 'houses-rent'];
+  if (tags.office === 'educational_institution') return ['education', 'tutoring-edu'];
   if (tags.craft) return CRAFT_MAP[tags.craft] || ['repair-services', null];
   if (tags.leisure && LEISURE_MAP[tags.leisure]) return LEISURE_MAP[tags.leisure];
   if (tags.amenity) return AMENITY_MAP[tags.amenity] || ['services', null];
@@ -209,16 +214,17 @@ function categorySubFor(tags) {
 function titleCaseWord(s) { return String(s || '').replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase()); }
 
 function cityQuery(lat, lon) {
-  const a = 'restaurant|cafe|fast_food|marketplace|pharmacy|fuel|bank|hospital|clinic|school|college|university|kindergarten|veterinary|cinema|theatre|nightclub|arts_centre|community_centre|place_of_worship|library|social_facility|townhall';
+  const a = 'restaurant|cafe|fast_food|marketplace|pharmacy|fuel|car_rental|bank|hospital|clinic|school|college|university|kindergarten|driving_school|language_school|music_school|training|veterinary|cinema|theatre|nightclub|arts_centre|community_centre|place_of_worship|library|social_facility|townhall';
   const t = 'hotel|guest_house|hostel|attraction|museum';
   const l = 'fitness_centre|sports_centre|stadium|sports_hall';
+  const o = 'estate_agent|educational_institution';
   return `[out:json][timeout:60];(` +
     `node[shop](around:${RADIUS},${lat},${lon});` +
     `node[amenity~"^(${a})$"](around:${RADIUS},${lat},${lon});` +
     `node[tourism~"^(${t})$"](around:${RADIUS},${lat},${lon});` +
     `node[leisure~"^(${l})$"](around:${RADIUS},${lat},${lon});` +
     `node[craft](around:${RADIUS},${lat},${lon});` +
-    `node[office=estate_agent](around:${RADIUS},${lat},${lon});` +
+    `node[office~"^(${o})$"](around:${RADIUS},${lat},${lon});` +
     `);out center ${PER_CITY};`;
 }
 
