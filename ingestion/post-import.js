@@ -6,7 +6,12 @@
    4) report metrics incl. home-page placeholder count (must be 0)
    Pure data/back-office. No deletions of real listings. */
 const admin = require('firebase-admin');
-admin.initializeApp({ credential: admin.credential.applicationDefault() });
+// Match lib/firestore.js: CI provides creds as the FIREBASE_SERVICE_ACCOUNT JSON
+// env var; locally use GOOGLE_APPLICATION_CREDENTIALS via applicationDefault().
+const credential = process.env.FIREBASE_SERVICE_ACCOUNT
+  ? admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT))
+  : admin.credential.applicationDefault();
+admin.initializeApp({ credential });
 const db = admin.firestore();
 
 const HOME_CATEGORIES = ['vehicles','real-estate','electronics','phones-tablets','computers','fashion','beauty','home-furniture','jobs','services','food','agriculture','animals-pets','baby-kids','sports-fitness','business-industrial','events-tickets','education','travel','construction','repair-services','rentals','entertainment','community','other'];
