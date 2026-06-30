@@ -28,6 +28,11 @@ const CLASSES = [
   ['Q2495862', 'music festival'],
   ['Q220505', 'film festival'],
   ['Q2624046', 'arts festival'],
+  // --- expansion: more event classes to fill events-tickets subs ---
+  ['Q868557', 'music festival'],         // music festival (alt class)
+  ['Q18608583', 'recurring sporting event'], // -> sports-events
+  ['Q2020153', 'academic conference'],   // -> conferences
+  ['Q625994', 'conference'],             // conference -> conferences
 ];
 
 // Map an event's lower-cased type/name text to an events-tickets subcategory.
@@ -43,14 +48,19 @@ function subFor(text) {
 }
 
 function buildQuery(classQid) {
-  // African events of the given class that have an official website.
-  return `SELECT DISTINCT ?item ?itemLabel ?typeLabel ?website ?countryLabel ?locLabel WHERE {
+  // African events of the given class that have an official website (P856) — the
+  // required contact path. Also pull an image (P18) when present and start/point-
+  // in-time dates (P580 / P585) so listings carry a photo and a date when known.
+  return `SELECT DISTINCT ?item ?itemLabel ?typeLabel ?website ?countryLabel ?locLabel ?image ?start ?when WHERE {
   ?item wdt:P31/wdt:P279* wd:${classQid} .
   ?item wdt:P17 ?country .
   ?country wdt:P30 wd:Q15 .
   ?item wdt:P856 ?website .
   OPTIONAL { ?item wdt:P31 ?type . }
   OPTIONAL { ?item wdt:P276 ?loc . }
+  OPTIONAL { ?item wdt:P18 ?image . }
+  OPTIONAL { ?item wdt:P580 ?start . }
+  OPTIONAL { ?item wdt:P585 ?when . }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en,fr,ar". }
 }
 LIMIT 600`;
@@ -69,6 +79,7 @@ module.exports = {
       externalId: 'externalId', title: 'title', description: 'description',
       category: 'category', subcategory: 'subcategory',
       location: 'location', country: 'country', website: 'website', url: 'url',
+      images: 'images', coverImage: 'coverImage', postedAt: 'postedAt',
       priceType: { const: 'none' },
     },
 
@@ -97,6 +108,8 @@ module.exports = {
             const loc = (r.locLabel || {}).value || '';
             const type = (r.typeLabel || {}).value || clsLabel;
             const where = [loc, country].filter(Boolean).join(', ');
+            const image = (r.image || {}).value || ''; // P18 -> Commons FilePath URL
+            const when = (r.start || {}).value || (r.when || {}).value || ''; // P580 / P585
             out.push({
               externalId: `wikidata-${id}`,
               title: name,
@@ -107,6 +120,9 @@ module.exports = {
               country,
               website,
               url: qidUri || website,
+              images: image ? [image] : [],
+              coverImage: image || '',
+              postedAt: when,
             });
           }
         } catch (e) {

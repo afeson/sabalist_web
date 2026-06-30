@@ -29,8 +29,12 @@ jobs:
         working-directory: ingestion
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          # ReliefWeb (UN OCHA) requires a pre-approved appname (since 1 Nov 2025).
+          # Set this secret to the approved appname to activate reliefweb-jobs;
+          # without it the connector is a safe no-op.
+          RELIEFWEB_APPNAME: ${{ secrets.RELIEFWEB_APPNAME }}
         run: |
-          GROUP="arbeitnow-jobs,jobicy-jobs,remotive-jobs,themuse-jobs,weworkremotely-jobs,remoteok-jobs"
+          GROUP="arbeitnow-jobs,jobicy-jobs,remotive-jobs,themuse-jobs,weworkremotely-jobs,remoteok-jobs,reliefweb-jobs"
           if [ "${{ inputs.dry }}" = "true" ]; then
             node sync.js --only "$GROUP" --dry
           else
