@@ -85,19 +85,22 @@ const SHOP_MAP = {
   car: ['vehicles', 'cars'], car_parts: ['vehicles', 'spare-parts'],
   motorcycle: ['vehicles', 'motorcycles'], tyres: ['vehicles', 'spare-parts'],
   bicycle: ['vehicles', 'bicycles'],
+  boat: ['vehicles', 'boats'], truck: ['vehicles', 'trucks'],
   car_repair: ['repair-services', 'car-repair'], mobile_phone_repair: ['repair-services', 'phone-repair'],
   // construction
   hardware: ['construction', 'building-materials'], doityourself: ['construction', 'power-tools'],
   trade: ['construction', 'building-materials'], building_materials: ['construction', 'building-materials'],
-  tool_hire: ['construction', 'power-tools'], glaziery: ['construction', 'building-materials'],
+  glaziery: ['construction', 'building-materials'],
   paint: ['construction', 'building-materials'],
+  // rentals — equipment-hire businesses (not product subs)
+  tool_hire: ['rentals', 'equipment-rentals'],
   // baby & kids
   toys: ['baby-kids', 'toys'], baby_goods: ['baby-kids', 'baby-clothing'],
   // sports & fitness
   sports: ['sports-fitness', 'gym-equipment'], outdoor: ['sports-fitness', 'outdoor'],
   water_sports: ['sports-fitness', 'outdoor'],
   // agriculture
-  florist: ['agriculture', 'crops'], farm: ['agriculture', 'crops'],
+  florist: ['agriculture', 'crops'], farm: ['agriculture', 'farm-equipment'],
   garden_centre: ['agriculture', 'farm-equipment'], agrarian: ['agriculture', 'farm-equipment'],
   // pets
   pet: ['animals-pets', 'pet-accessories'],
@@ -106,10 +109,13 @@ const SHOP_MAP = {
   art: ['entertainment', 'art-collectibles'], games: ['entertainment', 'games'],
   cds: ['entertainment', 'music'],
   // education
-  books: ['education', 'books'], stationery: ['education', 'stationery'],
-  newsagent: ['education', 'books'], copyshop: ['services', 'graphic-design'],
+  books: ['education', 'books'],
+  newsagent: ['education', 'books'],
   // business-industrial
   wholesale: ['business-industrial', 'wholesale'],
+  stationery: ['business-industrial', 'office-equipment'],
+  copyshop: ['business-industrial', 'office-equipment'],
+  printer_ink: ['business-industrial', 'office-equipment'],
   // services (shops that are really storefront services, not product subs)
   variety_store: ['services', 'cleaning'], general: ['services', 'cleaning'],
   department_store: ['services', 'cleaning'], mall: ['services', 'cleaning'],
@@ -147,14 +153,42 @@ const LEISURE_MAP = {
   stadium: ['sports-fitness', 'team-sports'], sports_hall: ['sports-fitness', 'team-sports'],
   pitch: ['sports-fitness', 'team-sports'],
 };
+// craft=* — tradespeople / workshops. Most are repair or trade services; a few
+// route to construction/services. Unmapped craft values fall back to
+// ['repair-services', null] (category-only) to preserve prior behaviour.
+const CRAFT_MAP = {
+  water_well_drilling: ['construction', 'drilling-machines'],
+  plumber: ['repair-services', 'plumbing-repair'],
+  mobile_phone: ['repair-services', 'phone-repair'],
+  electronics_repair: ['repair-services', 'electrical-repair'],
+  electrician: ['services', 'electrical'],
+};
+
+// shop=agrarian carries an `agrarian=*` subkey describing what the farm-supply
+// store sells. Route to the precise agriculture subcategory by that subkey, so
+// seed/fertilizer/feed stores fill their (otherwise empty) subs rather than all
+// collapsing into farm-equipment. Falls back to crops when the subkey is absent.
+function agrarianSub(tags) {
+  const v = String(tags.agrarian || '').toLowerCase();
+  if (!v) return 'crops';
+  // agrarian can be a semicolon list; inspect the parts.
+  const parts = v.split(';').map((s) => s.trim());
+  const has = (k) => parts.includes(k);
+  if (has('seed') || has('seeds')) return 'seeds';
+  if (has('fertilizer') || has('fertiliser')) return 'fertilizers';
+  if (has('feed') || has('animal_feed')) return 'livestock-feed';
+  if (has('agricultural_machinery') || has('machine_parts') || has('tools')) return 'farm-equipment';
+  return 'crops';
+}
 
 // Resolve [category, subcategory] for a tag set. Returns category-only ['services']
 // when no precise mapping exists, so behaviour degrades safely.
 function mapFor(tags) {
+  if (tags.shop === 'agrarian') return ['agriculture', agrarianSub(tags)];
   if (tags.shop) return SHOP_MAP[tags.shop] || ['services', null];
   if (tags.tourism) return TOURISM_MAP[tags.tourism] || ['travel', null];
   if (tags.office === 'estate_agent') return ['real-estate', 'houses-rent'];
-  if (tags.craft) return ['repair-services', null];
+  if (tags.craft) return CRAFT_MAP[tags.craft] || ['repair-services', null];
   if (tags.leisure && LEISURE_MAP[tags.leisure]) return LEISURE_MAP[tags.leisure];
   if (tags.amenity) return AMENITY_MAP[tags.amenity] || ['services', null];
   return ['services', null];
@@ -218,7 +252,7 @@ module.exports = {
             const tags = el.tags || {};
             const name = tags.name || tags['name:en'];
             if (!name) continue;
-            const kind = titleCaseWord(tags.shop || tags.tourism || tags.amenity || tags.leisure || 'business');
+            const kind = titleCaseWord(tags.shop || tags.craft || tags.tourism || tags.amenity || tags.leisure || 'business');
             const street = tags['addr:street'] ? `, ${tags['addr:street']}` : '';
             const [category, subcategory] = categorySubFor(tags);
             out.push({
@@ -256,12 +290,13 @@ module.exports = {
 function mapForKind(kindText) {
   const key = String(kindText || '').trim().toLowerCase().replace(/\s+/g, '_');
   if (!key) return ['services', ''];
-  const [cat, sub] = SHOP_MAP[key] || AMENITY_MAP[key] || TOURISM_MAP[key] || LEISURE_MAP[key] || ['services', null];
+  const [cat, sub] = SHOP_MAP[key] || CRAFT_MAP[key] || AMENITY_MAP[key] || TOURISM_MAP[key] || LEISURE_MAP[key] || ['services', null];
   const valid = sub && VALID_SUBS[cat] && VALID_SUBS[cat].has(sub) ? sub : '';
   return [cat, valid];
 }
 
 module.exports.SHOP_MAP = SHOP_MAP;
+module.exports.CRAFT_MAP = CRAFT_MAP;
 module.exports.AMENITY_MAP = AMENITY_MAP;
 module.exports.TOURISM_MAP = TOURISM_MAP;
 module.exports.LEISURE_MAP = LEISURE_MAP;
