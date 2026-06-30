@@ -70,7 +70,18 @@ module.exports = ({ config }) => {
     name: 'Sabalist',
     slug: 'sabalist',
     owner: 'afrson',
-    version: '1.5.4',
+    version: '1.5.5',
+    // EAS Update (OTA): JS/UI/logic changes publish over-the-air with `eas update`
+    // and reach installed apps without a new store build. The `fingerprint` runtime
+    // policy ties an update to the NATIVE fingerprint — so JS-only changes keep the
+    // same runtime and are OTA-eligible, while native changes (new SDK, native deps,
+    // permissions, icons, splash, bundle id) change the fingerprint and require a
+    // fresh App Store / Play build.
+    runtimeVersion: { policy: 'fingerprint' },
+    updates: {
+      url: 'https://u.expo.dev/031b7005-9574-45d4-b3a2-9af6a026fcd7',
+      fallbackToCacheTimeout: 0,
+    },
     orientation: 'portrait',
     icon: './assets/branding/sabalist-icon-square.png',
     userInterfaceStyle: 'light',
@@ -84,7 +95,7 @@ module.exports = ({ config }) => {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.sabalist.app',
-      buildNumber: '25',
+      buildNumber: '26',
       icon: './assets/branding/sabalist-icon-square.png',
       googleServicesFile: process.env.GOOGLE_SERVICES_PLIST || './ios/GoogleService-Info.plist',
       usesAppleSignIn: true,
@@ -129,7 +140,7 @@ module.exports = ({ config }) => {
     },
     android: {
       package: 'com.sabalist.app',
-      versionCode: 32,
+      versionCode: 33,
       icon: './assets/branding/sabalist-icon-square.png',
       adaptiveIcon: {
         foregroundImage: './assets/branding/sabalist-icon-square.png',
