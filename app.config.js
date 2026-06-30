@@ -72,12 +72,11 @@ module.exports = ({ config }) => {
     owner: 'afrson',
     version: '1.5.5',
     // EAS Update (OTA): JS/UI/logic changes publish over-the-air with `eas update`
-    // and reach installed apps without a new store build. The `fingerprint` runtime
-    // policy ties an update to the NATIVE fingerprint — so JS-only changes keep the
-    // same runtime and are OTA-eligible, while native changes (new SDK, native deps,
-    // permissions, icons, splash, bundle id) change the fingerprint and require a
-    // fresh App Store / Play build.
-    runtimeVersion: { policy: 'fingerprint' },
+    // and reach installed apps without a new store build. runtimeVersion is tied to
+    // the app version string: publish OTA updates WITHOUT bumping `version` and they
+    // reach this build; bump `version` + rebuild only for native changes (new SDK,
+    // native deps, permissions, icons, splash, bundle id, Expo SDK upgrade).
+    runtimeVersion: { policy: 'appVersion' },
     updates: {
       url: 'https://u.expo.dev/031b7005-9574-45d4-b3a2-9af6a026fcd7',
       fallbackToCacheTimeout: 0,
