@@ -1,0 +1,57 @@
+name: Sync — Keyed sources (eBay, Adzuna)
+
+# Real, keyed APIs that fill the categories no free directory can:
+#  - eBay Browse  -> real for-sale products (electronics, phones, computers,
+#    fashion, home, beauty, sports, baby) with photos + price + listing URL
+#  - Adzuna       -> real job postings with apply links (South Africa + diaspora)
+#
+# Each connector is a SAFE NO-OP until its keys are present, so this workflow can
+# exist before the secrets are set. To activate, add repo secrets:
+#   EBAY_CLIENT_ID, EBAY_CLIENT_SECRET   (free — developer.ebay.com)
+#   ADZUNA_APP_ID,  ADZUNA_APP_KEY       (free — developer.adzuna.com)
+# Optional: EBAY_MARKETPLACE (default EBAY_GB), ADZUNA_COUNTRIES (default "za").
+on:
+  schedule:
+    - cron: '0 5 * * *'    # 05:00 UTC daily
+  workflow_dispatch:
+    inputs:
+      dry: { description: 'Dry run (no writes)', type: boolean, default: false }
+
+concurrency:
+  group: sync-keyed
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Sync keyed sources
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
+          EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
+          EBAY_MARKETPLACE: ${{ secrets.EBAY_MARKETPLACE }}
+          ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
+          ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
+          ADZUNA_COUNTRIES: ${{ secrets.ADZUNA_COUNTRIES }}
+        run: |
+          GROUP="ebay-products,adzuna-jobs"
+          if [ "${{ inputs.dry }}" = "true" ]; then
+            node sync.js --only "$GROUP" --dry
+          else
+            node sync.js --only "$GROUP" --expire
+          fi
+      - name: Post-import back-office processing
+        if: ${{ inputs.dry != 'true' }}
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node post-import.js
