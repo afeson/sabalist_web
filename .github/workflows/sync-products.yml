@@ -30,7 +30,7 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
-          GROUP="dummyjson-products,openfacts-products,dogceo-pets,nager-holidays-events"
+          GROUP="openfacts-products"   # demo sources (dummyjson/dogceo/holidays) removed — real only
           if [ "${{ inputs.dry }}" = "true" ]; then
             node sync.js --only "$GROUP" --dry
           else

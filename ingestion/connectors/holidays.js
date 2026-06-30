@@ -22,7 +22,7 @@ module.exports = {
   source: {
     id: 'nager-holidays-events',
     name: 'Public holidays (Nager.Date) — events worldwide',
-    enabled: true,
+    enabled: false, // public holidays aren't sellable listings — removed; real sources only
     ownerUserId: 'imported-listings',
     region: 'Worldwide',
     license: 'Nager.Date public-holiday API (open).',

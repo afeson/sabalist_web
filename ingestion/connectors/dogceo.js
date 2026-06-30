@@ -11,7 +11,7 @@ module.exports = {
   source: {
     id: 'dogceo-pets',
     name: 'Dog CEO — pet (dog breed) listings with photos',
-    enabled: true,
+    enabled: false, // DEMO (AI/stock photos, fake 'for rehoming') — removed; real sources only
     ownerUserId: 'imported-listings',
     region: 'Global',
     license: 'Dog CEO open API (images sourced from the Stanford Dogs Dataset).',

@@ -23,7 +23,7 @@ module.exports = {
   source: {
     id: 'dummyjson-products',
     name: 'DummyJSON — products across marketplace categories (photos+prices)',
-    enabled: true,
+    enabled: false, // DEMO API (fake sellers, JSON source link) — removed; real sources only
     ownerUserId: 'imported-listings',
     region: 'Global',
     license: 'DummyJSON open product API.',
