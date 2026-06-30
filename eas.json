@@ -8,7 +8,8 @@
       "node": "20.19.4",
       "env": {
         "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
-      }
+      },
+      "channel": "base"
     },
     "development": {
       "extends": "base",
@@ -16,7 +17,8 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "extends": "base",
