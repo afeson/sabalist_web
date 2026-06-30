@@ -11,6 +11,7 @@ import {
   Dimensions,
   Platform,
   Modal,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -137,27 +138,56 @@ export default function ListingDetailScreen({ route, navigation }) {
     }
   };
 
+  // Cross-platform alert: RN Alert.alert is a no-op on web, so use the browser
+  // dialog there. (window.confirm returns a boolean we can act on.)
+  const notify = (title, message) => {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.alert) window.alert(`${title}\n\n${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+  const openUrl = (url) => Linking.openURL(url).catch(() => {});
+
   const handleContact = () => {
     // Web public browsing: anonymous visitors (and crawlers) must sign in
-    // before seller contact details are revealed — this keeps the seller's
-    // phone number out of indexable/anonymous reach. On native, currentUser is
-    // always present here, so behavior is unchanged.
+    // before seller contact details are revealed — keeps phone numbers out of
+    // anonymous/indexable reach. On native, currentUser is always present.
     if (Platform.OS === 'web' && !currentUser) {
-      Alert.alert(
-        t('auth.signInRequired') !== 'auth.signInRequired'
-          ? t('auth.signInRequired')
-          : 'Sign in required',
-        t('auth.signInToContact') !== 'auth.signInToContact'
-          ? t('auth.signInToContact')
-          : 'Please sign in to view the seller’s contact details.'
+      notify(
+        t('auth.signInRequired') !== 'auth.signInRequired' ? t('auth.signInRequired') : 'Sign in required',
+        t('auth.signInToContact') !== 'auth.signInToContact' ? t('auth.signInToContact') : 'Please sign in to view the seller’s contact details.'
       );
       return;
     }
-    if (listing.phoneNumber) {
-      Alert.alert(t('contact.title'), listing.phoneNumber);
-    } else {
-      Alert.alert(t('alerts.info'), t('alerts.noContactInfo'));
+
+    const phone = (listing.phoneNumber || '').trim();
+    const sourceUrl = listing.sourceUrl || listing.url || '';
+    const title = t('contact.title') !== 'contact.title' ? t('contact.title') : 'Contact Seller';
+
+    if (phone) {
+      // Show the number and offer to dial. tel: works on web and native.
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && window.confirm(`${title}\n\n${phone}\n\nCall this number now?`)) openUrl(`tel:${phone}`);
+      } else {
+        Alert.alert(title, phone, [
+          { text: t('contact.call') !== 'contact.call' ? t('contact.call') : 'Call', onPress: () => openUrl(`tel:${phone}`) },
+          { text: t('common.close') !== 'common.close' ? t('common.close') : 'Close', style: 'cancel' },
+        ]);
+      }
+      return;
     }
+
+    // Imported listings carry the original source link — that's where contact lives.
+    if (/^https?:\/\//.test(sourceUrl)) {
+      openUrl(sourceUrl);
+      return;
+    }
+
+    notify(
+      t('alerts.info') !== 'alerts.info' ? t('alerts.info') : 'Contact',
+      t('alerts.noContactInfo') !== 'alerts.noContactInfo' ? t('alerts.noContactInfo') : 'No contact information is available for this listing yet.'
+    );
   };
 
   // formatListingPrice handles all price types (fixed, range, free,
