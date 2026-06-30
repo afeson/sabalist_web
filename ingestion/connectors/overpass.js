@@ -11,6 +11,7 @@
  * Uses load() to query each city separately (smaller, timeout-safe queries),
  * rate-limited — instead of one giant query. Engine is unchanged.
  */
+const { VALID_SUBS } = require('../lib/taxonomy');
 const OVERPASS = 'https://overpass-api.de/api/interpreter';
 const RADIUS = 3000;
 const PER_CITY = 250;
@@ -41,40 +42,136 @@ const CITIES = [
   ['Alexandria', 31.2001, 29.9187, 'Egypt'], ['Marrakech', 31.6295, -7.9811, 'Morocco'],
 ];
 
+// --- OSM tag value -> [categoryId, subcategoryId] ---------------------------
+// Each entry maps a raw OSM shop=/amenity=/tourism=/leisure= value to BOTH the
+// Sabalist category AND a precise subcategory. Subcategories are validated at
+// emit time (see emitFor) against the canonical taxonomy in ingestion/lib/
+// taxonomy.js, so a typo or stale sub silently falls back to category-only.
 const SHOP_MAP = {
-  mobile_phone: 'phones-tablets', computer: 'computers',
-  electronics: 'electronics', hifi: 'electronics', radiotechnics: 'electronics',
-  furniture: 'home-furniture', bed: 'home-furniture', kitchen: 'home-furniture', interior_decoration: 'home-furniture',
-  clothes: 'fashion', shoes: 'fashion', boutique: 'fashion', fashion: 'fashion', bag: 'fashion', jewelry: 'fashion', watches: 'fashion',
-  beauty: 'beauty', hairdresser: 'beauty', cosmetics: 'beauty', perfumery: 'beauty',
-  supermarket: 'food', convenience: 'food', greengrocer: 'food', butcher: 'food', bakery: 'food', deli: 'food',
-  car: 'vehicles', car_parts: 'vehicles', motorcycle: 'vehicles', tyres: 'vehicles',
-  car_repair: 'repair-services', electronics_repair: 'repair-services', mobile_phone_repair: 'repair-services',
-  hardware: 'construction', doityourself: 'construction', trade: 'construction', building_materials: 'construction',
-  toys: 'baby-kids', baby_goods: 'baby-kids', sports: 'sports-fitness', outdoor: 'sports-fitness',
-  pet: 'animals-pets', florist: 'agriculture', farm: 'agriculture', garden_centre: 'agriculture', agrarian: 'agriculture',
-  variety_store: 'services', general: 'services', wholesale: 'business-industrial',
+  // phones & tablets
+  mobile_phone: ['phones-tablets', 'smartphones'], telephone: ['phones-tablets', 'smartphones'],
+  // computers
+  computer: ['computers', 'laptops'], electronics_repair: ['repair-services', 'phone-repair'],
+  // electronics
+  electronics: ['electronics', 'accessories'], hifi: ['electronics', 'audio-speakers'],
+  radiotechnics: ['electronics', 'audio-speakers'], camera: ['electronics', 'cameras'],
+  video: ['electronics', 'tvs'], video_games: ['electronics', 'gaming-consoles'],
+  appliance: ['home-furniture', 'home-appliances'],
+  // home & furniture
+  furniture: ['home-furniture', 'sofas-chairs'], bed: ['home-furniture', 'beds-mattresses'],
+  kitchen: ['home-furniture', 'kitchen'], interior_decoration: ['home-furniture', 'decor'],
+  houseware: ['home-furniture', 'decor'], curtain: ['home-furniture', 'decor'],
+  bathroom_furnishing: ['home-furniture', 'decor'], carpet: ['home-furniture', 'decor'],
+  electrical: ['home-furniture', 'home-appliances'], lighting: ['home-furniture', 'decor'],
+  // fashion
+  clothes: ['fashion', 'womens-clothing'], boutique: ['fashion', 'womens-clothing'],
+  fashion: ['fashion', 'womens-clothing'], shoes: ['fashion', 'shoes'], bag: ['fashion', 'bags'],
+  jewelry: ['fashion', 'watches-jewelry'], watches: ['fashion', 'watches-jewelry'],
+  leather: ['fashion', 'bags'], tailor: ['fashion', 'traditional-wear'],
+  fabric: ['fashion', 'traditional-wear'], sewing: ['fashion', 'traditional-wear'],
+  // beauty
+  beauty: ['beauty', 'beauty-tools'], hairdresser: ['beauty', 'haircare'],
+  cosmetics: ['beauty', 'makeup'], perfumery: ['beauty', 'fragrances'],
+  chemist: ['beauty', 'skincare'], massage: ['beauty', 'beauty-tools'],
+  // food
+  supermarket: ['food', 'groceries'], convenience: ['food', 'groceries'],
+  greengrocer: ['food', 'groceries'], butcher: ['food', 'groceries'], deli: ['food', 'groceries'],
+  seafood: ['food', 'groceries'], dairy: ['food', 'groceries'], grocery: ['food', 'groceries'],
+  provision: ['food', 'groceries'], spices: ['food', 'groceries'], honey: ['food', 'groceries'],
+  bakery: ['food', 'bakery'], pastry: ['food', 'bakery'], confectionery: ['food', 'bakery'],
+  beverages: ['food', 'beverages'], coffee: ['food', 'beverages'], tea: ['food', 'beverages'],
+  wine: ['food', 'beverages'], alcohol: ['food', 'beverages'],
+  // vehicles
+  car: ['vehicles', 'cars'], car_parts: ['vehicles', 'spare-parts'],
+  motorcycle: ['vehicles', 'motorcycles'], tyres: ['vehicles', 'spare-parts'],
+  bicycle: ['vehicles', 'bicycles'],
+  car_repair: ['repair-services', 'car-repair'], mobile_phone_repair: ['repair-services', 'phone-repair'],
+  // construction
+  hardware: ['construction', 'building-materials'], doityourself: ['construction', 'power-tools'],
+  trade: ['construction', 'building-materials'], building_materials: ['construction', 'building-materials'],
+  tool_hire: ['construction', 'power-tools'], glaziery: ['construction', 'building-materials'],
+  paint: ['construction', 'building-materials'],
+  // baby & kids
+  toys: ['baby-kids', 'toys'], baby_goods: ['baby-kids', 'baby-clothing'],
+  // sports & fitness
+  sports: ['sports-fitness', 'gym-equipment'], outdoor: ['sports-fitness', 'outdoor'],
+  water_sports: ['sports-fitness', 'outdoor'],
+  // agriculture
+  florist: ['agriculture', 'crops'], farm: ['agriculture', 'crops'],
+  garden_centre: ['agriculture', 'farm-equipment'], agrarian: ['agriculture', 'farm-equipment'],
+  // pets
+  pet: ['animals-pets', 'pet-accessories'],
+  // entertainment
+  musical_instrument: ['entertainment', 'instruments'], music: ['entertainment', 'music'],
+  art: ['entertainment', 'art-collectibles'], games: ['entertainment', 'games'],
+  cds: ['entertainment', 'music'],
+  // education
+  books: ['education', 'books'], stationery: ['education', 'stationery'],
+  newsagent: ['education', 'books'], copyshop: ['services', 'graphic-design'],
+  // business-industrial
+  wholesale: ['business-industrial', 'wholesale'],
+  // services (shops that are really storefront services, not product subs)
+  variety_store: ['services', 'cleaning'], general: ['services', 'cleaning'],
+  department_store: ['services', 'cleaning'], mall: ['services', 'cleaning'],
+  kiosk: ['food', 'groceries'], gift: ['services', 'cleaning'],
+  optician: ['services', 'cleaning'], travel_agency: ['travel', 'tours'],
+  dry_cleaning: ['services', 'cleaning'], laundry: ['services', 'cleaning'],
+  photo: ['services', 'photography'], photo_studio: ['services', 'photography'],
+  medical_supply: ['services', 'cleaning'], funeral_directors: ['services', 'cleaning'],
+  ticket: ['events-tickets', 'concerts'], pawnbroker: ['services', 'cleaning'],
+  money_lender: ['services', 'cleaning'], insurance: ['services', 'cleaning'],
+  estate_agent: ['real-estate', 'houses-rent'],
 };
 const AMENITY_MAP = {
-  restaurant: 'food', cafe: 'food', fast_food: 'food', marketplace: 'food', food_court: 'food',
-  fuel: 'vehicles',
-  school: 'education', college: 'education', university: 'education', kindergarten: 'baby-kids',
-  pharmacy: 'services', hospital: 'services', clinic: 'services', bank: 'services',
-  veterinary: 'animals-pets',
-  cinema: 'entertainment', theatre: 'entertainment', nightclub: 'entertainment', arts_centre: 'entertainment',
-  community_centre: 'community', place_of_worship: 'community', library: 'community', social_facility: 'community', townhall: 'community',
+  restaurant: ['food', 'restaurants'], cafe: ['food', 'restaurants'],
+  fast_food: ['food', 'restaurants'], food_court: ['food', 'restaurants'],
+  marketplace: ['food', 'groceries'],
+  fuel: ['vehicles', 'spare-parts'],
+  school: ['education', 'courses'], college: ['education', 'courses'],
+  university: ['education', 'courses'], kindergarten: ['baby-kids', 'school-supplies'],
+  pharmacy: ['services', 'cleaning'], hospital: ['services', 'cleaning'],
+  clinic: ['services', 'cleaning'], bank: ['services', 'cleaning'],
+  veterinary: ['animals-pets', 'pet-accessories'],
+  cinema: ['entertainment', 'movies'], theatre: ['entertainment', 'art-collectibles'],
+  nightclub: ['entertainment', 'music'], arts_centre: ['entertainment', 'art-collectibles'],
+  community_centre: ['community', 'announcements'], place_of_worship: ['community', 'announcements'],
+  library: ['community', 'announcements'], social_facility: ['community', 'volunteers'],
+  townhall: ['community', 'announcements'],
 };
-const TOURISM_MAP = { hotel: 'travel', guest_house: 'travel', hostel: 'travel', attraction: 'travel', museum: 'travel' };
+const TOURISM_MAP = {
+  hotel: ['travel', 'hotels'], guest_house: ['travel', 'hotels'], hostel: ['travel', 'hotels'],
+  attraction: ['travel', 'tours'], museum: ['travel', 'tours'], viewpoint: ['travel', 'tours'],
+};
+const LEISURE_MAP = {
+  fitness_centre: ['sports-fitness', 'gym-equipment'], sports_centre: ['sports-fitness', 'gym-equipment'],
+  stadium: ['sports-fitness', 'team-sports'], sports_hall: ['sports-fitness', 'team-sports'],
+  pitch: ['sports-fitness', 'team-sports'],
+};
 
-function categoryFor(tags) {
-  if (tags.shop) return SHOP_MAP[tags.shop] || 'services';
-  if (tags.tourism) return TOURISM_MAP[tags.tourism] || 'travel';
-  if (tags.office === 'estate_agent') return 'real-estate';
-  if (tags.craft) return 'repair-services';
-  if (/^(fitness_centre|sports_centre|stadium|pitch|sports_hall)$/.test(tags.leisure || '')) return 'sports-fitness';
-  if (tags.amenity) return AMENITY_MAP[tags.amenity] || 'services';
-  return 'services';
+// Resolve [category, subcategory] for a tag set. Returns category-only ['services']
+// when no precise mapping exists, so behaviour degrades safely.
+function mapFor(tags) {
+  if (tags.shop) return SHOP_MAP[tags.shop] || ['services', null];
+  if (tags.tourism) return TOURISM_MAP[tags.tourism] || ['travel', null];
+  if (tags.office === 'estate_agent') return ['real-estate', 'houses-rent'];
+  if (tags.craft) return ['repair-services', null];
+  if (tags.leisure && LEISURE_MAP[tags.leisure]) return LEISURE_MAP[tags.leisure];
+  if (tags.amenity) return AMENITY_MAP[tags.amenity] || ['services', null];
+  return ['services', null];
 }
+
+function categoryFor(tags) { return mapFor(tags)[0]; }
+
+// Resolve a validated [category, subcategory] pair. The subcategory is dropped
+// (left empty) unless it is a real sub of the resolved category in the canonical
+// taxonomy — guarding against a stale entry in the maps above. When dropped, the
+// pipeline's text classifier still assigns a sub downstream.
+function categorySubFor(tags) {
+  const [cat, sub] = mapFor(tags);
+  const valid = sub && VALID_SUBS[cat] && VALID_SUBS[cat].has(sub) ? sub : '';
+  return [cat, valid];
+}
+
 function titleCaseWord(s) { return String(s || '').replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase()); }
 
 function cityQuery(lat, lon) {
@@ -102,7 +199,7 @@ module.exports = {
     thresholds: { autoPublishQuality: 0.55, autoPublishConfidence: 0.7 },
     mapping: {
       externalId: 'externalId', title: 'title', description: 'description',
-      category: 'category', location: 'location', country: 'country',
+      category: 'category', subcategory: 'subcategory', location: 'location', country: 'country',
       phoneNumber: 'phoneNumber', website: 'website', email: 'email', url: 'url', priceType: { const: 'none' },
     },
 
@@ -123,11 +220,13 @@ module.exports = {
             if (!name) continue;
             const kind = titleCaseWord(tags.shop || tags.tourism || tags.amenity || tags.leisure || 'business');
             const street = tags['addr:street'] ? `, ${tags['addr:street']}` : '';
+            const [category, subcategory] = categorySubFor(tags);
             out.push({
               externalId: `osm-${el.type}-${el.id}`,
               title: name,
               description: `${kind} in ${city}, ${country}${street}. Listing sourced from OpenStreetMap (© OpenStreetMap contributors).`,
-              category: categoryFor(tags),
+              category,
+              subcategory,
               location: `${city}, ${country}`,
               country,
               phoneNumber: tags.phone || tags['contact:phone'] || tags['contact:mobile'] || tags.mobile || '',
@@ -146,3 +245,24 @@ module.exports = {
     },
   },
 };
+
+// --- Re-export the tag maps so back-office backfills can re-derive category +
+// subcategory for ALREADY-IMPORTED OSM listings (whose description embeds the
+// titleized OSM kind) WITHOUT re-crawling Overpass. Single source of truth. ---
+
+// Resolve [category, subcategory] from a description "kind" (e.g. "Mobile Phone",
+// "Camera", "Hardware") — the titleized OSM tag value stored at import time.
+// Mirrors mapFor() but keyed by the underscored lower-cased tag value.
+function mapForKind(kindText) {
+  const key = String(kindText || '').trim().toLowerCase().replace(/\s+/g, '_');
+  if (!key) return ['services', ''];
+  const [cat, sub] = SHOP_MAP[key] || AMENITY_MAP[key] || TOURISM_MAP[key] || LEISURE_MAP[key] || ['services', null];
+  const valid = sub && VALID_SUBS[cat] && VALID_SUBS[cat].has(sub) ? sub : '';
+  return [cat, valid];
+}
+
+module.exports.SHOP_MAP = SHOP_MAP;
+module.exports.AMENITY_MAP = AMENITY_MAP;
+module.exports.TOURISM_MAP = TOURISM_MAP;
+module.exports.LEISURE_MAP = LEISURE_MAP;
+module.exports.mapForKind = mapForKind;

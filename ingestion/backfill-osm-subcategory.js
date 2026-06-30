@@ -39,57 +39,104 @@ const TAX = {
 };
 const VALID = {}; for (const [c, s] of Object.entries(TAX)) VALID[c] = new Set(s);
 
-// OSM "kind" (titleized shop/amenity/tourism value, lowercased here) -> subcategory.
+// Category-scoped OSM "kind" -> subcategory. Keyed by the listing's CURRENT
+// categoryId, then by the lowercased OSM kind embedded in the description
+// ("<Kind> in <city>..."). Scoping by category guarantees we only ever move a
+// listing to a MORE specific sub *within its own category* — never across
+// categories, never collapsing distinct subs. A '*' fallback per category gives
+// a sensible default sub for kinds we recognise as belonging there but don't
+// further refine. Every value is validated against VALID[cat] before writing.
 const KIND_SUB = {
-  // electronics
-  'hifi': 'audio-speakers', 'radiotechnics': 'audio-speakers', 'camera': 'cameras', 'photo': 'cameras',
-  'video games': 'gaming-consoles', 'video': 'tvs', 'electronics': 'accessories', 'appliance': 'home-appliances',
-  // phones / computers
-  'mobile phone': 'smartphones', 'telephone': 'smartphones', 'computer': 'laptops', 'it': 'laptops',
-  // home & furniture
-  'furniture': 'sofas-chairs', 'bed': 'beds-mattresses', 'kitchen': 'kitchen', 'interior decoration': 'decor',
-  'houseware': 'decor', 'curtain': 'decor', 'electrical': 'home-appliances',
-  // fashion
-  'clothes': 'womens-clothing', 'boutique': 'womens-clothing', 'fashion': 'womens-clothing', 'fashion accessories': 'accessories',
-  'shoes': 'shoes', 'bag': 'bags', 'jewelry': 'watches-jewelry', 'watches': 'watches-jewelry', 'tailor': 'traditional-wear', 'fabric': 'traditional-wear',
-  // beauty
-  'beauty': 'beauty-tools', 'cosmetics': 'makeup', 'perfumery': 'fragrances', 'hairdresser': 'haircare', 'chemist': 'skincare',
-  // vehicles
-  'car': 'cars', 'car parts': 'spare-parts', 'car repair': 'cars', 'motorcycle': 'motorcycles', 'tyres': 'spare-parts',
-  'bicycle': 'bicycles', 'truck': 'trucks', 'boat': 'boats', 'car parts and accessories': 'spare-parts',
-  // repair-services
-  'car repair ': 'car-repair', 'mobile phone repair': 'phone-repair', 'electronics repair': 'electrical-repair', 'appliance repair': 'appliance-repair',
-  // food
-  'restaurant': 'restaurants', 'cafe': 'restaurants', 'fast food': 'restaurants', 'food court': 'restaurants', 'marketplace': 'groceries',
-  'supermarket': 'groceries', 'convenience': 'groceries', 'greengrocer': 'groceries', 'deli': 'groceries', 'butcher': 'groceries',
-  'bakery': 'bakery', 'beverages': 'beverages', 'coffee': 'beverages', 'tea': 'beverages',
-  // agriculture
-  'florist': 'crops', 'farm': 'crops', 'garden centre': 'farm-equipment', 'agrarian': 'farm-equipment',
-  // pets
-  'pet': 'pet-accessories', 'veterinary': 'pet-accessories',
-  // baby & kids
-  'toys': 'toys', 'baby goods': 'baby-clothing', 'kindergarten': 'school-supplies',
-  // sports
-  'sports': 'gym-equipment', 'outdoor': 'outdoor', 'fitness centre': 'gym-equipment', 'sports centre': 'gym-equipment',
-  'stadium': 'team-sports', 'sports hall': 'team-sports', 'pitch': 'team-sports',
-  // construction
-  'hardware': 'building-materials', 'doityourself': 'power-tools', 'trade': 'building-materials', 'building materials': 'building-materials',
-  // business-industrial
-  'wholesale': 'wholesale', 'general': 'office-equipment', 'variety store': 'office-equipment',
-  // entertainment
-  'cinema': 'movies', 'theatre': 'art-collectibles', 'nightclub': 'music', 'arts centre': 'art-collectibles', 'musical instrument': 'instruments',
-  // community
-  'community centre': 'announcements', 'place of worship': 'announcements', 'library': 'announcements', 'social facility': 'volunteers', 'townhall': 'announcements',
-  // education
-  'school': 'courses', 'college': 'courses', 'university': 'courses',
-  // travel
-  'hotel': 'hotels', 'guest house': 'hotels', 'hostel': 'hotels', 'attraction': 'tours', 'museum': 'tours',
+  electronics: {
+    'hifi': 'audio-speakers', 'radiotechnics': 'audio-speakers', 'camera': 'cameras',
+    'video games': 'gaming-consoles', 'video': 'tvs', 'electronics': 'accessories',
+  },
+  'phones-tablets': { 'mobile phone': 'smartphones', 'telephone': 'smartphones' },
+  computers: { 'computer': 'laptops', 'it': 'laptops' },
+  'home-furniture': {
+    'furniture': 'sofas-chairs', 'bed': 'beds-mattresses', 'kitchen': 'kitchen',
+    'interior decoration': 'decor', 'houseware': 'decor', 'curtain': 'decor',
+    'carpet': 'decor', 'bathroom furnishing': 'decor', 'electrical': 'home-appliances',
+    'appliance': 'home-appliances',
+  },
+  fashion: {
+    'clothes': 'womens-clothing', 'boutique': 'womens-clothing', 'fashion': 'womens-clothing',
+    'shoes': 'shoes', 'bag': 'bags', 'leather': 'bags', 'jewelry': 'watches-jewelry',
+    'watches': 'watches-jewelry', 'tailor': 'traditional-wear', 'fabric': 'traditional-wear',
+    'sewing': 'traditional-wear',
+  },
+  beauty: {
+    'beauty': 'beauty-tools', 'cosmetics': 'makeup', 'perfumery': 'fragrances',
+    'hairdresser': 'haircare', 'chemist': 'skincare', 'massage': 'beauty-tools',
+  },
+  vehicles: {
+    'car': 'cars', 'fuel': 'spare-parts', 'car parts': 'spare-parts', 'car repair': 'cars',
+    'motorcycle': 'motorcycles', 'tyres': 'spare-parts', 'bicycle': 'bicycles',
+    'truck': 'trucks', 'boat': 'boats',
+  },
+  'repair-services': {
+    'car repair': 'car-repair', 'motorcycle repair': 'car-repair', 'mobile phone repair': 'phone-repair',
+    'electronics repair': 'electrical-repair', 'appliance repair': 'appliance-repair',
+  },
+  food: {
+    'restaurant': 'restaurants', 'cafe': 'restaurants', 'fast food': 'restaurants', 'food court': 'restaurants',
+    'marketplace': 'groceries', 'supermarket': 'groceries', 'convenience': 'groceries', 'kiosk': 'groceries',
+    'greengrocer': 'groceries', 'deli': 'groceries', 'butcher': 'groceries', 'seafood': 'groceries',
+    'dairy': 'groceries', 'grocery': 'groceries', 'provision': 'groceries', 'spices': 'groceries',
+    'honey': 'groceries', 'bakery': 'bakery', 'pastry': 'bakery', 'confectionery': 'bakery',
+    'beverages': 'beverages', 'coffee': 'beverages', 'tea': 'beverages', 'wine': 'beverages', 'alcohol': 'beverages',
+  },
+  agriculture: { 'florist': 'crops', 'farm': 'crops', 'garden centre': 'farm-equipment', 'agrarian': 'farm-equipment' },
+  'animals-pets': { 'pet': 'pet-accessories', 'veterinary': 'pet-accessories' },
+  'baby-kids': { 'toys': 'toys', 'baby goods': 'baby-clothing', 'kindergarten': 'school-supplies' },
+  'sports-fitness': {
+    'sports': 'gym-equipment', 'outdoor': 'outdoor', 'water sports': 'outdoor',
+    'fitness centre': 'gym-equipment', 'sports centre': 'gym-equipment',
+    'stadium': 'team-sports', 'sports hall': 'team-sports', 'pitch': 'team-sports',
+  },
+  construction: {
+    'hardware': 'building-materials', 'doityourself': 'power-tools', 'trade': 'building-materials',
+    'building materials': 'building-materials', 'tool hire': 'power-tools', 'glaziery': 'building-materials',
+    'paint': 'building-materials',
+  },
+  'business-industrial': { 'wholesale': 'wholesale', 'hardware': 'industrial-tools', 'doityourself': 'industrial-tools' },
+  entertainment: {
+    'cinema': 'movies', 'theatre': 'art-collectibles', 'nightclub': 'music', 'music': 'music',
+    'arts centre': 'art-collectibles', 'art': 'art-collectibles', 'musical instrument': 'instruments',
+    'games': 'games', 'cds': 'music',
+  },
+  community: {
+    'community centre': 'announcements', 'place of worship': 'announcements', 'library': 'announcements',
+    'social facility': 'volunteers', 'townhall': 'announcements',
+  },
+  education: {
+    'school': 'courses', 'college': 'courses', 'university': 'courses',
+    'books': 'books', 'newsagent': 'books', 'stationery': 'stationery',
+  },
+  travel: {
+    'hotel': 'hotels', 'guest house': 'hotels', 'hostel': 'hotels',
+    'attraction': 'tours', 'museum': 'tours', 'viewpoint': 'tours', 'travel agency': 'tours',
+  },
+  services: {
+    'photo': 'photography', 'photo studio': 'photography', 'copyshop': 'graphic-design',
+    'dry cleaning': 'cleaning', 'laundry': 'cleaning', 'electrical': 'electrical',
+    'tailor': 'cleaning',
+  },
+  'events-tickets': { 'ticket': 'concerts' },
 };
 
 function kindOf(desc) {
-  // description starts with "<Kind> in <city>, ..." — take the part before " in "
+  // description starts with "<Kind> in <city>, ..." — take the part before " in ".
+  // Normalise OSM multi-value kinds ("Ethiopian Restaurant", "African;Eritrean
+  // Restaurant") down to the base type so the map keys still hit.
   const m = String(desc || '').match(/^(.*?)\s+in\s+/);
-  return m ? m[1].trim().toLowerCase() : '';
+  if (!m) return '';
+  let k = m[1].trim().toLowerCase();
+  // cuisine-prefixed restaurants -> "restaurant"; "X cafe" -> "cafe"
+  if (/\brestaurant\b/.test(k)) return 'restaurant';
+  if (/\bcafe\b/.test(k)) return 'cafe';
+  if (/\bfast food\b/.test(k)) return 'fast food';
+  return k;
 }
 
 (async () => {
@@ -102,9 +149,13 @@ function kindOf(desc) {
     const cat = x.categoryId;
     if (!VALID[cat]) continue;
     const kind = kindOf(x.description);
-    const sub = KIND_SUB[kind];
+    const sub = (KIND_SUB[cat] || {})[kind];
     if (!sub || !VALID[cat].has(sub)) { noMap++; continue; }       // no precise mapping -> leave as is
-    if (x.subcategory === sub) { unchanged++; continue; }
+    // Only refine: keep an existing VALID sub (never collapse a good distinction).
+    // Overwrite only when the current sub is empty or not valid for the category.
+    const cur = x.subcategory;
+    if (cur && VALID[cat].has(cur)) { unchanged++; continue; }
+    if (cur === sub) { unchanged++; continue; }
     batch.update(d.ref, { subcategory: sub });
     subTally[cat + '/' + sub] = (subTally[cat + '/' + sub] || 0) + 1;
     n++; updated++;

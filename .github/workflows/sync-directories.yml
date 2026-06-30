@@ -1,9 +1,10 @@
 name: Sync — Directories OSM/Universities (weekly)
 
 # Heavy crawls: OpenStreetMap businesses across ~40 African cities + diaspora
-# restaurants + African universities. Many rate-limited requests → slow. Runs
-# weekly in its own workflow with a generous timeout so it can never block the
-# job/product feeds. Fills services, food, education, vehicles, travel, etc.
+# restaurants + African universities + Wikidata African events/festivals. Many
+# rate-limited requests → slow. Runs weekly in its own workflow with a generous
+# timeout so it can never block the job/product feeds. Fills services, food,
+# education, vehicles, travel, events-tickets, etc.
 on:
   schedule:
     - cron: '0 3 * * 1'    # Mondays 03:00 UTC
@@ -22,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false      # one directory source failing must not stop the others
       matrix:
-        source: [osm-africa-businesses, osm-diaspora-african, hipolabs-universities-africa]
+        source: [osm-africa-businesses, osm-diaspora-african, hipolabs-universities-africa, wikidata-events-africa]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
