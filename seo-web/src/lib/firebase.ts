@@ -5,8 +5,10 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 
-// Trim every value: env vars set via some CLIs/scripts can carry a trailing
-// newline/CR, which is an illegal character in Firebase config + Next metadata.
+// Firebase sends the App ID as the `x-firebase-gmpid` gRPC/HTTP header on every
+// Firestore request. HTTP headers can't contain newlines, so a trailing \n/\r on
+// any of these values (env vars set via PowerShell `|` pick one up) throws
+// "Metadata string value ... contains illegal characters" during SSG. Trim all.
 const env = (v?: string) => (v == null ? v : v.trim());
 const config = {
   apiKey: env(process.env.EXPO_PUBLIC_FIREBASE_API_KEY),
