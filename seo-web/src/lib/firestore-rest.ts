@@ -1,8 +1,8 @@
 // Edge-safe Firestore reader using the public REST API (no SDK), for the OG
 // image route which runs on the edge runtime. The `listings` collection is
 // world-readable, so the public API key is sufficient.
-const PROJECT = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID;
-const KEY = process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
+const PROJECT = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID?.trim();
+const KEY = process.env.EXPO_PUBLIC_FIREBASE_API_KEY?.trim();
 
 function decode(fields: any): any {
   const out: any = {};

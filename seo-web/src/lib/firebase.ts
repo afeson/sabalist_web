@@ -5,12 +5,15 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 
+// Trim every value: env vars set via some CLIs/scripts can carry a trailing
+// newline/CR, which is an illegal character in Firebase config + Next metadata.
+const env = (v?: string) => (v == null ? v : v.trim());
 const config = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  apiKey: env(process.env.EXPO_PUBLIC_FIREBASE_API_KEY),
+  authDomain: env(process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN),
+  projectId: env(process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID),
+  storageBucket: env(process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET),
+  appId: env(process.env.EXPO_PUBLIC_FIREBASE_APP_ID),
 };
 
 let app: FirebaseApp | null = null;
