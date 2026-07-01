@@ -155,6 +155,15 @@ function dedupById(arr) {
   return out;
 }
 
+/** In-place Fisher-Yates shuffle (runtime rotation so the feed varies per load). */
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 /**
  * Rank a raw Firestore pool into the final ordered feed.
  *
@@ -201,28 +210,26 @@ export function rankPool(pool, { userLocation = null, isHomeFeed = false } = {})
   // popular-ordered lists together.
   const orderBlock = (block) => {
     if (!block.length) return block;
-    // Primary partition: featured/promoted always lead their block.
+    // Featured/promoted always lead their block (when the data has them).
     const feat = block.filter(isFeatured);
     const rest = block.filter((l) => !isFeatured(l));
-    const zipNewestPopular = (arr) => {
-      // Two orderings of the SAME set, then interleave (dedup keeps it clean).
-      const byTierNewest = [...arr].sort((a, b) => {
-        const t = tierOf(b) - tierOf(a); if (t) return t;
-        return createdMs(b) - createdMs(a);
-      });
-      const byTierPopular = [...arr].sort((a, b) => {
-        const t = tierOf(b) - tierOf(a); if (t) return t;
-        return viewsOf(b) - viewsOf(a);
-      });
-      const mixed = [];
-      const n = Math.max(byTierNewest.length, byTierPopular.length);
-      for (let i = 0; i < n; i++) {
-        if (i < byTierNewest.length) mixed.push(byTierNewest[i]);
-        if (i < byTierPopular.length) mixed.push(byTierPopular[i]);
-      }
-      return dedupById(mixed);
+    // Within a block, group by tier (quality desc) and inside each tier
+    // INTERLEAVE a newest ordering with a SHUFFLED ordering + popularity. This
+    // keeps quality/freshness on top while ROTATING which listings surface on
+    // each load — real data has no views/featured to differentiate, so the
+    // shuffle is what stops the identical N docs repeating every visit.
+    const orderVaried = (arr) => {
+      // Quality tier stays the ordering backbone (organic+photo → import+photo …)
+      // but each tier is FULLY shuffled so the feed rotates every load instead of
+      // repeating the same first-N docs. The dedicated "Latest" section
+      // (splitSections) is what preserves strict recency; the scroll feed
+      // prioritizes variety.
+      const tiers = [...new Set(arr.map(tierOf))].sort((a, b) => b - a);
+      const out = [];
+      for (const t of tiers) out.push(...shuffle(arr.filter((l) => tierOf(l) === t)));
+      return dedupById(out);
     };
-    return [...zipNewestPopular(feat), ...zipNewestPopular(rest)];
+    return dedupById([...orderVaried(feat), ...orderVaried(rest)]);
   };
 
   // ---- #3/#9: fill in locality order, each block internally ranked/mixed.
@@ -245,6 +252,34 @@ export function rankPool(pool, { userLocation = null, isHomeFeed = false } = {})
   }
 
   return ordered;
+}
+
+/**
+ * Derive NON-OVERLAPPING Featured / Trending / Latest slices from a ranked feed.
+ * The real data carries no `featured` flag / `views`, so we derive from signals
+ * that DO exist and force the three lists disjoint (an id is used at most once):
+ *   Featured = highest-tier quality picks (organic+photo → import+photo …)
+ *   Latest   = newest by createdAt
+ *   Trending = a diverse shuffled sample of what's left
+ * @returns {{ featured: Array, trending: Array, latest: Array }}
+ */
+export function splitSections(ranked, perSection = 12) {
+  const used = new Set();
+  const take = (arr, n) => {
+    const out = [];
+    for (const l of arr) {
+      if (out.length >= n) break;
+      if (!l || !l.id || used.has(l.id)) continue;
+      used.add(l.id);
+      out.push(l);
+    }
+    return out;
+  };
+  const tierOf = buildTierFn(getRanking());
+  const featured = take([...ranked].sort((a, b) => tierOf(b) - tierOf(a) || viewsOf(b) - viewsOf(a)), perSection);
+  const latest = take([...ranked].sort((a, b) => createdMs(b) - createdMs(a)), perSection);
+  const trending = take(shuffle([...ranked]), perSection);
+  return { featured, trending, latest };
 }
 
 /**

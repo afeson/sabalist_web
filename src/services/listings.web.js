@@ -511,7 +511,8 @@ export async function getListing(listingId) {
 // categoryId== + limit — no composite index); a specific category pulls a wide
 // newest-first window (uses the existing categoryId+createdAt index).
 const POOL_CATEGORY_MAX = 300;   // single-category window (was 50)
-const POOL_PER_CATEGORY = 40;    // home: per-category sample (× visible cats ≈ 1000)
+const POOL_PER_CATEGORY = 120;   // home: per-category sample — bigger pool so the
+                                 // shuffle has real variety to rotate (was 40)
 
 /**
  * Fetch the raw Firestore pool — GLOBAL (all countries). The discovery engine
