@@ -60,6 +60,7 @@
       <a data-tab="quality">Source Quality</a>
       <a data-tab="failed">Failed Imports</a>
       <a data-tab="config">Marketplace Config</a>
+      <a data-tab="claims">Claims</a>
       <a href="./bulk-upload.html" style="margin-left:auto">⬆ Bulk Upload</a>
     </nav>
     <main>
@@ -70,6 +71,7 @@
       <section id="quality" class="hidden"></section>
       <section id="failed" class="hidden"></section>
       <section id="config" class="hidden"></section>
+      <section id="claims" class="hidden"></section>
     </main>
   </div>
 
@@ -105,11 +107,63 @@
     document.querySelectorAll('nav a').forEach((a) => a.onclick = () => {
       document.querySelectorAll('nav a').forEach((x)=>x.classList.remove('active'));
       a.classList.add('active');
-      ['overview','review','sources','sourcetoggle','quality','failed','config'].forEach((t)=>$(t).classList.toggle('hidden', t!==a.dataset.tab));
+      ['overview','review','sources','sourcetoggle','quality','failed','config','claims'].forEach((t)=>$(t).classList.toggle('hidden', t!==a.dataset.tab));
     });
     $('refreshBtn').onclick = loadAll;
 
-    async function loadAll() { await Promise.all([loadOverview(), loadReview(), loadSources(), loadSourceToggle(), loadQuality(), loadFailed(), loadConfig()]); }
+    async function loadAll() { await Promise.all([loadOverview(), loadReview(), loadSources(), loadSourceToggle(), loadQuality(), loadFailed(), loadConfig(), loadClaims()]); }
+
+    // ---- business claims (from the public /claim page) ----
+    async function loadClaims() {
+      try {
+        const snap = await db.collection('business_claims').where('status','==','pending').get();
+        const claims = []; snap.forEach((d)=>claims.push({ id:d.id, ...d.data() }));
+        claims.sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+        if (!claims.length) { $('claims').innerHTML = '<h2>Claims</h2><p style="color:#888">No pending claims.</p>'; return; }
+        $('claims').innerHTML = '<h2>Business Claims <small style="color:#888">'+claims.length+' pending</small></h2>' +
+          claims.map((c)=>(
+            '<div style="border:1px solid #ddd;border-radius:8px;padding:12px;margin:10px 0">'+
+              '<div><b>'+esc(c.sellerName||c.businessId||'?')+'</b> · '+(c.listingCount||0)+' listing(s)</div>'+
+              '<div style="color:#555;font-size:13px">'+esc(c.claimantName||'')+' &lt;'+esc(c.email||'')+'&gt; '+esc(c.phone||'')+'</div>'+
+              (c.note?'<div style="color:#555;font-size:13px;margin-top:4px">“'+esc(c.note)+'”</div>':'')+
+              '<div style="color:#999;font-size:12px;margin-top:4px">'+esc(c.businessId||'')+' · '+esc(c.createdAt||'')+'</div>'+
+              '<div style="margin-top:8px">'+
+                '<button data-approve="'+c.id+'" style="background:#0a7d33;color:#fff;border:0;border-radius:6px;padding:7px 12px;cursor:pointer">Approve</button> '+
+                '<button data-reject="'+c.id+'" style="background:#b3261e;color:#fff;border:0;border-radius:6px;padding:7px 12px;cursor:pointer">Reject</button>'+
+              '</div>'+
+            '</div>'
+          )).join('');
+        $('claims').querySelectorAll('[data-approve]').forEach((b)=>b.onclick=()=>decideClaim(b.getAttribute('data-approve'), true));
+        $('claims').querySelectorAll('[data-reject]').forEach((b)=>b.onclick=()=>decideClaim(b.getAttribute('data-reject'), false));
+      } catch (e) { $('claims').innerHTML = '<h2>Claims</h2><p style="color:#b3261e">'+esc(e.message)+'</p>'; }
+    }
+
+    async function decideClaim(claimId, approve) {
+      try {
+        const ref = db.collection('business_claims').doc(claimId);
+        const snap = await ref.get(); if (!snap.exists) return;
+        const c = snap.data();
+        if (approve) {
+          // Verify + assign ownership on the claimed listings.
+          let ids = Array.isArray(c.listingIds) ? c.listingIds.slice(0,50) : [];
+          if (!ids.length && c.businessId) {
+            const ls = await db.collection('listings').where('businessId','==',c.businessId).limit(200).get();
+            ls.forEach((d)=>ids.push(d.id));
+          }
+          for (let i=0;i<ids.length;i+=400) {
+            const batch = db.batch();
+            ids.slice(i,i+400).forEach((id)=>batch.set(db.collection('listings').doc(id),
+              { businessVerified:true, claimable:false, ownerEmail:c.email||'', updatedAt:new Date().toISOString() }, { merge:true }));
+            await batch.commit();
+          }
+          await ref.set({ status:'approved', decidedAt:new Date().toISOString(), decidedBy:auth.currentUser?.email||'', verifiedCount:ids.length }, { merge:true });
+          alert('Approved · verified '+ids.length+' listing(s).');
+        } else {
+          await ref.set({ status:'rejected', decidedAt:new Date().toISOString(), decidedBy:auth.currentUser?.email||'' }, { merge:true });
+        }
+        loadClaims();
+      } catch (e) { alert('Failed: '+e.message); }
+    }
 
     // ---- marketplace config editor ----
     const CONFIG_SCHEMA_VERSION = 1;

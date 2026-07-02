@@ -68,6 +68,19 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Business claims — a business owner submits a pending claim from the
+    // public /claim page (server route writes via the client SDK, unauthenticated).
+    // Only the admin dashboard reads/decides. Creates must be well-formed and land
+    // as 'pending' so a claim can never self-approve.
+    match /business_claims/{id} {
+      allow create: if request.resource.data.status == 'pending'
+                    && request.resource.data.email is string
+                    && request.resource.data.email.size() > 3
+                    && (request.resource.data.businessId is string
+                        || request.resource.data.sellerName is string);
+      allow read, update, delete: if isAdmin();
+    }
+
     // Deny all other collections by default
     match /{document=**} {
       allow read, write: if false;

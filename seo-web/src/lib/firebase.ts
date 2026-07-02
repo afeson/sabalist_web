@@ -21,11 +21,15 @@ const config = {
 let app: FirebaseApp | null = null;
 let dbInstance: Firestore | null = null;
 
-export function db(): Firestore {
+export function fbApp(): FirebaseApp {
   if (!config.apiKey || !config.projectId) {
     throw new Error('Missing EXPO_PUBLIC_FIREBASE_* env. Copy .env.example → .env.local');
   }
   if (!app) app = getApps().length ? getApp() : initializeApp(config);
-  if (!dbInstance) dbInstance = getFirestore(app);
+  return app;
+}
+
+export function db(): Firestore {
+  if (!dbInstance) dbInstance = getFirestore(fbApp());
   return dbInstance;
 }
