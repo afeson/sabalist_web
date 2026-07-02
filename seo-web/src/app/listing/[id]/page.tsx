@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { buildMetadata } from '@/lib/metadata';
 import { getListing, getRelatedListings } from '@/lib/listings';
@@ -9,6 +8,7 @@ import { breadcrumbSchema, productSchema } from '@/lib/schema';
 import JsonLd from '@/components/JsonLd';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import ListingGrid from '@/components/ListingGrid';
+import ContactActions from '@/components/ContactActions';
 
 export const revalidate = 86400; // ISR daily; purge on edit via revalidate webhook
 
@@ -51,10 +51,9 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         )}
         {l.location && <p style={{ color: '#555' }}>📍 {l.location}</p>}
         {l.description && <p className="intro" style={{ whiteSpace: 'pre-wrap' }}>{l.description}</p>}
-        <p style={{ marginTop: 20 }}>
-          {/* Interactive actions (contact/chat/favorite) live in the app */}
-          <Link href={`/app/listing/${id}`} className="brand">Contact seller on Sabalist →</Link>
-        </p>
+        {/* Direct contact CTAs (WhatsApp/call/email) convert Google visitors;
+            falls back to the app link when the listing carries no contact. */}
+        <ContactActions listing={l} path={`/listing/${id}`} />
       </article>
       {related.length > 0 && (
         <section style={{ marginTop: 36 }}>

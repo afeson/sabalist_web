@@ -31,10 +31,16 @@ export function breadcrumbSchema(items: { name: string; url: string }[]) {
 }
 export function productSchema(l: Listing, path: string) {
   const p = normalisePrice(l);
+  const CONDITION: Record<string, string> = {
+    new: 'https://schema.org/NewCondition',
+    refurbished: 'https://schema.org/RefurbishedCondition',
+    used: 'https://schema.org/UsedCondition',
+  };
   const offer: any = {
     '@type': 'Offer', url: canonical(path),
     availability: l.status === 'sold' ? 'https://schema.org/SoldOut' : 'https://schema.org/InStock',
-    itemCondition: 'https://schema.org/UsedCondition',
+    itemCondition: CONDITION[String(l.condition || '').toLowerCase()] || 'https://schema.org/UsedCondition',
+    seller: { '@type': 'Organization', name: l.sellerName || 'Sabalist' },
   };
   if (p.priceType === PRICE_TYPES.FREE) { offer.price = 0; offer.priceCurrency = p.currency; }
   else if (p.priceType === PRICE_TYPES.FIXED || p.priceType === PRICE_TYPES.NEGOTIABLE) {

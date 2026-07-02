@@ -25,6 +25,9 @@ export type Listing = {
   priceType?: string; amount?: number; minAmount?: number; maxAmount?: number;
   currency?: string; price?: number; displayPriceText?: string; isNegotiable?: boolean;
   updatedAt?: any; createdAt?: any;
+  // Contact + provenance (present in Firestore; surfaced for CTAs + schema).
+  phoneNumber?: string; whatsapp?: string; email?: string; website?: string;
+  sellerName?: string; condition?: string; country?: string; city?: string;
 };
 
 function toListing(id: string, d: any): Listing {
@@ -120,5 +123,14 @@ export async function getAllActiveListingsForImages(): Promise<Listing[]> {
 function dedupe(arr: Listing[]): Listing[] {
   const seen = new Set<string>(); const out: Listing[] = [];
   for (const l of arr) { if (!seen.has(l.id)) { seen.add(l.id); out.push(l); } }
+  return out;
+}
+
+// One read of the whole active collection — used by the sitemap routes so they
+// tally counts in memory instead of firing hundreds of per-bucket queries.
+export async function getAllActiveListings(): Promise<Listing[]> {
+  const snap = await getDocs(collection(db(), 'listings'));
+  const out: Listing[] = [];
+  snap.forEach((s) => { const l = toListing(s.id, s.data()); if (isActive(l)) out.push(l); });
   return out;
 }
