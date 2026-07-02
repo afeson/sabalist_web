@@ -15,5 +15,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...GUIDES.map((g) => ({ url: `${SITE.url}/guides/${g.slug}`, lastModified: new Date(g.updated), changeFrequency: 'monthly' as const, priority: 0.5 })),
     ...CATEGORIES.map((c) => ({ url: `${SITE.url}/category/${c.id}`, lastModified: now, changeFrequency: 'daily' as const, priority: 0.8 })),
     ...COUNTRIES.map((c) => ({ url: `${SITE.url}/${c.slug}`, lastModified: now, changeFrequency: 'weekly' as const, priority: 0.6 })),
+    // City hubs — now populated via the country-query fix, so worth sitemapping
+    // directly (city×category pages stay crawl-discovered + INDEX_MIN gated).
+    ...COUNTRIES.flatMap((c) => c.cities.map((ci) => ({
+      url: `${SITE.url}/${c.slug}/${ci.slug}`, lastModified: now, changeFrequency: 'daily' as const, priority: 0.7,
+    }))),
   ];
 }
