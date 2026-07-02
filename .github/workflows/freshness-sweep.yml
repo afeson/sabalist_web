@@ -1,0 +1,43 @@
+name: Freshness sweep (feed relevance)
+
+# Retires stale deadweight listings so the discovery feed stays live & local.
+# Dispatch-only + dry-run by default so the impact is visible before anything
+# changes. Reversible (status flip to 'expired'). See ingestion/freshness-sweep.js.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'dry_run (report only) or apply (expire candidates)'
+        type: choice
+        options: [dry_run, apply]
+        default: dry_run
+      ttl_days:
+        description: 'Stale if not updated in this many days'
+        default: '120'
+      low_quality_only:
+        description: "1 = only expire stale listings missing a photo OR contact; 0 = all stale"
+        default: '1'
+
+concurrency:
+  group: freshness-sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Run freshness sweep
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          APPLY: ${{ github.event.inputs.mode == 'apply' && '1' || '0' }}
+          TTL_DAYS: ${{ github.event.inputs.ttl_days }}
+          LOW_QUALITY_ONLY: ${{ github.event.inputs.low_quality_only }}
+        run: node freshness-sweep.js
