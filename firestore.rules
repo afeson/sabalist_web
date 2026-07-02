@@ -4,18 +4,38 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // Listings collection
-    // Native iOS/Android uses @react-native-firebase/auth but JS SDK Firestore,
-    // so request.auth may be null on native. Validate userId field instead.
-    // For delete we check resource.data (existing doc) rather than
-    // request.resource.data (which is null on delete).
+    // IMPORTANT CONSTRAINT: native iOS/Android use @react-native-firebase/auth
+    // for auth but the Firebase JS SDK for Firestore (separate app instance), so
+    // request.auth is ALWAYS null on native writes — a logged-in native user is
+    // indistinguishable from an anonymous caller at this layer. We therefore
+    // cannot require auth for writes without breaking the shipped apps (fixing
+    // that needs an app-side auth change, deliberately out of scope). Instead we
+    // harden the anonymous branch as much as possible without breaking native.
     match /listings/{listingId} {
       allow read: if true;
+
+      // Authenticated (web) OR a well-formed anonymous write (native). Requiring
+      // an owner id + a title stops the anonymous branch from injecting blank or
+      // garbage documents. Native createListing always sends userId + title.
       allow create: if request.auth != null
                     || (request.resource.data.userId is string
-                        && request.resource.data.userId.size() > 0);
+                        && request.resource.data.userId.size() > 0
+                        && request.resource.data.title is string
+                        && request.resource.data.title.size() > 0);
+
+      // Authenticated OR anonymous ONLY IF ownership is preserved. Native edit /
+      // mark-sold / reactivate / view-counting never change userId, so they pass;
+      // this blocks an anonymous caller from hijacking a listing to a new owner
+      // or blindly rewriting a doc whose owner id it doesn't already preserve.
       allow update: if request.auth != null
-                    || (request.resource.data.userId is string
-                        && request.resource.data.userId.size() > 0);
+                    || request.resource.data.userId == resource.data.userId;
+
+      // Authenticated OR the native (unauthenticated) delete path. NOTE: native
+      // hard-deletes over an unauthenticated SDK and carries no request body, so
+      // a native delete is indistinguishable from an anonymous one and CANNOT be
+      // locked here without breaking the apps. Compensating controls (owner's
+      // choice): scheduled Firestore backups + bulk-delete alerting. Do NOT
+      // change this to request.auth-only — it will break native delete.
       allow delete: if request.auth != null
                     || (resource.data.userId is string
                         && resource.data.userId.size() > 0);
