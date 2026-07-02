@@ -11,7 +11,10 @@
     "test": "node test/pipeline.test.js"
   },
   "dependencies": {
-    "firebase-admin": "^12.7.0"
+    "firebase-admin": "^12.7.0",
+    "xlsx": "^0.18.5"
   },
-  "engines": { "node": ">=18" }
+  "engines": {
+    "node": ">=18"
+  }
 }
