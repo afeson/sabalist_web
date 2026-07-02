@@ -167,6 +167,20 @@ function AppContent() {
         body, #root {
           overflow-y: auto;
         }
+
+        /* The Metro web export mounts into public/index.html's #root, which
+           still carries the SPLASH styling (centered flex + red gradient). Once
+           the React app mounts we must reset #root so the app fills the viewport
+           instead of collapsing to 0 height and showing the red background. */
+        html, body, #root { height: 100%; width: 100%; margin: 0; padding: 0; }
+        #root {
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: stretch !important;
+          justify-content: flex-start !important;
+          background: #ffffff !important;
+          color: initial !important;
+        }
       `;
       document.head.appendChild(style);
 
