@@ -48,7 +48,9 @@ export async function POST(req: NextRequest) {
   if (!authorized(req)) {
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
   }
-  const key = process.env.ANTHROPIC_API_KEY;
+  // Trim: env values set via a shell prompt can pick up a trailing \n/space,
+  // which makes Anthropic reject the header as "invalid x-api-key".
+  const key = process.env.ANTHROPIC_API_KEY?.trim();
   if (!key) {
     return NextResponse.json({ ok: false, error: 'AI is not configured (missing ANTHROPIC_API_KEY).' }, { status: 503 });
   }
