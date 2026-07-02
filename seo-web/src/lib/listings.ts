@@ -70,10 +70,14 @@ export async function getListingsBySubcategory(categoryId: string, subId: string
   return base.filter((l) => (l.subcategory || '') === subId).slice(0, max);
 }
 
-// Location pages: filter by free-text location against the city's matchTerms.
+// Location pages: match the city against BOTH the free-text `location` string
+// and the structured `city`/`region` fields the ingestion pipeline sets
+// (ingestion/lib/geo.js). Many listings have a detected structured city but a
+// location string that doesn't name it — matching location alone starved the
+// city pages (they fell below the index threshold and were noindex'd).
 function matchesCity(l: Listing, city: City): boolean {
-  const loc = (l.location || '').toLowerCase();
-  return city.matchTerms.some((t) => loc.includes(t.toLowerCase()));
+  const hay = `${l.location || ''} ${l.city || ''} ${(l as any).region || ''}`.toLowerCase();
+  return city.matchTerms.some((t) => hay.includes(t.toLowerCase()));
 }
 export async function getListingsByCity(country: Country, city: City, categoryId?: string, max = 60): Promise<Listing[]> {
   const pool = categoryId
