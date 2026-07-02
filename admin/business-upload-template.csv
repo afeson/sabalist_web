@@ -1,0 +1,6 @@
+sku,title,description,price,currency,category,subcategory,images,seller,country,city,phone
+EL-1001,Samsung Galaxy A15 128GB,Brand new sealed Android smartphone with warranty,185000,NGN,phones-tablets,smartphones,https://example.com/a15-1.jpg|https://example.com/a15-2.jpg,Acme Electronics,Nigeria,Lagos,+2348012345678
+EL-1002,HP EliteBook 840 G8 i7,Refurbished business laptop 16GB RAM 512GB SSD,420000,NGN,computers,laptops,https://example.com/hp840.jpg,Acme Electronics,Nigeria,Lagos,+2348012345678
+EL-1003,Sony WH-1000XM5 Headphones,Noise-cancelling over-ear wireless headphones,240000,NGN,electronics,audio-speakers,https://example.com/xm5.jpg,Acme Electronics,Nigeria,Lagos,+2348012345678
+FA-2001,Men's Leather Loafers,Handmade genuine leather shoes sizes 40-46,35000,NGN,fashion,shoes,https://example.com/loafers.jpg,Acme Electronics,Nigeria,Lagos,+2348012345678
+XX-9001,Mystery Item,This row has an unmappable category to prove error reporting,1000,NGN,not-a-real-category,,https://example.com/x.jpg,Acme Electronics,Nigeria,Lagos,+2348012345678

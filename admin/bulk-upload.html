@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sabalist — Business Bulk Upload</title>
+<style>
+  :root { --pink:#E6006E; --ink:#1f2430; --muted:#6b7280; --line:#e5e7eb; --ok:#0a7d33; --err:#b3261e; }
+  * { box-sizing:border-box; } body { margin:0; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--ink); background:#f7f7f8; }
+  header { background:#fff; border-bottom:1px solid var(--line); padding:14px 20px; display:flex; align-items:center; gap:10px; }
+  header b { color:var(--pink); font-size:18px; }
+  .wrap { max-width:900px; margin:24px auto; padding:0 16px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:16px; }
+  h2 { font-size:16px; margin:0 0 12px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
+  input[type=text], input[type=file] { width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:8px; font-size:14px; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; } .row > div { flex:1; min-width:180px; }
+  button { background:var(--pink); color:#fff; border:0; border-radius:8px; padding:10px 16px; font-size:14px; font-weight:600; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  .muted { color:var(--muted); font-size:13px; }
+  .bar { height:10px; background:#eee; border-radius:6px; overflow:hidden; margin:10px 0; }
+  .bar > i { display:block; height:100%; background:var(--pink); width:0; transition:width .2s; }
+  table { width:100%; border-collapse:collapse; font-size:13px; } td,th { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+  .ok { color:var(--ok); } .err { color:var(--err); }
+  pre { background:#fafafa; border:1px solid var(--line); border-radius:8px; padding:10px; max-height:240px; overflow:auto; font-size:12px; }
+  code { background:#f3f4f6; padding:1px 5px; border-radius:4px; }
+  a.dl { color:var(--pink); font-size:13px; }
+</style>
+</head>
+<body>
+<header><b>Sabalist</b> · Business Bulk Upload</header>
+<div class="wrap">
+
+  <div class="card" id="loginCard">
+    <h2>Sign in</h2>
+    <p class="muted" id="loginMsg">Sign in with an authorized account to upload.</p>
+    <button id="loginBtn">Sign in with Google</button>
+  </div>
+
+  <div class="card" id="appCard" style="display:none">
+    <h2>1 · Business details</h2>
+    <div class="row">
+      <div><label>Business name *</label><input id="bizName" type="text" placeholder="e.g. Acme Electronics" /></div>
+      <div><label>Default country</label><input id="country" type="text" placeholder="e.g. Nigeria" /></div>
+      <div><label>Default city</label><input id="city" type="text" placeholder="e.g. Lagos" /></div>
+    </div>
+    <p class="muted" style="margin-top:10px">
+      Columns accepted (any order, flexible names): <code>title/name</code>, <code>description</code>, <code>price</code>,
+      <code>currency</code>, <code>category</code>, <code>subcategory</code>, <code>images</code> (URLs separated by <code>| , ;</code>),
+      <code>seller</code>, <code>country</code>, <code>city</code>, <code>phone</code>, <code>sku/id</code>.
+      &nbsp;<a class="dl" href="./business-upload-template.csv" download>Download CSV template</a>
+    </p>
+
+    <h2 style="margin-top:18px">2 · Choose file (CSV or Excel)</h2>
+    <input id="file" type="file" accept=".csv,.tsv,.txt,.xlsx,.xls" />
+    <div style="margin-top:14px">
+      <button id="dryBtn">Validate only (dry run)</button>
+      <button id="importBtn">Import to Sabalist</button>
+    </div>
+
+    <div id="progressWrap" style="display:none;margin-top:16px">
+      <div class="bar"><i id="bar"></i></div>
+      <div class="muted" id="progressText"></div>
+    </div>
+
+    <div id="report" style="margin-top:16px"></div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="./config.js"></script>
+<script>
+// ---- Taxonomy (mirror of src/config/categories.js ids + subs) ----
+const CATS = {
+  vehicles:['cars','motorcycles','trucks','buses','bicycles','boats','spare-parts'],
+  'real-estate':['houses-sale','houses-rent','apartments','land','commercial-property','short-let'],
+  electronics:['tvs','audio-speakers','cameras','gaming-consoles','smart-devices','wearables','accessories'],
+  'phones-tablets':['smartphones','feature-phones','tablets','phone-accessories','sim-cards'],
+  computers:['laptops','desktops','components','printers','networking','software'],
+  fashion:['mens-clothing','womens-clothing','shoes','bags','accessories','watches-jewelry','traditional-wear'],
+  beauty:['skincare','makeup','haircare','fragrances','beauty-tools'],
+  'home-furniture':['sofas-chairs','beds-mattresses','tables-desks','wardrobes','kitchen','decor','home-appliances','office-furniture'],
+  jobs:['full-time','part-time','freelance','internships','remote'],
+  services:['cleaning','electrical','plumbing','graphic-design','tutoring','photography','beauty-services'],
+  food:['restaurants','catering','groceries','bakery','beverages'],
+  agriculture:['crops','seeds','fertilizers','farm-equipment','livestock-feed'],
+  'animals-pets':['dogs','cats','birds','livestock','pet-accessories','pet-food'],
+  'baby-kids':['baby-clothing','toys','strollers','school-supplies','baby-food'],
+  'sports-fitness':['gym-equipment','cycling','outdoor','team-sports','sports-apparel'],
+  'business-industrial':['office-equipment','machinery','wholesale','industrial-tools'],
+  'events-tickets':['concerts','sports-events','theater','festivals','conferences'],
+  education:['books','courses','tutoring-edu','stationery'],
+  travel:['flights','hotels','tours','luggage','travel-gear'],
+  construction:['building-materials','cement-mixers','generators','excavators','power-tools','drilling-machines'],
+  'repair-services':['car-repair','phone-repair','appliance-repair','plumbing-repair','electrical-repair'],
+  rentals:['equipment-rentals','car-rentals','property-rentals','event-rentals'],
+  entertainment:['music','movies','games','instruments','art-collectibles'],
+  community:['lost-found','free-items','volunteers','announcements'],
+  other:[],
+};
+const ALIASES = { 'real estate':'real-estate','property':'real-estate','property / real estate':'real-estate','phones':'phones-tablets','phone':'phones-tablets','phones & tablets':'phones-tablets','mobile':'phones-tablets','cars':'vehicles','car':'vehicles','automobile':'vehicles','autos':'vehicles','electronic':'electronics','computer':'computers','pc':'computers','laptops':'computers','clothing':'fashion','clothes':'fashion','apparel':'fashion','job':'jobs','service':'services','foods':'food','restaurant':'food','pets':'animals-pets','animals':'animals-pets','pet':'animals-pets','baby':'baby-kids','kids':'baby-kids','sports':'sports-fitness','fitness':'sports-fitness','business':'business-industrial','industrial':'business-industrial','events':'events-tickets','tickets':'events-tickets','event':'events-tickets','school':'education','books':'education','hotel':'travel','tourism':'travel','repair':'repair-services','rental':'rentals','rent':'rentals','home':'home-furniture','furniture':'home-furniture','home & furniture':'home-furniture' };
+function resolveCategory(s){ const n=(s||'').trim().toLowerCase(); if(!n)return null; if(CATS[n])return n; const slug=n.replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); if(CATS[slug])return slug; if(ALIASES[n])return ALIASES[n]; if(ALIASES[slug])return ALIASES[slug]; return null; }
+function classifySub(catId, title, desc){ const subs=CATS[catId]||[]; if(!subs.length)return ''; const t=((title||'')+' '+(desc||'')).toLowerCase(); for(const s of subs){ const kw=s.replace(/-/g,' '); if(t.includes(kw)||t.includes(s))return s; } return ''; }
+
+// ---- header aliases ----
+const FIELD = { title:['title','name','product','product_name','productname','item','item_name'], description:['description','desc','details','about','summary','body'], price:['price','amount','cost','value'], currency:['currency','cur','ccy'], images:['images','image','image_url','image_urls','imageurl','photo','photos','picture','pictures','img'], category:['category','cat','department','category_name'], subcategory:['subcategory','subcat','sub_category'], sellerName:['seller','seller_name','business','business_name','store','shop','vendor','brand'], country:['country'], city:['city','town'], location:['location','address','area','place'], phoneNumber:['phone','phone_number','phonenumber','tel','mobile','whatsapp','contact'], externalId:['id','sku','external_id','externalid','product_id','productid','code','ref','reference'] };
+const HMAP={}; for(const [c,a] of Object.entries(FIELD)) for(const x of a) HMAP[x]=c;
+const nk=(k)=>String(k||'').trim().toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+const splitImages=(s)=>String(s||'').split(/[|,;\n]+/).map(x=>x.trim()).filter(x=>/^https?:\/\//i.test(x));
+function normRow(row){ const o={}; for(const [k,v] of Object.entries(row)){ const c=HMAP[nk(k)]; if(c&&v!=null&&String(v).trim()!=='') o[c]=String(v).trim(); } return o; }
+
+async function sha1hex16(s){ const buf=await crypto.subtle.digest('SHA-1', new TextEncoder().encode(s)); return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,16); }
+const slug=(s)=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40)||'x';
+
+let db, currentUser;
+const $=(id)=>document.getElementById(id);
+
+// ---- auth ----
+window.addEventListener('DOMContentLoaded', ()=>{
+  if (typeof CFG==='undefined' || !CFG || !CFG.firebase){ $('loginMsg').textContent='Missing admin/config.js (copy from config.example.js).'; return; }
+  firebase.initializeApp(CFG.firebase);
+  db = firebase.firestore();
+  const isAllowed=(u)=> u && (!CFG.adminEmails || CFG.adminEmails.length===0 || CFG.adminEmails.map(e=>e.toLowerCase()).includes((u.email||'').toLowerCase()));
+  $('loginBtn').onclick=()=> firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e=>$('loginMsg').textContent=e.message);
+  firebase.auth().onAuthStateChanged(u=>{ currentUser=u; if(isAllowed(u)){ $('loginCard').style.display='none'; $('appCard').style.display='block'; } else { $('loginCard').style.display='block'; $('appCard').style.display='none'; if(u)$('loginMsg').textContent='Account '+u.email+' is not authorized.'; } });
+  $('dryBtn').onclick=()=>run(true);
+  $('importBtn').onclick=()=>run(false);
+});
+
+function parseFile(file){ return new Promise((res,rej)=>{ const ext=(file.name.split('.').pop()||'').toLowerCase(); const rd=new FileReader(); rd.onerror=()=>rej(new Error('read failed')); if(['csv','tsv','txt'].includes(ext)){ rd.onload=()=>{ const r=Papa.parse(rd.result,{header:true,skipEmptyLines:true}); res(r.data); }; rd.readAsText(file); } else { rd.onload=()=>{ const wb=XLSX.read(new Uint8Array(rd.result),{type:'array'}); res(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''})); }; rd.readAsArrayBuffer(file); } }); }
+
+async function run(dry){
+  const file=$('file').files[0]; const bizName=$('bizName').value.trim();
+  if(!bizName){ alert('Enter a business name'); return; }
+  if(!file){ alert('Choose a CSV or Excel file'); return; }
+  const sourceId='business-'+slug(bizName), businessId=sourceId;
+  const defCountry=$('country').value.trim(), defCity=$('city').value.trim();
+  $('dryBtn').disabled=$('importBtn').disabled=true; $('report').innerHTML=''; $('progressWrap').style.display='block'; $('bar').style.width='0'; $('progressText').textContent='Parsing…';
+
+  let rows; try { rows=await parseFile(file); } catch(e){ $('progressText').textContent='Parse error: '+e.message; done(); return; }
+
+  const errors=[], drafts=[];
+  rows.forEach((raw,i)=>{ const rn=i+2; const r=normRow(raw);
+    if(!r.title){ errors.push({row:rn,error:'missing title'}); return; }
+    const cat=resolveCategory(r.category); if(!cat){ errors.push({row:rn,error:'unmappable category "'+(r.category||'')+'"',title:r.title}); return; }
+    const images=splitImages(r.images);
+    let sub=(r.subcategory && CATS[cat].includes(r.subcategory))?r.subcategory:''; if(!sub) sub=classifySub(cat,r.title,r.description);
+    const amt=r.price!=null&&r.price!==''?Number(String(r.price).replace(/[^0-9.]/g,'')):NaN;
+    const country=r.country||defCountry||'', city=r.city||defCity||'';
+    drafts.push({ externalId:r.externalId||'', title:r.title, description:r.description||'', amount:isFinite(amt)?amt:null, currency:(r.currency||'USD').toUpperCase(), categoryId:cat, subcategory:sub, images, coverImage:images[0]||'', country, city, location:r.location||[city,country].filter(Boolean).join(', '), phoneNumber:r.phoneNumber||'', sellerName:r.sellerName||bizName });
+  });
+  $('progressText').textContent='Valid rows: '+drafts.length+' · Errors: '+errors.length+' · loading existing…';
+
+  // preload existing for dedup
+  const existing=new Map();
+  try { const snap=await db.collection('listings').where('source','==',sourceId).get(); snap.forEach(d=>{const x=d.data(); if(x.sourceKey) existing.set(x.sourceKey,{id:d.id,fingerprint:x.fingerprint});}); } catch(e){}
+
+  const now=new Date().toISOString(); let inserted=0,updated=0,unchanged=0; const seen=new Set();
+  let batch=db.batch(), ops=0;
+  const commit=async()=>{ if(ops>0&&!dry){ await batch.commit(); batch=db.batch(); ops=0; } };
+  for(let i=0;i<drafts.length;i++){ const d=drafts[i];
+    const idPart=d.externalId||(d.title+'|'+(d.amount||'')+'|'+d.location);
+    const sourceKey=sourceId+':'+await sha1hex16(idPart.toLowerCase());
+    const fingerprint=await sha1hex16([d.categoryId,d.title.toLowerCase(),(d.city||'').toLowerCase(),Math.round(Number(d.amount)||0)].join('|'));
+    if(seen.has(sourceKey)){ unchanged++; } else { seen.add(sourceKey);
+      const doc={ title:d.title, description:d.description, price:Number(d.amount)||0, amount:isFinite(d.amount)?d.amount:null, priceType:Number(d.amount)>0?'fixed':'none', currency:d.currency, categoryId:d.categoryId, category:d.categoryId, subcategory:d.subcategory, country:d.country, city:d.city, location:d.location, images:d.images, coverImage:d.coverImage, hasImage:!!(d.coverImage||d.images.length), phoneNumber:d.phoneNumber, status:'active', views:0, source:sourceId, sourceKey, fingerprint, userId:businessId, businessId, sellerName:d.sellerName, businessVerified:false, claimable:true, updatedAt:now };
+      const ex=existing.get(sourceKey);
+      if(ex){ if(ex.fingerprint&&ex.fingerprint===fingerprint){ unchanged++; } else { if(!dry){ batch.set(db.collection('listings').doc(ex.id),doc,{merge:true}); ops++; } updated++; } }
+      else { doc.importedAt=now; doc.createdAt=now; if(!dry){ batch.set(db.collection('listings').doc(),doc); ops++; } inserted++; }
+      if(ops>=400) await commit();
+    }
+    if(i%25===0){ const p=Math.round((i+1)/drafts.length*100); $('bar').style.width=p+'%'; $('progressText').textContent=(dry?'Validating ':'Importing ')+(i+1)+'/'+drafts.length; }
+  }
+  await commit(); $('bar').style.width='100%';
+
+  let html='<h2>'+(dry?'Dry run — no writes':'Import complete')+'</h2>';
+  html+='<table><tr><th>Rows</th><th>Valid</th><th>Inserted</th><th>Updated</th><th>Unchanged</th><th>Errors</th></tr>';
+  html+='<tr><td>'+rows.length+'</td><td>'+drafts.length+'</td><td class=ok>'+inserted+'</td><td>'+updated+'</td><td>'+unchanged+'</td><td class=err>'+errors.length+'</td></tr></table>';
+  if(errors.length){ html+='<p class="muted" style="margin-top:10px">Errors:</p><pre>'+errors.slice(0,100).map(e=>'row '+e.row+': '+e.error+(e.title?' ['+e.title+']':'')).join('\n')+'</pre>'; }
+  $('report').innerHTML=html; $('progressText').textContent='Done.'; done();
+}
+function done(){ $('dryBtn').disabled=$('importBtn').disabled=false; }
+</script>
+</body>
+</html>
