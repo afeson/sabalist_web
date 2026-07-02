@@ -80,10 +80,30 @@ function matchesCity(l: Listing, city: City): boolean {
   return city.matchTerms.some((t) => hay.includes(t.toLowerCase()));
 }
 export async function getListingsByCity(country: Country, city: City, categoryId?: string, max = 60): Promise<Listing[]> {
-  const pool = categoryId
-    ? await getListingsByCategory(categoryId, 300)
-    : await getRecentListings(400);
-  return pool.filter((l) => matchesCity(l, city)).slice(0, max);
+  // Query the country's inventory directly (equality on `country` uses Firestore's
+  // automatic single-field index — no composite index needed) instead of filtering
+  // a small "recent" sample, which almost never contained a given city's listings.
+  const pool: Listing[] = [];
+  try {
+    const snap = await getDocs(query(collection(db(), 'listings'), where('country', '==', country.name), qlimit(1000)));
+    snap.forEach((s) => pool.push(toListing(s.id, s.data())));
+  } catch { /* fall back to the sample below */ }
+  // Supplement when the structured country field is sparse for this country.
+  if (pool.length < 50) {
+    const sample = categoryId ? await getListingsByCategory(categoryId, 300) : await getRecentListings(400);
+    pool.push(...sample);
+  }
+  const catKey = categoryId ? getCategory(categoryId)?.key : undefined;
+  const seen = new Set<string>();
+  const out: Listing[] = [];
+  for (const l of pool) {
+    if (seen.has(l.id)) continue;
+    seen.add(l.id);
+    if (!isActive(l) || !matchesCity(l, city)) continue;
+    if (categoryId && l.categoryId !== categoryId && l.category !== catKey && l.category !== categoryId) continue;
+    out.push(l);
+  }
+  return out.slice(0, max);
 }
 export async function countListingsByCity(country: Country, city: City, categoryId?: string): Promise<number> {
   return (await getListingsByCity(country, city, categoryId, 1000)).length;
