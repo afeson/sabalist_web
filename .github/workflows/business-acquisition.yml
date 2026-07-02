@@ -1,0 +1,50 @@
+name: Business Acquisition Engine (claim + AI enrich)
+
+# Post-processing for imported African businesses:
+#   Phase 1 — backfill claim fields on OSM businesses (→ /claim + AI Assistant)
+#   Phase 2 — AI-enrich their descriptions (budgeted; needs ANTHROPIC_API_KEY)
+# Discovery/import itself runs weekly in sync-directories.yml. Set the `import`
+# input to also run the OSM crawl first (manual full run).
+on:
+  schedule:
+    - cron: '0 5 * * 2,5'   # Tue + Fri 05:00 UTC — process the backlog gradually
+  workflow_dispatch:
+    inputs:
+      max_enrich:
+        description: 'Max listings to AI-enrich this run (cost cap)'
+        default: '300'
+      import:
+        description: 'Also run the OSM import first (heavy, ~weekly is enough)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: business-acquisition
+  cancel-in-progress: false
+
+jobs:
+  acquire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Import (optional)
+        if: ${{ github.event.inputs.import == 'true' }}
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          node sync.js --source osm-africa-businesses --expire
+          node sync.js --source osm-diaspora-african --expire
+      - name: Claim backfill + AI enrichment
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          MAX_ENRICH: ${{ github.event.inputs.max_enrich || '300' }}
+        run: node business-acquisition.js

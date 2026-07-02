@@ -233,6 +233,7 @@ module.exports = {
     id: 'osm-africa-businesses',
     name: 'OpenStreetMap — Africa businesses/services/tourism/education (Overpass, ODbL)',
     enabled: true,
+    business: true, // imported as claimable businesses (→ /claim + AI Assistant)
     ownerUserId: 'imported-listings',
     region: 'Africa',
     license: 'OpenStreetMap (ODbL) — © OpenStreetMap contributors; attribution via sourceUrl.',

@@ -34,6 +34,12 @@ function verifyImages(images = []) {
   return { images: valid, removed: (images || []).length - valid.length };
 }
 
+// Stable business id from a name — MUST match the /api/claim search slug so an
+// owner searching their business name finds these imported listings.
+function slugBusinessId(s) {
+  return 'business-' + (String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'x');
+}
+
 /** Build the canonical Sabalist listing document from a processed draft. */
 function toListingDoc(draft, meta) {
   return {
@@ -69,6 +75,16 @@ function toListingDoc(draft, meta) {
     importedAt: meta.now,
     updatedAt: meta.now,
     qualityScore: meta.qualityScore,
+    // Business-directory sources (e.g. OSM shops): make the imported business
+    // claimable so an owner can take it over via /claim and then add real
+    // product listings with the AI Listing Assistant. Non-business sources
+    // (jobs, products, events) are unaffected.
+    ...(meta.business ? {
+      sellerName: draft.title || '',
+      businessId: slugBusinessId(draft.title),
+      claimable: true,
+      businessVerified: false,
+    } : {}),
   };
 }
 
@@ -114,7 +130,7 @@ async function processRecord(raw, source, store, opts = {}) {
   // identity + fingerprint
   const sourceKey = dedup.sourceKey(source.id, raw);
   const fingerprint = dedup.fingerprint(draft);
-  const meta = { sourceId: source.id, sourceKey, fingerprint, ownerUserId: source.ownerUserId, now, qualityScore: q.score };
+  const meta = { sourceId: source.id, sourceKey, fingerprint, ownerUserId: source.ownerUserId, now, qualityScore: q.score, business: !!source.business };
 
   // Hard rejects.
   if (q.isSpam) return { decision: 'reject', reason: 'spam', meta, issues: q.issues };

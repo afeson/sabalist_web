@@ -36,6 +36,7 @@ module.exports = {
     id: 'osm-diaspora-african',
     name: 'OpenStreetMap — African diaspora businesses (Overpass, ODbL)',
     enabled: true,
+    business: true, // claimable businesses (→ /claim + AI Assistant)
     format: 'json',
     fetch: {
       type: 'http', method: 'POST', url: 'https://overpass-api.de/api/interpreter',
