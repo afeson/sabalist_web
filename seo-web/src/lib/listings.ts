@@ -27,6 +27,7 @@ export type Listing = {
   updatedAt?: any; createdAt?: any;
   // Contact + provenance (present in Firestore; surfaced for CTAs + schema).
   phoneNumber?: string; whatsapp?: string; email?: string; website?: string;
+  sourceUrl?: string; url?: string;
   sellerName?: string; condition?: string; country?: string; city?: string;
 };
 

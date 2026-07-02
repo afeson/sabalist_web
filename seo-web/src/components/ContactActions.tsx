@@ -14,7 +14,8 @@ export default function ContactActions({ listing, path }: { listing: Listing; pa
   const waNum = digits(listing.whatsapp || listing.phoneNumber);
   const tel = (listing.phoneNumber || '').trim();
   const email = (listing.email || '').trim();
-  const website = (listing.website || '').trim();
+  // A directory listing's contact is often its source/detail URL — surface it too.
+  const website = (listing.website || listing.sourceUrl || listing.url || '').trim();
 
   const waText = encodeURIComponent(`Hi, I'm interested in your listing "${listing.title}" on Sabalist — ${url}`);
   const btn: React.CSSProperties = {
