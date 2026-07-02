@@ -1,0 +1,38 @@
+name: Backup listings (daily)
+
+# Streams the entire `listings` collection to an NDJSON snapshot and uploads it
+# as a build artifact (retained 90 days) so listings can be restored after
+# tampering or mass-deletion. Read-only over listings. For point-in-time
+# recovery, ALSO enable Firestore managed backups in the Firebase console.
+on:
+  schedule:
+    - cron: '0 2 * * *'    # 02:00 UTC daily
+  workflow_dispatch:
+
+concurrency:
+  group: backup-listings
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Export listings
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node backup-listings.js listings-backup.ndjson
+      - name: Upload snapshot artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: listings-backup-${{ github.run_id }}
+          path: ingestion/listings-backup.ndjson
+          retention-days: 90
+          compression-level: 9

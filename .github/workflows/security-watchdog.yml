@@ -1,0 +1,33 @@
+name: Security watchdog (delete detection)
+
+# Detects sudden mass-deletion of the `listings` collection (which the Firestore
+# rules can't block because native writes are unauthenticated). Compares the
+# current count to the previous run; on a suspicious drop it writes an alert doc,
+# posts to Slack (if SLACK_WEBHOOK is set), and FAILS this job so GitHub emails
+# the repo owner. Read-only over listings.
+on:
+  schedule:
+    - cron: '15 */6 * * *'   # every 6 hours
+  workflow_dispatch:
+
+concurrency:
+  group: security-watchdog
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Run watchdog
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: node security-watchdog.js
