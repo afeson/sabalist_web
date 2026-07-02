@@ -3,9 +3,15 @@ module.exports = ({ config }) => {
   // - EAS builds (EAS_BUILD=true)
   // - expo prebuild (creates android/ios folders)
   // - expo run:android / run:ios
-  // Exclude ONLY for web (expo start --web)
+  // Exclude for ANY web build: `expo start --web` AND `expo export -p web`
+  // (the Vercel deploy command). Web doesn't need native config plugins, and
+  // loading them breaks the web export when an Android/iOS-only plugin module
+  // (e.g. ./plugins/withAndroidCoreLibraryDesugaring) isn't resolvable.
+  const argv = process.argv.join(' ');
   const isWebOnly = process.env.EXPO_PUBLIC_PLATFORM === 'web' ||
-    (process.argv.some(arg => arg.includes('start')) && process.argv.some(arg => arg.includes('--web')));
+    (argv.includes('start') && argv.includes('--web')) ||
+    (argv.includes('export') && (argv.includes('-p web') || argv.includes('--platform web') ||
+      argv.includes('-p=web') || argv.includes('--platform=web')));
 
   // Native plugins - always include unless explicitly web-only
   const plugins = isWebOnly
@@ -192,7 +198,9 @@ module.exports = ({ config }) => {
       // references its bundle/assets at /app/_expo/...; front it with the Next
       // rewrite /app/:path* -> ${SPA_ORIGIN}/:path* (which strips /app).
       // Set EXPO_WEB_BASE_URL='' to serve the SPA at root again (pre-migration).
-      baseUrl: process.env.EXPO_WEB_BASE_URL ?? '/app',
+      // Root by default (the SPA lives at the root of app.sabalist.com).
+      // Set EXPO_WEB_BASE_URL only if hosting the SPA under a sub-path.
+      ...(process.env.EXPO_WEB_BASE_URL ? { baseUrl: process.env.EXPO_WEB_BASE_URL } : {}),
     },
     extra: {
       eas: {
