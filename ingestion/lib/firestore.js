@@ -16,7 +16,12 @@
  * (sourceKey, fingerprint). Create composite/single-field indexes for
  * `sourceKey`, `fingerprint`, and `categoryId` on both `listings` and
  * `listings_staging`. Avoid scanning by title at scale.
+ *
+ * The search index (lib/search.js) is mirrored on every write. It no-ops unless
+ * TYPESENSE_URL/ADMIN_KEY are set, so this is inert until an endpoint is provided.
  */
+const search = require('./search');
+
 function createFirestoreStore() {
   const admin = require('firebase-admin');
   if (!admin.apps.length) {
@@ -55,15 +60,20 @@ function createFirestoreStore() {
       // here makes imports sort BELOW all organic listings (invisible on the
       // newest-first home feed). Match the app: ISO strings.
       const now = new Date().toISOString();
-      const ref = await LIVE.add({
-        ...listing,
-        createdAt: listing.importedAt || now,
-        updatedAt: listing.updatedAt || now,
-      });
+      const doc = { ...listing, createdAt: listing.importedAt || now, updatedAt: listing.updatedAt || now };
+      const ref = await LIVE.add(doc);
+      if (search.isEnabled() && (doc.status || 'active') === 'active') await search.upsertListing(ref.id, doc);
       return ref.id;
     },
     async update(id, listing) {
       await LIVE.doc(id).set({ ...listing, updatedAt: new Date().toISOString() }, { merge: true });
+      // update() is a partial merge — re-read the full doc so the index isn't
+      // clobbered with blanks; drop from index if no longer active.
+      if (search.isEnabled()) {
+        const full = (await LIVE.doc(id).get()).data() || {};
+        if (full.status && full.status !== 'active') await search.removeListing(id);
+        else await search.upsertListing(id, full);
+      }
     },
     async enqueueReview(item) {
       const ref = await STAGING.add({
@@ -99,8 +109,10 @@ function createFirestoreStore() {
       // updatedAt is an ISO string (see publish/update) — compare as string.
       const snap = await LIVE.where('source', '==', sourceId).where('updatedAt', '<', cutoffIso).get();
       const batch = db.batch();
-      snap.forEach((d) => batch.update(d.ref, { status: 'expired', updatedAt: FieldValue.serverTimestamp() }));
+      const ids = [];
+      snap.forEach((d) => { batch.update(d.ref, { status: 'expired', updatedAt: FieldValue.serverTimestamp() }); ids.push(d.id); });
       if (!snap.empty) await batch.commit();
+      if (search.isEnabled()) { for (const id of ids) await search.removeListing(id); } // drop expired from index
       return snap.size;
     },
   };
