@@ -348,6 +348,8 @@ function mapForKind(kindText) {
   return [cat, valid];
 }
 
+module.exports.categorySubFor = categorySubFor; // reused by the Geofabrik PBF importer
+module.exports.titleCaseWord = titleCaseWord;
 module.exports.SHOP_MAP = SHOP_MAP;
 module.exports.CRAFT_MAP = CRAFT_MAP;
 module.exports.AMENITY_MAP = AMENITY_MAP;

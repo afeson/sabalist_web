@@ -1,0 +1,67 @@
+name: Import Geofabrik OSM (bulk PBF)
+
+# Phase 2 bulk ingestion: a full-country OpenStreetMap extract via Geofabrik +
+# osmium (replaces the rate-capped Overpass crawl). Filters to business features,
+# exports GeoJSONSeq, and runs import-geofabrik.js through the existing pipeline
+# (dedup / diff-only / claim-tagging / search-index sync all reused). Runs per
+# country on demand. Big-country / continent scale moves to Cloud Run later.
+on:
+  workflow_dispatch:
+    inputs:
+      geofabrik:
+        description: 'Geofabrik path (no -latest.osm.pbf), e.g. africa/lesotho or africa/kenya'
+        default: 'africa/lesotho'
+      country:
+        description: 'Country display name (must match ingestion/lib/geo.js), e.g. Lesotho'
+        default: 'Lesotho'
+      mode:
+        description: 'dry_run (no writes) or apply'
+        type: choice
+        options: [dry_run, apply]
+        default: dry_run
+
+concurrency:
+  group: import-geofabrik
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install osmium
+        run: sudo apt-get update && sudo apt-get install -y osmium-tool
+      - name: Download country PBF
+        run: |
+          set -e
+          URL="https://download.geofabrik.de/${{ github.event.inputs.geofabrik }}-latest.osm.pbf"
+          echo "Downloading $URL"
+          curl -sSL "$URL" -o country.pbf
+          ls -lh country.pbf
+      - name: Filter to businesses + export GeoJSONSeq
+        run: |
+          set -e
+          osmium tags-filter country.pbf \
+            nwr/shop nwr/craft \
+            nwr/tourism=hotel,guest_house,hostel,attraction,museum,viewpoint \
+            nwr/leisure=fitness_centre,sports_centre,stadium,sports_hall,pitch \
+            nwr/office=estate_agent,educational_institution \
+            nwr/amenity=restaurant,cafe,fast_food,food_court,marketplace,fuel,car_rental,school,college,university,kindergarten,driving_school,language_school,music_school,training,veterinary,cinema,theatre,nightclub,arts_centre,community_centre,place_of_worship,library,social_facility,townhall,pharmacy,hospital,clinic,bank \
+            -o filtered.pbf --overwrite
+          osmium export filtered.pbf --add-unique-id=type_id -f geojsonseq -o features.geojsonseq --overwrite
+          wc -l features.geojsonseq
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Import
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          TYPESENSE_URL: ${{ secrets.TYPESENSE_URL }}
+          TYPESENSE_ADMIN_KEY: ${{ secrets.TYPESENSE_ADMIN_KEY }}
+        run: |
+          FLAG=""; [ "${{ github.event.inputs.mode }}" = "dry_run" ] && FLAG="--dry"
+          node import-geofabrik.js --country "${{ github.event.inputs.country }}" --geojson ../features.geojsonseq $FLAG
