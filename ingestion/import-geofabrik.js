@@ -90,10 +90,11 @@ function toRecord(feature) {
 
   let read = 0;
   for await (const line of rl) {
-    const t = line.trim();
-    if (!t || t[0] !== '{') continue; // geojsonseq may prefix RS char
+    // GeoJSONSeq (RFC 8142) prefixes each record with an RS char (0x1e) — start at the first '{'.
+    const brace = line.indexOf('{');
+    if (brace === -1) continue;
     let rec;
-    try { rec = toRecord(JSON.parse(t.replace(/^\x1e/, ''))); } catch { continue; }
+    try { rec = toRecord(JSON.parse(line.slice(brace))); } catch { continue; }
     if (!rec) continue;
     batch.push(rec);
     read++;
