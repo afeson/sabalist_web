@@ -8,10 +8,13 @@
     "ingest": "node run.js",
     "ingest:dry": "node run.js --dry",
     "demo": "node run.js --source sources/sample-csv.json --dry",
-    "test": "node test/pipeline.test.js && node test/search.test.js"
+    "test": "node test/pipeline.test.js && node test/search.test.js && node test/match.eval.js"
   },
   "dependencies": {
     "firebase-admin": "^12.7.0",
+    "libphonenumber-js": "^1.13.7",
+    "ngeohash": "^0.6.3",
+    "transliteration": "^2.6.1",
     "typesense": "^1.8.2",
     "xlsx": "^0.18.5"
   },

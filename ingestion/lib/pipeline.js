@@ -19,6 +19,8 @@ const { enrichGeo } = require('./geo');
 const { categorize, resolveCategory, classifySubcategory, VALID_SUBS } = require('./taxonomy');
 const { scoreQuality } = require('./quality');
 const dedup = require('./dedup');
+const normalize = require('./normalize');
+const match = require('./match');
 
 const DEFAULTS = {
   autoPublishQuality: 0.75,   // min quality score to auto-publish
@@ -60,6 +62,13 @@ function toListingDoc(draft, meta) {
     // search (Typesense geopoint) and geohash dedup blocking. Null when absent.
     latitude: typeof draft.latitude === 'number' ? draft.latitude : null,
     longitude: typeof draft.longitude === 'number' ? draft.longitude : null,
+    // Dedup v2 blocking/identity keys (Phase 3).
+    geohash6: normalize.geohashOf(draft.latitude, draft.longitude, 6),
+    geohash7: normalize.geohashOf(draft.latitude, draft.longitude, 7),
+    phoneE164: normalize.phoneE164(draft.phoneNumber, draft.countryCode),
+    domain: normalize.domainOf(draft.website || draft.url || draft.sourceUrl),
+    nameNorm: normalize.nameNorm(draft.title).norm,
+    nameKey: normalize.nameNorm(draft.title).key,
     location: draft.location || [draft.city, draft.country].filter(Boolean).join(', '),
     language: draft.language || 'en',
     phoneNumber: draft.phoneNumber || '',
@@ -142,9 +151,21 @@ async function processRecord(raw, source, store, opts = {}) {
     return { decision: 'review', reason: 'missing_required', listing: toListingDoc(draft, meta), confidence, quality: q, meta };
   }
 
-  // 6) DEDUP
-  const existing = (await store.findCandidates({ sourceKey, fingerprint, categoryId: draft.categoryId, title: draft.title })) || [];
-  const verdict = dedup.classify({ sourceKey, title: draft.title, categoryId: draft.categoryId, amount: draft.amount, city: draft.city, location: draft.location }, existing);
+  // 6) DEDUP v2 — block by sourceKey/fingerprint/geohash/phone/domain, then score
+  // candidates with lib/match.js (name + geo + phone/domain + category).
+  const nm = normalize.nameNorm(draft.title);
+  const gh7 = normalize.geohashOf(draft.latitude, draft.longitude, 7);
+  const cand = {
+    sourceKey, fingerprint, categoryId: draft.categoryId,
+    nameNorm: nm.norm, nameKey: nm.key,
+    latitude: typeof draft.latitude === 'number' ? draft.latitude : null,
+    longitude: typeof draft.longitude === 'number' ? draft.longitude : null,
+    phoneE164: normalize.phoneE164(draft.phoneNumber, draft.countryCode),
+    domain: normalize.domainOf(draft.website || draft.url || draft.sourceUrl),
+    geohash7: gh7, geoNeighbors: normalize.geohashNeighbors(gh7),
+  };
+  const existing = (await store.findCandidates(cand)) || [];
+  const verdict = match.classify(cand, existing);
 
   const listing = toListingDoc(draft, meta);
 

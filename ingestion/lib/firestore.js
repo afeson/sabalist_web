@@ -40,18 +40,19 @@ function createFirestoreStore() {
   const FAILED = db.collection('import_failures');
 
   return {
-    async findCandidates({ sourceKey, fingerprint }) {
+    // Dedup v2 blocking: gather candidates by identity (sourceKey), content
+    // fingerprint, phone, domain, and geohash-7 neighbour cells. All single-field
+    // (auto-indexed) equality/`in` queries. lib/match.js then scores them.
+    async findCandidates({ sourceKey, fingerprint, phoneE164, domain, geoNeighbors }) {
       const out = new Map();
-      // Identity match (re-sync) — cheap, indexed.
-      if (sourceKey) {
-        const s = await LIVE.where('sourceKey', '==', sourceKey).limit(1).get();
-        s.forEach((d) => out.set(d.id, { id: d.id, ...d.data() }));
-      }
-      // Fingerprint match (cross-source dup) — indexed, capped.
-      if (fingerprint) {
-        const f = await LIVE.where('fingerprint', '==', fingerprint).limit(10).get();
-        f.forEach((d) => out.set(d.id, { id: d.id, ...d.data() }));
-      }
+      const collect = (snap) => snap.forEach((d) => out.set(d.id, { id: d.id, ...d.data() }));
+      const q = [];
+      if (sourceKey) q.push(LIVE.where('sourceKey', '==', sourceKey).limit(1).get());
+      if (fingerprint) q.push(LIVE.where('fingerprint', '==', fingerprint).limit(10).get());
+      if (phoneE164) q.push(LIVE.where('phoneE164', '==', phoneE164).limit(10).get());
+      if (domain) q.push(LIVE.where('domain', '==', domain).limit(10).get());
+      if (geoNeighbors && geoNeighbors.length) q.push(LIVE.where('geohash7', 'in', geoNeighbors.slice(0, 30)).limit(30).get());
+      (await Promise.all(q)).forEach(collect);
       return [...out.values()];
     },
     async publish(listing) {
