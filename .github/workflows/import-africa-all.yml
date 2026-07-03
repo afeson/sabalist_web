@@ -1,0 +1,117 @@
+name: Import ALL Africa (parallel matrix)
+
+# Phase 4 at speed: imports every remaining African country as a PARALLEL job
+# (one country per job, up to max-parallel at once), then re-syncs search once at
+# the end. Countries are disjoint (different regions/names) so concurrent writes
+# are safe. Idempotent — already-imported businesses skip on any re-run.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'dry_run or apply'
+        type: choice
+        options: [dry_run, apply]
+        default: apply
+
+concurrency:
+  group: import-africa-all
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      max-parallel: 20
+      fail-fast: false
+      matrix:
+        include:
+          - { slug: africa/algeria, name: Algeria }
+          - { slug: africa/angola, name: Angola }
+          - { slug: africa/burkina-faso, name: Burkina Faso }
+          - { slug: africa/burundi, name: Burundi }
+          - { slug: africa/cape-verde, name: Cape Verde }
+          - { slug: africa/central-african-republic, name: Central African Republic }
+          - { slug: africa/chad, name: Chad }
+          - { slug: africa/comores, name: Comoros }
+          - { slug: africa/congo-brazzaville, name: Congo }
+          - { slug: africa/congo-democratic-republic, name: DR Congo }
+          - { slug: africa/djibouti, name: Djibouti }
+          - { slug: africa/egypt, name: Egypt }
+          - { slug: africa/equatorial-guinea, name: Equatorial Guinea }
+          - { slug: africa/eritrea, name: Eritrea }
+          - { slug: africa/ethiopia, name: Ethiopia }
+          - { slug: africa/gabon, name: Gabon }
+          - { slug: africa/guinea, name: Guinea }
+          - { slug: africa/guinea-bissau, name: Guinea-Bissau }
+          - { slug: africa/ivory-coast, name: "Cote d'Ivoire" }
+          - { slug: africa/kenya, name: Kenya }
+          - { slug: africa/liberia, name: Liberia }
+          - { slug: africa/libya, name: Libya }
+          - { slug: africa/madagascar, name: Madagascar }
+          - { slug: africa/mali, name: Mali }
+          - { slug: africa/mauritania, name: Mauritania }
+          - { slug: africa/mauritius, name: Mauritius }
+          - { slug: africa/morocco, name: Morocco }
+          - { slug: africa/niger, name: Niger }
+          - { slug: africa/nigeria, name: Nigeria }
+          - { slug: africa/sao-tome-and-principe, name: Sao Tome and Principe }
+          - { slug: africa/senegal-and-gambia, name: Senegal }
+          - { slug: africa/seychelles, name: Seychelles }
+          - { slug: africa/sierra-leone, name: Sierra Leone }
+          - { slug: africa/somalia, name: Somalia }
+          - { slug: africa/south-africa, name: South Africa }
+          - { slug: africa/south-sudan, name: South Sudan }
+          - { slug: africa/sudan, name: Sudan }
+          - { slug: africa/swaziland, name: Eswatini }
+          - { slug: africa/tanzania, name: Tanzania }
+          - { slug: africa/tunisia, name: Tunisia }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install osmium
+        run: sudo apt-get update && sudo apt-get install -y osmium-tool
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Import ${{ matrix.name }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -e
+          FLAG=""; [ "${{ github.event.inputs.mode }}" = "dry_run" ] && FLAG="--dry"
+          URL="https://download.geofabrik.de/${{ matrix.slug }}-latest.osm.pbf"
+          echo "Downloading $URL"
+          if ! curl -sSL "$URL" -o c.pbf; then echo "download failed for ${{ matrix.name }}; skipping"; exit 0; fi
+          ls -lh c.pbf
+          osmium tags-filter c.pbf \
+            nwr/shop nwr/craft \
+            nwr/tourism=hotel,guest_house,hostel,attraction,museum,viewpoint \
+            nwr/leisure=fitness_centre,sports_centre,stadium,sports_hall,pitch \
+            nwr/office=estate_agent,educational_institution \
+            nwr/amenity=restaurant,cafe,fast_food,food_court,marketplace,fuel,car_rental,school,college,university,kindergarten,driving_school,language_school,music_school,training,veterinary,cinema,theatre,nightclub,arts_centre,community_centre,place_of_worship,library,social_facility,townhall,pharmacy,hospital,clinic,bank \
+            -o f.pbf --overwrite
+          osmium export f.pbf --add-unique-id=type_id -f geojsonseq -o feats.geojsonseq --overwrite
+          wc -l feats.geojsonseq
+          node ingestion/import-geofabrik.js --country "${{ matrix.name }}" --geojson feats.geojsonseq $FLAG
+
+  reindex:
+    needs: import
+    if: ${{ always() && github.event.inputs.mode != 'dry_run' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Re-sync search index
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          TYPESENSE_URL: ${{ secrets.TYPESENSE_URL }}
+          TYPESENSE_ADMIN_KEY: ${{ secrets.TYPESENSE_ADMIN_KEY }}
+        run: node reindex-search.js
