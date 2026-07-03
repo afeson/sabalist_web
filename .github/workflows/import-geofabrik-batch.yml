@@ -1,0 +1,68 @@
+name: Import Geofabrik OSM — batch (Phase 4)
+
+# Imports several African countries in one job (osmium installed once, loop over
+# a list), then re-syncs the search index. No per-record search sync during
+# import (fast). Idempotent — safe to re-run; already-imported businesses skip.
+on:
+  workflow_dispatch:
+    inputs:
+      list:
+        description: 'Semicolon-separated "geofabrik-slug|Country Name" (name must match geo.js)'
+        default: 'africa/rwanda|Rwanda;africa/botswana|Botswana;africa/namibia|Namibia;africa/malawi|Malawi;africa/togo|Togo;africa/benin|Benin'
+      mode:
+        description: 'dry_run or apply'
+        type: choice
+        options: [dry_run, apply]
+        default: apply
+
+concurrency:
+  group: import-geofabrik      # shares the single-country group → never overlap
+  cancel-in-progress: false
+
+jobs:
+  batch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install osmium
+        run: sudo apt-get update && sudo apt-get install -y osmium-tool
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Import each country
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -e
+          FLAG=""; [ "${{ github.event.inputs.mode }}" = "dry_run" ] && FLAG="--dry"
+          IFS=';' read -ra ITEMS <<< "${{ github.event.inputs.list }}"
+          for item in "${ITEMS[@]}"; do
+            slug="${item%%|*}"; name="${item##*|}"
+            [ -z "$slug" ] && continue
+            echo "::group::$name ($slug)"
+            if ! curl -sSL "https://download.geofabrik.de/${slug}-latest.osm.pbf" -o c.pbf; then echo "download failed, skip"; echo "::endgroup::"; continue; fi
+            ls -lh c.pbf
+            osmium tags-filter c.pbf \
+              nwr/shop nwr/craft \
+              nwr/tourism=hotel,guest_house,hostel,attraction,museum,viewpoint \
+              nwr/leisure=fitness_centre,sports_centre,stadium,sports_hall,pitch \
+              nwr/office=estate_agent,educational_institution \
+              nwr/amenity=restaurant,cafe,fast_food,food_court,marketplace,fuel,car_rental,school,college,university,kindergarten,driving_school,language_school,music_school,training,veterinary,cinema,theatre,nightclub,arts_centre,community_centre,place_of_worship,library,social_facility,townhall,pharmacy,hospital,clinic,bank \
+              -o f.pbf --overwrite
+            osmium export f.pbf --add-unique-id=type_id -f geojsonseq -o feats.geojsonseq --overwrite
+            wc -l feats.geojsonseq
+            node ingestion/import-geofabrik.js --country "$name" --geojson feats.geojsonseq $FLAG || echo "import errored for $name (continuing)"
+            rm -f c.pbf f.pbf feats.geojsonseq
+            echo "::endgroup::"
+          done
+      - name: Re-sync search index
+        if: ${{ github.event.inputs.mode != 'dry_run' }}
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          TYPESENSE_URL: ${{ secrets.TYPESENSE_URL }}
+          TYPESENSE_ADMIN_KEY: ${{ secrets.TYPESENSE_ADMIN_KEY }}
+        run: node reindex-search.js

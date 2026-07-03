@@ -27,7 +27,7 @@ concurrency:
 jobs:
   import:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -60,8 +60,9 @@ jobs:
         working-directory: ingestion
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          TYPESENSE_URL: ${{ secrets.TYPESENSE_URL }}
-          TYPESENSE_ADMIN_KEY: ${{ secrets.TYPESENSE_ADMIN_KEY }}
+          # No TYPESENSE_* here on purpose: skip per-record search sync during bulk
+          # import (much faster); the search index is re-synced afterward by the
+          # search-reindex workflow (nightly + on-demand).
         run: |
           FLAG=""; [ "${{ github.event.inputs.mode }}" = "dry_run" ] && FLAG="--dry"
           node import-geofabrik.js --country "${{ github.event.inputs.country }}" --geojson ../features.geojsonseq $FLAG
