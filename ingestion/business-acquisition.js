@@ -40,6 +40,11 @@ const AI_KEY = (process.env.ANTHROPIC_API_KEY || '').trim();
 const slugBusinessId = (s) =>
   'business-' + (String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'x');
 
+// Accurate cost: sum real token usage returned by the API. Rates are per 1M
+// tokens for claude-haiku-4-5 (input/output); update if AI_MODEL changes.
+const TOKENS = { input: 0, output: 0 };
+const RATE_IN = 1.0, RATE_OUT = 5.0;
+
 async function claudeBatch(items) {
   // items: [{i, name, kind, city, country}] -> [{i, description}]
   const system =
@@ -57,6 +62,7 @@ async function claudeBatch(items) {
   });
   if (!res.ok) throw new Error(`anthropic ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const data = await res.json();
+  if (data.usage) { TOKENS.input += data.usage.input_tokens || 0; TOKENS.output += data.usage.output_tokens || 0; }
   const text = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n');
   const s = text.indexOf('['), e = text.lastIndexOf(']');
   if (s === -1 || e === -1) return [];
@@ -149,6 +155,9 @@ async function claudeBatch(items) {
     enrichFailed: stats.enrichFailed,
     remainingToEnrich,
     model: AI_KEY ? AI_MODEL : null,
+    inputTokens: TOKENS.input,
+    outputTokens: TOKENS.output,
+    estCostUSD: Number(((TOKENS.input / 1e6) * RATE_IN + (TOKENS.output / 1e6) * RATE_OUT).toFixed(4)),
     ranAtIso: new Date().toISOString(),
     ranAt: admin.firestore.FieldValue.serverTimestamp(),
   };
