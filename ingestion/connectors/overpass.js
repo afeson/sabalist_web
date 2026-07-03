@@ -282,6 +282,7 @@ module.exports = {
       externalId: 'externalId', title: 'title', description: 'description',
       category: 'category', subcategory: 'subcategory', location: 'location', country: 'country',
       phoneNumber: 'phoneNumber', website: 'website', email: 'email', url: 'url', priceType: { const: 'none' },
+      latitude: 'latitude', longitude: 'longitude',
     },
 
     async load({ httpRequest, opts }) {
@@ -302,9 +303,14 @@ module.exports = {
             const kind = titleCaseWord(tags.shop || tags.craft || tags.tourism || tags.amenity || tags.leisure || 'business');
             const street = tags['addr:street'] ? `, ${tags['addr:street']}` : '';
             const [category, subcategory] = categorySubFor(tags);
+            // `out center` gives nodes lat/lon directly; ways/relations get el.center.
+            const glat = typeof el.lat === 'number' ? el.lat : (el.center && el.center.lat);
+            const glon = typeof el.lon === 'number' ? el.lon : (el.center && el.center.lon);
             out.push({
               externalId: `osm-${el.type}-${el.id}`,
               title: name,
+              latitude: typeof glat === 'number' ? glat : null,
+              longitude: typeof glon === 'number' ? glon : null,
               description: `${kind} in ${city}, ${country}${street}. Listing sourced from OpenStreetMap (© OpenStreetMap contributors).`,
               category,
               subcategory,

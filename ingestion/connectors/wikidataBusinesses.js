@@ -46,7 +46,7 @@ const TYPE_MAP = {
 const TYPES = Object.keys(TYPE_MAP).map((q) => `wd:${q}`).join(' ');
 
 function query(qid) {
-  return `SELECT ?item ?itemLabel ?itemDescription ?type ?website ?placeLabel WHERE {
+  return `SELECT ?item ?itemLabel ?itemDescription ?type ?website ?placeLabel ?coord WHERE {
   VALUES ?type { ${TYPES} }
   ?item wdt:P31 ?type ; wdt:P17 wd:${qid} ; wdt:P625 ?coord .
   OPTIONAL { ?item wdt:P856 ?website. }
@@ -57,6 +57,11 @@ function query(qid) {
 
 const qidOf = (uri) => String(uri || '').split('/').pop();
 const typeCat = (typeUri) => TYPE_MAP[qidOf(typeUri)] || ['business-industrial', null];
+// WKT literal from P625 is "Point(lon lat)".
+function parsePoint(wkt) {
+  const m = /Point\(\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*\)/i.exec(String(wkt || ''));
+  return m ? { lon: Number(m[1]), lat: Number(m[2]) } : null;
+}
 
 module.exports = {
   source: {
@@ -72,6 +77,7 @@ module.exports = {
       externalId: 'externalId', title: 'title', description: 'description',
       category: 'category', subcategory: 'subcategory', location: 'location', country: 'country',
       website: 'website', url: 'url', priceType: { const: 'none' },
+      latitude: 'latitude', longitude: 'longitude',
     },
 
     async load({ httpRequest, opts }) {
@@ -89,9 +95,12 @@ module.exports = {
             const [category, subcategory] = typeCat(r.type && r.type.value);
             const place = r.placeLabel && r.placeLabel.value;
             const desc = (r.itemDescription && r.itemDescription.value) || `${label} in ${place ? place + ', ' : ''}${country}.`;
+            const pt = parsePoint(r.coord && r.coord.value);
             out.push({
               externalId: `wd-${itemQid}`,
               title: label,
+              latitude: pt ? pt.lat : null,
+              longitude: pt ? pt.lon : null,
               description: desc,
               category,
               subcategory,

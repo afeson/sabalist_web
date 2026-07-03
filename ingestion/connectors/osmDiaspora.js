@@ -52,6 +52,7 @@ module.exports = {
       externalId: 'externalId', title: 'title', description: 'description',
       category: 'category', location: 'location', country: 'country',
       phoneNumber: 'phoneNumber', url: 'url', priceType: { const: 'none' },
+      latitude: 'latitude', longitude: 'longitude',
     },
   },
   transform(elements) {
@@ -67,6 +68,8 @@ module.exports = {
       out.push({
         externalId: `osm-${el.type}-${el.id}`,
         title: name,
+        latitude: typeof lat === 'number' ? lat : null,
+        longitude: typeof lon === 'number' ? lon : null,
         description: `${isFood ? (tags.cuisine || 'African') + ' restaurant' : 'African grocery/shop'} in ${city}, ${country}. African diaspora business listing sourced from OpenStreetMap (© OpenStreetMap contributors).`,
         category: isFood ? 'food' : 'services',
         location: `${city}, ${country}`,

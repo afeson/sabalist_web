@@ -56,6 +56,10 @@ function toListingDoc(draft, meta) {
     countryCode: draft.countryCode || '',
     region: draft.region || '',
     city: draft.city || '',
+    // Coordinates (when the source provides them) — foundational for geo-radius
+    // search (Typesense geopoint) and geohash dedup blocking. Null when absent.
+    latitude: typeof draft.latitude === 'number' ? draft.latitude : null,
+    longitude: typeof draft.longitude === 'number' ? draft.longitude : null,
     location: draft.location || [draft.city, draft.country].filter(Boolean).join(', '),
     language: draft.language || 'en',
     phoneNumber: draft.phoneNumber || '',
