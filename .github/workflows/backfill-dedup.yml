@@ -1,0 +1,27 @@
+name: Backfill dedup fields (one-off)
+
+# Stamps geohash/phone/domain/nameNorm onto existing listings so Dedup v2 works
+# against pre-existing data. Idempotent; dispatch-only.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: backfill-dedup
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Backfill
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node backfill-dedup-fields.js
