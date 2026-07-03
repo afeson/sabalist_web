@@ -1,0 +1,32 @@
+name: Search reindex (Typesense)
+
+# Rebuilds the Typesense index from Firestore: initial bulk load + nightly
+# reconciler (self-heals any missed real-time sync). The index is a disposable
+# projection of Firestore, so this is safe to run any time.
+on:
+  schedule:
+    - cron: '0 4 * * *'   # 04:00 UTC nightly reconcile
+  workflow_dispatch:
+
+concurrency:
+  group: search-reindex
+  cancel-in-progress: false
+
+jobs:
+  reindex:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Reindex
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          TYPESENSE_URL: ${{ secrets.TYPESENSE_URL }}
+          TYPESENSE_ADMIN_KEY: ${{ secrets.TYPESENSE_ADMIN_KEY }}
+        run: node reindex-search.js
