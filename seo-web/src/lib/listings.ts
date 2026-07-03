@@ -8,6 +8,7 @@ import {
 import { db } from './firebase';
 import { getCategory } from './taxonomy';
 import { getCity, type City, type Country } from './locations';
+import { searchListingIds, tsValue } from './search-client';
 
 export type Listing = {
   id: string;
@@ -48,9 +49,33 @@ export async function getListing(id: string): Promise<Listing | null> {
   return snap.exists() ? toListing(snap.id, snap.data()) : null;
 }
 
+// Hydrate full listing docs from Firestore for a list of IDs, preserving order.
+async function getByIds(ids: string[]): Promise<Listing[]> {
+  if (!ids.length) return [];
+  const snaps = await Promise.all(ids.map((id) => getDoc(doc(db(), 'listings', id)).catch(() => null)));
+  const map = new Map<string, Listing>();
+  snaps.forEach((s, i) => { if (s && s.exists()) map.set(ids[i], toListing(s.id, s.data())); });
+  return ids.map((id) => map.get(id)).filter(Boolean) as Listing[];
+}
+
 // Category match tolerates both the display key and the slug being stored.
+function catFilter(categoryId: string): string {
+  const cat = getCategory(categoryId);
+  return cat?.key
+    ? `(categoryId:=${tsValue(categoryId)} || category:=${tsValue(cat.key)})`
+    : `categoryId:=${tsValue(categoryId)}`;
+}
+
 export async function getListingsByCategory(categoryId: string, max = 60): Promise<Listing[]> {
   const cat = getCategory(categoryId);
+  // Search-first: ordered by quality_score, then hydrate full docs from Firestore.
+  const sr = await searchListingIds({
+    q: '*', query_by: 'title',
+    filter_by: `status:=active && ${catFilter(categoryId)}`,
+    sort_by: 'quality_score:desc', per_page: String(max),
+  });
+  if (sr && sr.ids.length) { const l = await getByIds(sr.ids); if (l.length) return l; }
+  // Firestore fallback.
   const keys = [categoryId, cat?.key].filter(Boolean) as string[];
   const out: Listing[] = [];
   for (const k of keys) {
@@ -79,10 +104,22 @@ function matchesCity(l: Listing, city: City): boolean {
   const hay = `${l.location || ''} ${l.city || ''} ${(l as any).region || ''}`.toLowerCase();
   return city.matchTerms.some((t) => hay.includes(t.toLowerCase()));
 }
+function cityFilter(country: Country, categoryId?: string): string {
+  return `status:=active && country:=${tsValue(country.name)}` +
+    (categoryId ? ` && ${catFilter(categoryId)}` : '');
+}
+
 export async function getListingsByCity(country: Country, city: City, categoryId?: string, max = 60): Promise<Listing[]> {
-  // Query the country's inventory directly (equality on `country` uses Firestore's
-  // automatic single-field index — no composite index needed) instead of filtering
-  // a small "recent" sample, which almost never contained a given city's listings.
+  // Search-first: match the city by name over location/city, ranked by quality.
+  const sr = await searchListingIds({
+    q: city.name, query_by: 'location,city',
+    filter_by: cityFilter(country, categoryId),
+    sort_by: 'quality_score:desc', per_page: String(max),
+  });
+  if (sr && sr.ids.length) { const l = await getByIds(sr.ids); if (l.length) return l; }
+  // Firestore fallback: query the country's inventory directly (equality on
+  // `country` uses Firestore's automatic single-field index — no composite index
+  // needed) instead of filtering a small "recent" sample.
   const pool: Listing[] = [];
   try {
     const snap = await getDocs(query(collection(db(), 'listings'), where('country', '==', country.name), qlimit(1000)));
@@ -106,6 +143,12 @@ export async function getListingsByCity(country: Country, city: City, categoryId
   return out.slice(0, max);
 }
 export async function countListingsByCity(country: Country, city: City, categoryId?: string): Promise<number> {
+  // Accurate total from the search index (0 Firestore reads); fall back to a
+  // capped Firestore count only if search is unavailable.
+  const sr = await searchListingIds({
+    q: city.name, query_by: 'location,city', filter_by: cityFilter(country, categoryId), per_page: '1',
+  });
+  if (sr) return sr.found;
   return (await getListingsByCity(country, city, categoryId, 1000)).length;
 }
 
