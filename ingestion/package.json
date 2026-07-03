@@ -8,10 +8,11 @@
     "ingest": "node run.js",
     "ingest:dry": "node run.js --dry",
     "demo": "node run.js --source sources/sample-csv.json --dry",
-    "test": "node test/pipeline.test.js"
+    "test": "node test/pipeline.test.js && node test/search.test.js"
   },
   "dependencies": {
     "firebase-admin": "^12.7.0",
+    "typesense": "^1.8.2",
     "xlsx": "^0.18.5"
   },
   "engines": {
