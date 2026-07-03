@@ -1,0 +1,31 @@
+name: Analyze review queue (read-only)
+
+# One-off diagnostic: breaks down listings_staging by reason and estimates how
+# many held records are true duplicates (twin already live) vs recoverable
+# net-new businesses. No writes. Uses the existing FIREBASE_SERVICE_ACCOUNT secret.
+on:
+  push:
+    branches: [analyze-review-queue]
+  workflow_dispatch:
+    inputs:
+      sample:
+        description: 'Sample size per dup bucket'
+        default: '1200'
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Analyze
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          SAMPLE: ${{ github.event.inputs.sample }}
+        run: node analyze-review.js
