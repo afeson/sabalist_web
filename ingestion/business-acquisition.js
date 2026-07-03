@@ -32,7 +32,7 @@ const credential = process.env.FIREBASE_SERVICE_ACCOUNT
 admin.initializeApp({ credential });
 const db = admin.firestore();
 
-const BUSINESS_SOURCES = ['osm-africa-businesses', 'osm-diaspora-african'];
+const BUSINESS_SOURCES = ['osm-africa-businesses', 'osm-diaspora-african', 'wikidata-africa-businesses'];
 const MAX_ENRICH = Number(process.env.MAX_ENRICH || 300);
 const AI_MODEL = process.env.AI_MODEL || 'claude-haiku-4-5-20251001';
 const AI_KEY = (process.env.ANTHROPIC_API_KEY || '').trim();

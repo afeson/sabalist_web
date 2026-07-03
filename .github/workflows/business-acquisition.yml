@@ -41,6 +41,7 @@ jobs:
         run: |
           node sync.js --source osm-africa-businesses --expire
           node sync.js --source osm-diaspora-african --expire
+          node sync.js --source wikidata-africa-businesses --expire
       - name: Claim backfill + AI enrichment
         working-directory: ingestion
         env:

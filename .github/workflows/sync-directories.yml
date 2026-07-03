@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false      # one directory source failing must not stop the others
       matrix:
-        source: [osm-africa-businesses, osm-diaspora-african, hipolabs-universities-africa, wikidata-events-africa, unesco-sites-africa, wikivoyage-listings-africa]
+        source: [osm-africa-businesses, osm-diaspora-african, wikidata-africa-businesses, hipolabs-universities-africa, wikidata-events-africa, unesco-sites-africa, wikivoyage-listings-africa]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

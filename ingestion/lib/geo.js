@@ -7,16 +7,67 @@
  * scale you can swap in a gazetteer / libpostal without changing callers.
  */
 
-// Priority countries with canonical name, ISO, default currency, common cities.
+// All 54 African sovereign countries + diaspora markets. Canonical name, ISO,
+// default currency, common cities. The `name` MUST match the country strings the
+// connectors emit (overpass.js CITIES, wikidataBusinesses.js) so detectCountry
+// resolves them instead of returning null (which would blank the country field).
 const COUNTRIES = [
-  { code: 'NG', name: 'Nigeria', currency: 'NGN', region: 'Africa', cities: ['lagos', 'abuja', 'kano', 'ibadan', 'port harcourt', 'benin city'] },
-  { code: 'GH', name: 'Ghana', currency: 'GHS', region: 'Africa', cities: ['accra', 'kumasi', 'tamale', 'takoradi'] },
-  { code: 'KE', name: 'Kenya', currency: 'KES', region: 'Africa', cities: ['nairobi', 'mombasa', 'kisumu', 'nakuru'] },
-  { code: 'ET', name: 'Ethiopia', currency: 'ETB', region: 'Africa', cities: ['addis ababa', 'dire dawa', 'mekelle', 'hawassa', 'bahir dar'] },
-  { code: 'ZA', name: 'South Africa', currency: 'ZAR', region: 'Africa', cities: ['johannesburg', 'cape town', 'durban', 'pretoria', 'soweto'] },
-  { code: 'TZ', name: 'Tanzania', currency: 'TZS', region: 'Africa', cities: ['dar es salaam', 'dodoma', 'arusha', 'mwanza'] },
-  { code: 'UG', name: 'Uganda', currency: 'UGX', region: 'Africa', cities: ['kampala', 'gulu', 'mbarara'] },
+  // --- Africa (all 54) ---
+  { code: 'DZ', name: 'Algeria', currency: 'DZD', region: 'Africa', cities: ['algiers', 'oran', 'constantine'] },
+  { code: 'AO', name: 'Angola', currency: 'AOA', region: 'Africa', cities: ['luanda', 'huambo', 'lobito'] },
+  { code: 'BJ', name: 'Benin', currency: 'XOF', region: 'Africa', cities: ['cotonou', 'porto-novo', 'parakou'] },
+  { code: 'BW', name: 'Botswana', currency: 'BWP', region: 'Africa', cities: ['gaborone', 'francistown'] },
+  { code: 'BF', name: 'Burkina Faso', currency: 'XOF', region: 'Africa', cities: ['ouagadougou', 'bobo-dioulasso'] },
+  { code: 'BI', name: 'Burundi', currency: 'BIF', region: 'Africa', cities: ['bujumbura', 'gitega'] },
+  { code: 'CV', name: 'Cape Verde', currency: 'CVE', region: 'Africa', cities: ['praia', 'mindelo'] },
+  { code: 'CM', name: 'Cameroon', currency: 'XAF', region: 'Africa', cities: ['douala', 'yaounde', 'bafoussam'] },
+  { code: 'CF', name: 'Central African Republic', currency: 'XAF', region: 'Africa', cities: ['bangui'] },
+  { code: 'TD', name: 'Chad', currency: 'XAF', region: 'Africa', cities: ["n'djamena", 'ndjamena', 'moundou'] },
+  { code: 'KM', name: 'Comoros', currency: 'KMF', region: 'Africa', cities: ['moroni'] },
+  { code: 'CG', name: 'Congo', currency: 'XAF', region: 'Africa', cities: ['brazzaville', 'pointe-noire'] },
+  { code: 'CD', name: 'DR Congo', currency: 'CDF', region: 'Africa', cities: ['kinshasa', 'lubumbashi', 'goma', 'mbuji-mayi'] },
+  { code: 'DJ', name: 'Djibouti', currency: 'DJF', region: 'Africa', cities: ['djibouti'] },
   { code: 'EG', name: 'Egypt', currency: 'EGP', region: 'Africa', cities: ['cairo', 'alexandria', 'giza'] },
+  { code: 'GQ', name: 'Equatorial Guinea', currency: 'XAF', region: 'Africa', cities: ['malabo', 'bata'] },
+  { code: 'ER', name: 'Eritrea', currency: 'ERN', region: 'Africa', cities: ['asmara'] },
+  { code: 'SZ', name: 'Eswatini', currency: 'SZL', region: 'Africa', cities: ['mbabane', 'manzini'] },
+  { code: 'ET', name: 'Ethiopia', currency: 'ETB', region: 'Africa', cities: ['addis ababa', 'dire dawa', 'mekelle', 'hawassa', 'bahir dar'] },
+  { code: 'GA', name: 'Gabon', currency: 'XAF', region: 'Africa', cities: ['libreville', 'port-gentil'] },
+  { code: 'GM', name: 'Gambia', currency: 'GMD', region: 'Africa', cities: ['banjul', 'serekunda'] },
+  { code: 'GH', name: 'Ghana', currency: 'GHS', region: 'Africa', cities: ['accra', 'kumasi', 'tamale', 'takoradi'] },
+  { code: 'GN', name: 'Guinea', currency: 'GNF', region: 'Africa', cities: ['conakry', 'nzerekore'] },
+  { code: 'GW', name: 'Guinea-Bissau', currency: 'XOF', region: 'Africa', cities: ['bissau'] },
+  { code: 'CI', name: "Cote d'Ivoire", currency: 'XOF', region: 'Africa', cities: ['abidjan', 'yamoussoukro', 'bouake'] },
+  { code: 'KE', name: 'Kenya', currency: 'KES', region: 'Africa', cities: ['nairobi', 'mombasa', 'kisumu', 'nakuru'] },
+  { code: 'LS', name: 'Lesotho', currency: 'LSL', region: 'Africa', cities: ['maseru'] },
+  { code: 'LR', name: 'Liberia', currency: 'LRD', region: 'Africa', cities: ['monrovia'] },
+  { code: 'LY', name: 'Libya', currency: 'LYD', region: 'Africa', cities: ['tripoli', 'benghazi', 'misrata'] },
+  { code: 'MG', name: 'Madagascar', currency: 'MGA', region: 'Africa', cities: ['antananarivo', 'toamasina'] },
+  { code: 'MW', name: 'Malawi', currency: 'MWK', region: 'Africa', cities: ['lilongwe', 'blantyre', 'mzuzu'] },
+  { code: 'ML', name: 'Mali', currency: 'XOF', region: 'Africa', cities: ['bamako', 'sikasso'] },
+  { code: 'MR', name: 'Mauritania', currency: 'MRU', region: 'Africa', cities: ['nouakchott', 'nouadhibou'] },
+  { code: 'MU', name: 'Mauritius', currency: 'MUR', region: 'Africa', cities: ['port louis', 'curepipe'] },
+  { code: 'MA', name: 'Morocco', currency: 'MAD', region: 'Africa', cities: ['casablanca', 'rabat', 'marrakech', 'fes', 'tangier'] },
+  { code: 'MZ', name: 'Mozambique', currency: 'MZN', region: 'Africa', cities: ['maputo', 'matola', 'beira', 'nampula'] },
+  { code: 'NA', name: 'Namibia', currency: 'NAD', region: 'Africa', cities: ['windhoek', 'walvis bay'] },
+  { code: 'NE', name: 'Niger', currency: 'XOF', region: 'Africa', cities: ['niamey', 'zinder'] },
+  { code: 'NG', name: 'Nigeria', currency: 'NGN', region: 'Africa', cities: ['lagos', 'abuja', 'kano', 'ibadan', 'port harcourt', 'benin city'] },
+  { code: 'RW', name: 'Rwanda', currency: 'RWF', region: 'Africa', cities: ['kigali'] },
+  { code: 'ST', name: 'Sao Tome and Principe', currency: 'STN', region: 'Africa', cities: ['sao tome'] },
+  { code: 'SN', name: 'Senegal', currency: 'XOF', region: 'Africa', cities: ['dakar', 'touba', 'thies'] },
+  { code: 'SC', name: 'Seychelles', currency: 'SCR', region: 'Africa', cities: ['victoria'] },
+  { code: 'SL', name: 'Sierra Leone', currency: 'SLE', region: 'Africa', cities: ['freetown', 'bo'] },
+  { code: 'SO', name: 'Somalia', currency: 'SOS', region: 'Africa', cities: ['mogadishu', 'hargeisa'] },
+  { code: 'ZA', name: 'South Africa', currency: 'ZAR', region: 'Africa', cities: ['johannesburg', 'cape town', 'durban', 'pretoria', 'soweto', 'port elizabeth'] },
+  { code: 'SS', name: 'South Sudan', currency: 'SSP', region: 'Africa', cities: ['juba'] },
+  { code: 'SD', name: 'Sudan', currency: 'SDG', region: 'Africa', cities: ['khartoum', 'omdurman'] },
+  { code: 'TZ', name: 'Tanzania', currency: 'TZS', region: 'Africa', cities: ['dar es salaam', 'dodoma', 'arusha', 'mwanza'] },
+  { code: 'TG', name: 'Togo', currency: 'XOF', region: 'Africa', cities: ['lome', 'sokode'] },
+  { code: 'TN', name: 'Tunisia', currency: 'TND', region: 'Africa', cities: ['tunis', 'sfax', 'sousse'] },
+  { code: 'UG', name: 'Uganda', currency: 'UGX', region: 'Africa', cities: ['kampala', 'gulu', 'mbarara'] },
+  { code: 'ZM', name: 'Zambia', currency: 'ZMW', region: 'Africa', cities: ['lusaka', 'kitwe', 'ndola'] },
+  { code: 'ZW', name: 'Zimbabwe', currency: 'ZWL', region: 'Africa', cities: ['harare', 'bulawayo', 'mutare'] },
+  // --- Diaspora markets ---
   { code: 'US', name: 'United States', currency: 'USD', region: 'Diaspora-US', cities: ['new york', 'washington', 'atlanta', 'houston', 'minneapolis', 'columbus', 'dallas', 'los angeles', 'chicago', 'seattle'] },
   { code: 'CA', name: 'Canada', currency: 'CAD', region: 'Canada', cities: ['toronto', 'ottawa', 'calgary', 'edmonton', 'vancouver', 'montreal', 'winnipeg'] },
   { code: 'GB', name: 'United Kingdom', currency: 'GBP', region: 'UK', cities: ['london', 'manchester', 'birmingham', 'leeds', 'leicester'] },
@@ -102,10 +153,12 @@ function enrichGeo(record) {
   const currency = detectCurrency(record, country);
   const language = detectLanguage(`${record.title || ''} ${record.description || ''}`);
   return {
-    country: country ? country.name : null,
-    countryCode: country ? country.code : null,
-    region: country ? country.region : null,
-    city,
+    // Never blank a country/city/region the connector already provided just
+    // because heuristic detection missed it — fall back to the incoming values.
+    country: (country ? country.name : null) || record.country || null,
+    countryCode: country ? country.code : (record.countryCode || null),
+    region: country ? country.region : (record.region || null),
+    city: city || record.city || null,
     currency,
     language,
   };
