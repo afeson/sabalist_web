@@ -164,7 +164,17 @@ async function processRecord(raw, source, store, opts = {}) {
     return { decision: 'review', reason: 'duplicate_uncertain', listing, matchId: verdict.matchId, similarity: verdict.similarity, confidence, quality: q, meta };
   }
 
-  // 7) ROUTE new listings on quality + confidence.
+  // 7a) TRUSTED DIRECTORY sources (curated open data — OSM/Wikidata): a valid,
+  // non-duplicate, non-spam entry with a title + category + location IS a
+  // legitimate directory listing, even if sparse (no contact/photo). Publish it
+  // — spam is already rejected, duplicates already routed to review, required
+  // fields enforced, and sparse entries just rank lower via search quality_score.
+  // Requires a resolvable location so we never publish a placeless entry.
+  if (source.trustedDirectory && draft.location && String(draft.location).trim().length > 1) {
+    return { decision: 'publish', reason: 'trusted_directory', listing, confidence, quality: q, meta };
+  }
+
+  // 7b) ROUTE remaining new listings on quality + confidence.
   if (q.score >= cfg.autoPublishQuality && confidence >= cfg.autoPublishConfidence) {
     return { decision: 'publish', reason: 'high_confidence', listing, confidence, quality: q, meta };
   }

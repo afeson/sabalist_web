@@ -69,6 +69,7 @@ module.exports = {
     name: 'Wikidata — African businesses/companies/hotels/banks (SPARQL, CC0)',
     enabled: true,
     business: true, // claimable businesses (→ /claim + AI Assistant)
+    trustedDirectory: true, // curated open data (CC0) — auto-publish valid non-dup entries
     ownerUserId: 'imported-listings',
     region: 'Africa',
     license: 'Wikidata (CC0 1.0, public domain). Entity URL kept as sourceUrl.',

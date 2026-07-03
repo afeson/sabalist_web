@@ -274,6 +274,7 @@ module.exports = {
     name: 'OpenStreetMap — Africa businesses/services/tourism/education (Overpass, ODbL)',
     enabled: true,
     business: true, // imported as claimable businesses (→ /claim + AI Assistant)
+    trustedDirectory: true, // curated open data — auto-publish valid non-dup entries
     ownerUserId: 'imported-listings',
     region: 'Africa',
     license: 'OpenStreetMap (ODbL) — © OpenStreetMap contributors; attribution via sourceUrl.',
