@@ -33,7 +33,11 @@ const country = arg('country');
 const geojson = arg('geojson');
 const dry = !!arg('dry', false);
 const limit = Number(arg('limit', 0)) || 0;
-if (!country || !geojson) { console.error('Usage: node import-geofabrik.js --country <Name> --geojson <file> [--dry] [--limit N]'); process.exit(2); }
+// Concurrent record processing (lib/pipeline.js opts.concurrency) — same
+// speedup that carried the Overture import (~35× over serial). Large OSM
+// countries (Tanzania) exceeded the 6h job cap on the serial path.
+const CONC = Math.max(1, Number(arg('concurrency', 12)) || 12);
+if (!country || !geojson) { console.error('Usage: node import-geofabrik.js --country <Name> --geojson <file> [--dry] [--limit N] [--concurrency N]'); process.exit(2); }
 
 const TYPEWORD = { n: 'node', w: 'way', r: 'relation' };
 const normWebsite = (w) => (/^https?:\/\//.test(w) ? w : (w ? 'https://' + w.replace(/^\/+/, '') : ''));
@@ -98,10 +102,10 @@ function toRecord(feature) {
     if (!rec) continue;
     batch.push(rec);
     read++;
-    if (batch.length >= BATCH) { add(await runBatch(batch, src, store, {})); batch = []; console.log(`  …${read} features processed`); }
+    if (batch.length >= BATCH) { add(await runBatch(batch, src, store, { concurrency: CONC })); batch = []; console.log(`  …${read} features processed`); }
     if (limit && read >= limit) break;
   }
-  if (batch.length) add(await runBatch(batch, src, store, {}));
+  if (batch.length) add(await runBatch(batch, src, store, { concurrency: CONC }));
 
   console.log(`\n── Geofabrik import: ${country} ${dry ? '[DRY]' : '[LIVE]'} ──`);
   console.log(`  features read : ${read}`);
