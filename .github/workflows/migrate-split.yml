@@ -1,0 +1,38 @@
+name: Migrate — split listings into businesses + classified_listings
+
+# Option A architecture migration. Non-destructive: copies each `listings` doc
+# into `businesses` (imported directory profiles) or `classified_listings`
+# (African user ads), drops non-African demo seed, and marks the source with
+# `_split` for resume. Originals stay as backup until reads are switched + verified.
+# Branch name picks the mode: migrate-split-dry (report only) / migrate-split-apply.
+on:
+  push:
+    branches: [migrate-split-dry, migrate-split-apply]
+  workflow_dispatch:
+    inputs:
+      mode: { description: 'dry_run or apply', type: choice, options: [dry_run, apply], default: dry_run }
+
+concurrency:
+  group: migrate-split
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Migrate
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          FLAG="--dry"
+          [ "${{ github.event.inputs.mode }}" = "apply" ] && FLAG=""
+          [ "${{ github.ref_name }}" = "migrate-split-apply" ] && FLAG=""
+          node migrate-split.js $FLAG
