@@ -1,0 +1,30 @@
+name: Import GLEIF (CC0 legal entities)
+
+# Free CC0 public-domain legal-entity data (Global Legal Entity Identifier) for
+# all 54 African countries via the GLEIF API, through the existing dedup
+# pipeline. Small (~11k African entities) but fully redistributable net-new.
+on:
+  push:
+    branches: [gleif-import]
+  workflow_dispatch:
+
+concurrency:
+  group: import-gleif
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Import GLEIF
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node import-gleif.js
