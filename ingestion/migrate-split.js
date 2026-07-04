@@ -50,7 +50,10 @@ function isAfrican(d) {
 }
 function classify(d) {
   if (d.source && KNOWN_BIZ_SOURCES.has(d.source)) return 'business'; // → businesses collection
-  if (isAfrican(d) === false) return 'dropped';                       // non-African junk → remove from listings
+  // Drop ONLY non-African IMPORTED junk (Airbnb/jobs feeds — they carry a source).
+  // Genuine user-posted ads have NO source and are NEVER dropped, wherever they
+  // are — real user content is preserved unconditionally.
+  if (d.source && isAfrican(d) === false) return 'dropped';
   return 'listing';                                                   // real marketplace ad → STAYS in listings
 }
 
@@ -93,6 +96,7 @@ async function pageThrough(fn) {
   // COPY phase
   const stat = { business: 0, listing: 0, dropped: 0, already: 0 };
   const sources = {};
+  const userAds = []; // genuine user-posted ads (no source) — dump for review
   let ops = 0, batch = db.batch();
   const scanned = await pageThrough(async (docs) => {
     for (const doc of docs) {
@@ -101,6 +105,9 @@ async function pageThrough(fn) {
       const t = classify(d);
       stat[t]++;
       sources[d.source || '(none)'] = (sources[d.source || '(none)'] || 0) + 1;
+      if (!d.source && userAds.length < 100) {
+        userAds.push(`${doc.id} | "${d.title || '(no title)'}" | ${d.location || d.country || '?'} | ${d.priceType || ''} ${d.amount ?? d.price ?? ''} ${d.currency || ''} | user:${d.userId || '?'} | → ${t}`);
+      }
       if (dry) continue;
       if (t === 'business') { batch.set(db.collection('businesses').doc(doc.id), { ...d, type: 'business', migratedAt: new Date().toISOString() }, { merge: true }); ops++; }
       // stamp the source doc: type discriminator (ads staying in `listings`) + _split resume/cleanup marker
@@ -113,5 +120,7 @@ async function pageThrough(fn) {
   console.log(JSON.stringify({ scanned, businesses: stat.business, stays_in_listings: stat.listing, dropped: stat.dropped, already: stat.already }, null, 2));
   console.log('\n-- source distribution (top 20) --');
   Object.entries(sources).sort((a, b) => b[1] - a[1]).slice(0, 20).forEach(([s, n]) => console.log(`  ${String(n).padStart(9)}  ${s}`));
+  console.log(`\n-- GENUINE USER ADS (no source) — ${userAds.length} shown --`);
+  userAds.forEach((s) => console.log('  ' + s));
   process.exit(0);
 })().catch((e) => { console.error('migration failed:', e.message); process.exit(1); });
