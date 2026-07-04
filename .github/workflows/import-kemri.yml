@@ -1,0 +1,52 @@
+name: Import KEMRI/WHO health facilities
+
+# 98,746 public health facilities across all 50 sub-Saharan countries
+# (KEMRI-Wellcome / WHO, CC BY 4.0, HDX-updated 2025-05). Converted from the
+# HDX xlsx with python, then run through the existing dedup pipeline.
+on:
+  push:
+    branches: [kemri-import]
+  workflow_dispatch:
+
+concurrency:
+  group: import-kemri
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install deps
+        working-directory: ingestion
+        run: |
+          pip install --quiet openpyxl
+          npm install --no-audit --no-fund
+      - name: Download + convert xlsx → NDJSON
+        working-directory: ingestion
+        run: |
+          curl -sL "https://data.humdata.org/dataset/eb1ba830-9464-43c8-9370-28cee0c99f5d/resource/758d5c17-88f4-42b2-9d4b-4bfe32d4acf7/download/sub-saharan_health_facilities.xlsx" \
+            -H "User-Agent: sabalist-ingest/1.0" -o kemri.xlsx
+          python - <<'EOF'
+          import openpyxl, json
+          wb = openpyxl.load_workbook('kemri.xlsx', read_only=True)
+          ws = wb.worksheets[0]
+          rows = ws.iter_rows(values_only=True)
+          next(rows)  # header: Country, Admin1, Facility_n, Facility_t, Ownership, Lat, Long, LL_source
+          n = 0
+          with open('kemri.ndjson', 'w', encoding='utf-8') as f:
+              for r in rows:
+                  f.write(json.dumps({'country': r[0], 'admin1': r[1], 'name': r[2], 'type': r[3], 'ownership': r[4], 'lat': r[5], 'lon': r[6]}, ensure_ascii=False) + '\n')
+                  n += 1
+          print('converted', n, 'rows')
+          EOF
+      - name: Import through pipeline
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node import-kemri.js --ndjson kemri.ndjson

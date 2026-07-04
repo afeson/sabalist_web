@@ -1,0 +1,54 @@
+name: Import Overture Places (Africa)
+
+# Tier-1 bulk import: Overture Maps "Places" (CDLA/Apache/CC0 — commercial-safe)
+# read directly from Overture's public S3 parquet via DuckDB (no cloud infra),
+# then run through the EXISTING pipeline (dedup v2 / diff-only / claim-tagging /
+# trusted-directory auto-publish / search sync). Overture is ~0% OSM-sourced, so
+# cross-source dedup (lib/match.js) is what measures true net-new over our OSM base.
+#
+# Proof run targets a small set of countries we already hold OSM data for, so the
+# published/review split shows real cross-source net-new. Scale country-by-country
+# after the numbers check out.
+on:
+  push:
+    branches: [overture-import]
+  workflow_dispatch:
+    inputs:
+      countries:
+        description: 'Space-separated ISO2 codes'
+        default: 'GH RW BW LS'
+
+concurrency:
+  group: import-overture
+  cancel-in-progress: false
+
+env:
+  COUNTRIES: 'GH RW BW LS'   # proof set (edit + push to change)
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install DuckDB
+        run: pip install --quiet duckdb
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Export Overture Places → NDJSON
+        working-directory: ingestion
+        run: |
+          CC="${{ github.event.inputs.countries || env.COUNTRIES }}"
+          echo "Exporting: $CC"
+          python export-overture.py overture_africa.ndjson $CC
+          wc -l overture_africa.ndjson
+      - name: Import through pipeline
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node import-overture.js --ndjson overture_africa.ndjson

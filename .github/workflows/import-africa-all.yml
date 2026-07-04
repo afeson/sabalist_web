@@ -96,22 +96,3 @@ jobs:
           wc -l feats.geojsonseq
           node ingestion/import-geofabrik.js --country "${{ matrix.name }}" --geojson feats.geojsonseq $FLAG
 
-  reindex:
-    needs: import
-    if: ${{ always() && github.event.inputs.mode != 'dry_run' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '20' }
-      - name: Install ingestion deps
-        working-directory: ingestion
-        run: npm install --no-audit --no-fund
-      - name: Re-sync search index
-        working-directory: ingestion
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          TYPESENSE_URL: ${{ secrets.TYPESENSE_URL }}
-          TYPESENSE_ADMIN_KEY: ${{ secrets.TYPESENSE_ADMIN_KEY }}
-        run: node reindex-search.js

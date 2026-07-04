@@ -5,8 +5,16 @@
 const URL = (process.env.TYPESENSE_URL || '').replace(/\/$/, '');
 const KEY = process.env.TYPESENSE_SEARCH_KEY || '';
 
+// RETIRED 2026-07-04: the Typesense VM was decommissioned (in-memory index
+// OOM'd at 2.45M docs). Search now runs through the vendor-neutral provider
+// chain in lib/search/ (/api/search); SEO pages use their built-in Firestore
+// paths. This module is kept only so legacy imports keep compiling — it always
+// reports disabled so no request ever waits on a dead endpoint. To re-enable a
+// Typesense engine, flip RETIRED and set the env vars.
+const RETIRED = true;
+
 export function searchEnabled(): boolean {
-  return !!(URL && KEY);
+  return !RETIRED && !!(URL && KEY);
 }
 
 export async function searchListingIds(
@@ -17,6 +25,7 @@ export async function searchListingIds(
   try {
     const res = await fetch(`${URL}/collections/listings/documents/search?${qs}`, {
       headers: { 'X-TYPESENSE-API-KEY': KEY },
+      signal: AbortSignal.timeout(2500), // fail fast to Firestore if the engine is down
       next: { revalidate: 300 }, // cache identical searches for 5 min
     });
     if (!res.ok) return null;

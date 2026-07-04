@@ -1,0 +1,44 @@
+name: Recover safe net-new from review queue
+
+# Publishes the provably-distinct subset of listings_staging
+# (duplicate_uncertain + name clearly differs + independent phone/domain/geo
+# signal). Precision-first; everything else stays held. Dry-run by default.
+on:
+  push:
+    branches: [recover-review-dry, recover-review-apply]  # branch name picks the mode
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'dry_run or apply'
+        type: choice
+        options: [dry_run, apply]
+        default: dry_run
+      limit:
+        description: 'Max staging docs to scan (0 = all)'
+        default: '0'
+
+concurrency:
+  group: recover-review
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Recover
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          # SAFE DEFAULT: dry-run unless explicitly apply (dispatch input or apply branch)
+          FLAG="--dry"
+          [ "${{ github.event.inputs.mode }}" = "apply" ] && FLAG=""
+          [ "${{ github.ref_name }}" = "recover-review-apply" ] && FLAG=""
+          node recover-review.js $FLAG --limit "${{ github.event.inputs.limit || '0' }}"

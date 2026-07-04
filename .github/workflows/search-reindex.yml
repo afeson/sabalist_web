@@ -3,9 +3,10 @@ name: Search reindex (Typesense)
 # Rebuilds the Typesense index from Firestore: initial bulk load + nightly
 # reconciler (self-heals any missed real-time sync). The index is a disposable
 # projection of Firestore, so this is safe to run any time.
+# Typesense engine retired 2026-07-04 (replaced by the provider chain in
+# seo-web/src/lib/search). Nightly cron disabled; manual dispatch kept in case
+# a Typesense engine is ever stood back up.
 on:
-  schedule:
-    - cron: '0 4 * * *'   # 04:00 UTC nightly reconcile
   workflow_dispatch:
 
 concurrency:

@@ -58,11 +58,3 @@ jobs:
             rm -f c.pbf f.pbf feats.geojsonseq
             echo "::endgroup::"
           done
-      - name: Re-sync search index
-        if: ${{ github.event.inputs.mode != 'dry_run' }}
-        working-directory: ingestion
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          TYPESENSE_URL: ${{ secrets.TYPESENSE_URL }}
-          TYPESENSE_ADMIN_KEY: ${{ secrets.TYPESENSE_ADMIN_KEY }}
-        run: node reindex-search.js
