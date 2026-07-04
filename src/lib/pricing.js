@@ -97,17 +97,27 @@ export function formatListingPrice(listing, t) {
     return v && v !== key ? v : fallback;
   };
 
-  // Listing's pre-rendered text wins if present. This lets the writer
-  // freeze whatever the seller saw at create-time (useful for search
-  // results and SEO).
-  if (listing && typeof listing.displayPriceText === 'string' && listing.displayPriceText.trim()) {
-    return listing.displayPriceText;
-  }
-
   const p = normalisePrice(listing);
   const negSuffix = p.isNegotiable
     ? ` · ${tr('pricing.negotiable', 'Negotiable')}`
     : '';
+
+  // Guard against currency-conversion glitches (e.g. an ETB amount multiplied by
+  // the ~96 ETB/USD rate → "USD 911,721,500"). No classified ad is a real ~1B, so
+  // an absurd amount renders as Negotiable/Contact instead of a broken number —
+  // and we ignore any pre-baked displayPriceText carrying a 9+ digit value.
+  const ABSURD_AMOUNT = 200000000;
+  const rawAmt = Number(listing?.amount ?? listing?.maxAmount ?? listing?.price) || 0;
+  const brokenText = /\d{9,}/.test(String(listing?.displayPriceText || '').replace(/[,\s]/g, ''));
+  if (rawAmt >= ABSURD_AMOUNT || brokenText) {
+    return p.isNegotiable ? tr('pricing.negotiable', 'Negotiable') : tr('pricing.callForPrice', 'Contact for price');
+  }
+
+  // Listing's pre-rendered text wins if present (and sane). This lets the writer
+  // freeze whatever the seller saw at create-time (useful for search + SEO).
+  if (listing && typeof listing.displayPriceText === 'string' && listing.displayPriceText.trim()) {
+    return listing.displayPriceText;
+  }
 
   switch (p.priceType) {
     case PRICE_TYPES.FREE:

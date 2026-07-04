@@ -32,9 +32,21 @@ export function normalisePrice(listing: any): NormalisedPrice {
   };
 }
 
+// Guard against currency-conversion glitches (e.g. an ETB amount multiplied by
+// the ~96 ETB/USD rate → "USD 911,721,500"). No classified ad is a real ~1B, so
+// absurd amounts render as their negotiable/contact label instead of a broken
+// number. Also rejects any pre-baked displayPriceText carrying a 9+ digit value.
+const ABSURD_AMOUNT = 200_000_000;
+function looksBroken(listing: any): boolean {
+  const amt = Number(listing?.amount ?? listing?.maxAmount ?? listing?.price) || 0;
+  if (amt >= ABSURD_AMOUNT) return true;
+  return /\d{9,}/.test(String(listing?.displayPriceText || '').replace(/[,\s]/g, ''));
+}
+
 export function formatPrice(listing: any): string {
-  if (listing?.displayPriceText) return String(listing.displayPriceText);
   const p = normalisePrice(listing);
+  if (looksBroken(listing)) return p.isNegotiable ? 'Negotiable' : 'Contact for price';
+  if (listing?.displayPriceText) return String(listing.displayPriceText);
   const fmt = (n: number) => `${p.currency} ${Number(n).toLocaleString()}`;
   switch (p.priceType) {
     case PRICE_TYPES.FREE: return 'Free';
