@@ -1,0 +1,30 @@
+name: Import Wikidata organizations (CC0)
+
+# Phase 1: African orgs/facilities with coordinates from Wikidata (CC0) via
+# SPARQL, all 54 countries, through the existing dedup pipeline. Multilingual
+# labels captured as aliases (seeds Phase 8); phone/website captured (Phase 9).
+on:
+  push:
+    branches: [wikidata-import]
+  workflow_dispatch:
+
+concurrency:
+  group: import-wikidata
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Import Wikidata
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node import-wikidata.js
