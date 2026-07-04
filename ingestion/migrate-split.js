@@ -38,9 +38,14 @@ const AF = new Set(['Algeria','Angola','Benin','Botswana','Burkina Faso','Burund
 // Our real Business Directory came from exactly these importers — all African
 // by construction. Anything else with a `source` (old Airbnb/demo seed) is NOT a
 // legitimate business.
+// Exact source ids of the Business Directory importers (verified from the v2
+// dry-run source distribution). Everything else with a source (Airbnb rentals,
+// jobs, events, products) is marketplace content, not a directory profile.
 const KNOWN_BIZ_SOURCES = new Set([
-  'overture-africa', 'osm-africa-businesses', 'grid3-africa',
-  'kemri-health-facilities', 'wikidata-africa', 'gleif-africa',
+  'overture-africa-businesses', 'osm-africa-businesses', 'grid3-africa',
+  'kemri-health-facilities', 'wikidata-africa', 'wikidata-africa-businesses',
+  'gleif-africa', 'hipolabs-universities-africa', 'unesco-sites-africa',
+  'wikivoyage-listings-africa', 'osm-diaspora-african',
 ]);
 
 function isAfrican(d) {
