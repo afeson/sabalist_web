@@ -1,30 +1,27 @@
 #!/usr/bin/env node
 'use strict';
 /**
- * Option A migration — split the mixed `listings` collection into two real
- * systems:
- *   businesses          — permanent directory profiles (imported records)
- *   classified_listings — user marketplace ads (African only)
+ * Option A migration — NO-APP-REBUILD model.
  *
- * Classification per source doc:
- *   • business  → has `source`, OR claimable===true, OR userId==='imported-listings'
- *                 → copied to `businesses` with type:'business'
- *   • ad (rest) → African country  → copied to `classified_listings`, type:'listing'
- *                 non-African       → DROPPED (old demo/seed junk)
- *                 unknown country   → kept in classified_listings (conservative)
+ *   businesses  — permanent directory profiles (COPIED here from `listings`)
+ *   listings    — the marketplace (UNCHANGED collection the app already uses):
+ *                 keeps only real African ads; businesses + non-African junk removed
  *
- * NON-DESTRUCTIVE: copies to the new collections and stamps each source doc with
- * `_split` for idempotent resume; the original `listings` docs are left intact as
- * a backup until reads are switched over and the split is verified (cleanup is a
- * separate, explicit step). Target doc IDs match source IDs.
+ * Two phases (run copy first, verify `businesses`, then cleanup):
+ *   COPY (default):  business → copy to `businesses` (type:'business') + mark _split
+ *                    listing  → STAYS in `listings`; stamp type:'listing' + _split
+ *                    dropped  → mark _split:'dropped' (non-African junk)
+ *   CLEANUP (--cleanup): delete from `listings` every doc marked _split in
+ *                        (business | dropped). Marketplace ads (listing) stay.
  *
- * CLI: node migrate-split.js [--dry] [--limit N]
- * Env: FIREBASE_SERVICE_ACCOUNT
+ * The app never changes (it reads/writes `listings`, which becomes ads-only).
+ * CLI: node migrate-split.js [--dry] [--cleanup] [--limit N]   Env: FIREBASE_SERVICE_ACCOUNT
  */
 const admin = require('firebase-admin');
 
 const argv = process.argv.slice(2);
 const dry = argv.includes('--dry');
+const cleanup = argv.includes('--cleanup');
 const limit = Number((argv[argv.indexOf('--limit') + 1]) || 0) || 0;
 
 const credential = process.env.FIREBASE_SERVICE_ACCOUNT
@@ -35,12 +32,9 @@ const db = admin.firestore();
 
 const AF = new Set(['Algeria','Angola','Benin','Botswana','Burkina Faso','Burundi','Cape Verde','Cameroon','Central African Republic','Chad','Comoros','Congo','DR Congo','Djibouti','Egypt','Equatorial Guinea','Eritrea','Eswatini','Ethiopia','Gabon','Gambia','Ghana','Guinea','Guinea-Bissau',"Cote d'Ivoire",'Kenya','Lesotho','Liberia','Libya','Madagascar','Malawi','Mali','Mauritania','Mauritius','Morocco','Mozambique','Namibia','Niger','Nigeria','Rwanda','Sao Tome and Principe','Senegal','Seychelles','Sierra Leone','Somalia','South Africa','South Sudan','Sudan','Tanzania','Togo','Tunisia','Uganda','Zambia','Zimbabwe']);
 
-// Our real Business Directory came from exactly these importers — all African
-// by construction. Anything else with a `source` (old Airbnb/demo seed) is NOT a
-// legitimate business.
-// Exact source ids of the Business Directory importers (verified from the v2
-// dry-run source distribution). Everything else with a source (Airbnb rentals,
-// jobs, events, products) is marketplace content, not a directory profile.
+// Exact source ids of the Business Directory importers (verified from the dry-run
+// source distribution). Everything else with a source (Airbnb rentals, jobs,
+// events, products) is marketplace content, not a directory profile.
 const KNOWN_BIZ_SOURCES = new Set([
   'overture-africa-businesses', 'osm-africa-businesses', 'grid3-africa',
   'kemri-health-facilities', 'wikidata-africa', 'wikidata-africa-businesses',
@@ -55,59 +49,69 @@ function isAfrican(d) {
   return d.country ? false : null; // false = known non-African; null = unknown
 }
 function classify(d) {
-  // 1) A doc from a known African importer is a business.
-  if (d.source && KNOWN_BIZ_SOURCES.has(d.source)) return { target: 'businesses', type: 'business' };
-  // 2) Anything explicitly non-African is old demo/seed junk — DROP it, whether
-  //    it looks like a business or an ad (our real businesses are all African).
-  if (isAfrican(d) === false) return { target: null, type: 'dropped' };
-  // 3) Remaining African/unknown docs are marketplace ads.
-  return { target: 'classified_listings', type: 'listing' };
+  if (d.source && KNOWN_BIZ_SOURCES.has(d.source)) return 'business'; // → businesses collection
+  if (isAfrican(d) === false) return 'dropped';                       // non-African junk → remove from listings
+  return 'listing';                                                   // real marketplace ad → STAYS in listings
 }
 
-(async () => {
+async function pageThrough(fn) {
   const PAGE = 500;
   let last = null, scanned = 0;
-  const stat = { businesses: 0, classified_listings: 0, dropped: 0, already: 0 };
-  const sources = {};      // source-value distribution (verify the allowlist)
-  const sampleAds = [], sampleDrop = []; // examples for eyeballing
   while (true) {
     let q = db.collection('listings').orderBy('__name__').limit(PAGE);
     if (last) q = q.startAfter(last);
     const snap = await q.get();
     if (snap.empty) break;
-
-    // Each migrated doc = up to 2 writes (target copy + source marker). Firestore
-    // batches cap at 500 ops, so flush at ~200 docs (≤400 ops).
-    let batch = dry ? null : db.batch(); let ops = 0;
-    for (const doc of snap.docs) {
-      scanned++;
-      const d = doc.data();
-      if (d._split) { stat.already++; continue; }
-      const { target, type } = classify(d);
-      stat[type === 'dropped' ? 'dropped' : target]++;
-      sources[d.source || '(none)'] = (sources[d.source || '(none)'] || 0) + 1;
-      if (type === 'listing' && sampleAds.length < 15) sampleAds.push(`${d.title} — ${d.location || d.country || '?'} [src:${d.source || 'none'}]`);
-      if (type === 'dropped' && sampleDrop.length < 15) sampleDrop.push(`${d.title} — ${d.location || d.country || '?'} [src:${d.source || 'none'}]`);
-      if (dry) continue;
-      if (target) {
-        batch.set(db.collection(target).doc(doc.id), { ...d, type, migratedAt: new Date().toISOString() }, { merge: true });
-        ops++;
-      }
-      batch.set(doc.ref, { _split: type }, { merge: true });
-      ops++;
-      if (ops >= 400) { await batch.commit(); batch = db.batch(); ops = 0; }
-    }
-    if (!dry && ops) await batch.commit();
+    await fn(snap.docs, () => scanned);
+    scanned += snap.size;
     last = snap.docs[snap.docs.length - 1];
-    if (scanned % 25000 < PAGE) console.log(`  …scanned ${scanned} | biz ${stat.businesses} ads ${stat.classified_listings} dropped ${stat.dropped}`);
-    if (limit && scanned >= limit) break;
+    if (limit && scanned >= limit) return scanned;
     if (snap.size < PAGE) break;
   }
-  console.log(`\n── SPLIT MIGRATION ${dry ? '[DRY]' : '[LIVE]'} ──`);
-  console.log(JSON.stringify({ scanned, ...stat }, null, 2));
+  return scanned;
+}
+
+(async () => {
+  if (cleanup) {
+    // DELETE from `listings` everything already copied to `businesses` or dropped.
+    let scanned = 0, deleted = 0, ops = 0, batch = db.batch();
+    scanned = await pageThrough(async (docs) => {
+      for (const doc of docs) {
+        const sp = doc.data()._split;
+        if (sp === 'business' || sp === 'dropped') {
+          deleted++;
+          if (!dry) { batch.delete(doc.ref); if (++ops >= 400) { await batch.commit(); batch = db.batch(); ops = 0; } }
+        }
+      }
+      if (!dry && ops) { await batch.commit(); batch = db.batch(); ops = 0; }
+      if (scanned % 100000 < 500) console.log(`  …deleted ${deleted}`);
+    });
+    console.log(`\n── CLEANUP ${dry ? '[DRY]' : '[LIVE]'} ── scanned ${scanned}, deleted-from-listings ${deleted} (marketplace ads kept)`);
+    process.exit(0);
+  }
+
+  // COPY phase
+  const stat = { business: 0, listing: 0, dropped: 0, already: 0 };
+  const sources = {};
+  let ops = 0, batch = db.batch();
+  const scanned = await pageThrough(async (docs) => {
+    for (const doc of docs) {
+      const d = doc.data();
+      if (d._split) { stat.already++; continue; }
+      const t = classify(d);
+      stat[t]++;
+      sources[d.source || '(none)'] = (sources[d.source || '(none)'] || 0) + 1;
+      if (dry) continue;
+      if (t === 'business') { batch.set(db.collection('businesses').doc(doc.id), { ...d, type: 'business', migratedAt: new Date().toISOString() }, { merge: true }); ops++; }
+      // stamp the source doc: type discriminator (ads staying in `listings`) + _split resume/cleanup marker
+      batch.set(doc.ref, t === 'listing' ? { _split: 'listing', type: 'listing' } : { _split: t }, { merge: true });
+      if (++ops >= 400) { await batch.commit(); batch = db.batch(); ops = 0; }
+    }
+    if (!dry && ops) { await batch.commit(); batch = db.batch(); ops = 0; }
+  });
+  console.log(`\n── SPLIT MIGRATION (COPY) ${dry ? '[DRY]' : '[LIVE]'} ──`);
+  console.log(JSON.stringify({ scanned, businesses: stat.business, stays_in_listings: stat.listing, dropped: stat.dropped, already: stat.already }, null, 2));
   console.log('\n-- source distribution (top 20) --');
   Object.entries(sources).sort((a, b) => b[1] - a[1]).slice(0, 20).forEach(([s, n]) => console.log(`  ${String(n).padStart(9)}  ${s}`));
-  if (sampleAds.length) { console.log('\n-- sample → classified_listings --'); sampleAds.forEach((s) => console.log('  ' + s)); }
-  if (sampleDrop.length) { console.log('\n-- sample → DROPPED (non-African) --'); sampleDrop.forEach((s) => console.log('  ' + s)); }
   process.exit(0);
 })().catch((e) => { console.error('migration failed:', e.message); process.exit(1); });
