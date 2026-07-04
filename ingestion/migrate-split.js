@@ -35,6 +35,14 @@ const db = admin.firestore();
 
 const AF = new Set(['Algeria','Angola','Benin','Botswana','Burkina Faso','Burundi','Cape Verde','Cameroon','Central African Republic','Chad','Comoros','Congo','DR Congo','Djibouti','Egypt','Equatorial Guinea','Eritrea','Eswatini','Ethiopia','Gabon','Gambia','Ghana','Guinea','Guinea-Bissau',"Cote d'Ivoire",'Kenya','Lesotho','Liberia','Libya','Madagascar','Malawi','Mali','Mauritania','Mauritius','Morocco','Mozambique','Namibia','Niger','Nigeria','Rwanda','Sao Tome and Principe','Senegal','Seychelles','Sierra Leone','Somalia','South Africa','South Sudan','Sudan','Tanzania','Togo','Tunisia','Uganda','Zambia','Zimbabwe']);
 
+// Our real Business Directory came from exactly these importers — all African
+// by construction. Anything else with a `source` (old Airbnb/demo seed) is NOT a
+// legitimate business.
+const KNOWN_BIZ_SOURCES = new Set([
+  'overture-africa', 'osm-africa-businesses', 'grid3-africa',
+  'kemri-health-facilities', 'wikidata-africa', 'gleif-africa',
+]);
+
 function isAfrican(d) {
   if (d.country && AF.has(String(d.country).trim())) return true;
   const loc = String(d.location || '');
@@ -42,17 +50,21 @@ function isAfrican(d) {
   return d.country ? false : null; // false = known non-African; null = unknown
 }
 function classify(d) {
-  const isBiz = !!d.source || d.claimable === true || d.userId === 'imported-listings';
-  if (isBiz) return { target: 'businesses', type: 'business' };
-  const af = isAfrican(d);
-  if (af === false) return { target: null, type: 'dropped' }; // non-African demo/seed
-  return { target: 'classified_listings', type: 'listing' };  // African or unknown
+  // 1) A doc from a known African importer is a business.
+  if (d.source && KNOWN_BIZ_SOURCES.has(d.source)) return { target: 'businesses', type: 'business' };
+  // 2) Anything explicitly non-African is old demo/seed junk — DROP it, whether
+  //    it looks like a business or an ad (our real businesses are all African).
+  if (isAfrican(d) === false) return { target: null, type: 'dropped' };
+  // 3) Remaining African/unknown docs are marketplace ads.
+  return { target: 'classified_listings', type: 'listing' };
 }
 
 (async () => {
   const PAGE = 500;
   let last = null, scanned = 0;
   const stat = { businesses: 0, classified_listings: 0, dropped: 0, already: 0 };
+  const sources = {};      // source-value distribution (verify the allowlist)
+  const sampleAds = [], sampleDrop = []; // examples for eyeballing
   while (true) {
     let q = db.collection('listings').orderBy('__name__').limit(PAGE);
     if (last) q = q.startAfter(last);
@@ -68,6 +80,9 @@ function classify(d) {
       if (d._split) { stat.already++; continue; }
       const { target, type } = classify(d);
       stat[type === 'dropped' ? 'dropped' : target]++;
+      sources[d.source || '(none)'] = (sources[d.source || '(none)'] || 0) + 1;
+      if (type === 'listing' && sampleAds.length < 15) sampleAds.push(`${d.title} — ${d.location || d.country || '?'} [src:${d.source || 'none'}]`);
+      if (type === 'dropped' && sampleDrop.length < 15) sampleDrop.push(`${d.title} — ${d.location || d.country || '?'} [src:${d.source || 'none'}]`);
       if (dry) continue;
       if (target) {
         batch.set(db.collection(target).doc(doc.id), { ...d, type, migratedAt: new Date().toISOString() }, { merge: true });
@@ -85,5 +100,9 @@ function classify(d) {
   }
   console.log(`\n── SPLIT MIGRATION ${dry ? '[DRY]' : '[LIVE]'} ──`);
   console.log(JSON.stringify({ scanned, ...stat }, null, 2));
+  console.log('\n-- source distribution (top 20) --');
+  Object.entries(sources).sort((a, b) => b[1] - a[1]).slice(0, 20).forEach(([s, n]) => console.log(`  ${String(n).padStart(9)}  ${s}`));
+  if (sampleAds.length) { console.log('\n-- sample → classified_listings --'); sampleAds.forEach((s) => console.log('  ' + s)); }
+  if (sampleDrop.length) { console.log('\n-- sample → DROPPED (non-African) --'); sampleDrop.forEach((s) => console.log('  ' + s)); }
   process.exit(0);
 })().catch((e) => { console.error('migration failed:', e.message); process.exit(1); });
