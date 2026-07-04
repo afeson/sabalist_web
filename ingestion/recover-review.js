@@ -49,13 +49,13 @@ const distM = (a, b) => {
   return 2 * R * Math.asin(Math.sqrt(s));
 };
 
-async function judge(sdoc) {
-  const s = sdoc.data();
+// Pure decision against a PRE-FETCHED match doc (M). No I/O here — the caller
+// batch-loads all matches for a page with db.getAll(), so we never fire 600k
+// individual reads (which Firestore throttles into hours of backoff).
+function judge(s, M) {
   const L = s.listing || {};
   if (!s.matchId || !L.title) return { verdict: 'keep', why: 'no_match_or_title' };
-  const m = await LIVE.doc(s.matchId).get();
-  if (!m.exists) return { verdict: 'publish', why: 'match_gone' }; // matched doc deleted → nothing to duplicate
-  const M = m.data();
+  if (!M) return { verdict: 'publish', why: 'match_gone' }; // matched doc deleted → nothing to duplicate
   const j = jacc(L.title, M.title);
   if (j >= 0.4) return { verdict: 'keep', why: `name_similar(${j.toFixed(2)})` };
   const phoneDiff = L.phoneE164 && M.phoneE164 && L.phoneE164 !== M.phoneE164;
@@ -78,6 +78,20 @@ async function judge(sdoc) {
   const whyStats = {};
   const samples = []; // dry-run: example pairs for human precision review
 
+  // Batch-load the matched live docs for a page of staging docs in ONE
+  // getAll() RPC (chunked) instead of N individual reads → ~1000× fewer
+  // round-trips, no throttling.
+  const loadMatches = async (docs) => {
+    const ids = [...new Set(docs.map((d) => d.data().matchId).filter(Boolean))];
+    const map = new Map();
+    for (let i = 0; i < ids.length; i += 300) {
+      const refs = ids.slice(i, i + 300).map((id) => LIVE.doc(id));
+      const snaps = await LIVE.firestore.getAll(...refs);
+      for (const s of snaps) if (s.exists) map.set(s.id, s.data());
+    }
+    return map;
+  };
+
   for (const reason of REASONS) {
     let last = null;
     while (true) {
@@ -87,24 +101,28 @@ async function judge(sdoc) {
       const snap = await q.get();
       if (snap.empty) break;
 
-      for (let i = 0; i < snap.docs.length; i += CONC) {
-        await Promise.all(snap.docs.slice(i, i + CONC).map(async (sdoc) => {
-          scanned++;
-          const { verdict, why, pair } = await judge(sdoc);
-          const key = `${reason}:${why}`;
-          whyStats[key] = (whyStats[key] || 0) + 1;
-          if (verdict !== 'publish') { kept++; return; }
-          if (dry) {
-            published++;
-            if (pair && samples.length < 40 && published % 7 === 1) samples.push(`[${why}] "${pair[0]}"  vs live  "${pair[1]}"`);
-            return;
-          }
-          const L = sdoc.data().listing;
+      const matches = await loadMatches(snap.docs);   // 1 batched read for the whole page
+      let writes = [];
+      for (const sdoc of snap.docs) {
+        scanned++;
+        const s = sdoc.data();
+        const { verdict, why, pair } = judge(s, s.matchId ? matches.get(s.matchId) : null);
+        whyStats[`${reason}:${why}`] = (whyStats[`${reason}:${why}`] || 0) + 1;
+        if (verdict !== 'publish') { kept++; continue; }
+        published++;
+        if (dry) {
+          if (pair && samples.length < 40 && published % 9 === 1) samples.push(`[${why}] "${pair[0]}"  vs live  "${pair[1]}"`);
+          continue;
+        }
+        writes.push({ sdoc, L: s.listing });
+      }
+      // Apply publishes for this page with bounded concurrency (writes only — a
+      // small fraction of the page, so no throttle risk).
+      for (let i = 0; i < writes.length; i += CONC) {
+        await Promise.all(writes.slice(i, i + CONC).map(async ({ sdoc, L }) => {
           const now = new Date().toISOString();
-          const doc = { ...L, ...buildSearchFields(L), createdAt: L.importedAt || now, updatedAt: now };
-          const ref = await LIVE.add(doc);
+          const ref = await LIVE.add({ ...L, ...buildSearchFields(L), createdAt: L.importedAt || now, updatedAt: now });
           await sdoc.ref.set({ status: 'recovered', publishedId: ref.id, recoveredAt: now }, { merge: true });
-          published++;
         }));
       }
       last = snap.docs[snap.docs.length - 1];
