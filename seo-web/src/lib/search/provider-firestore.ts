@@ -58,10 +58,27 @@ export const firestoreProvider: SearchProvider = {
         ranked = seen.slice(0, 8);
       }
     } else if (req.q && req.q.trim()) {
-      const tokens = tokenize(req.q, 10);
-      if (!tokens.length) return { hits: [], found: 0, page, perPage, provider: this.name, tookMs: Date.now() - t0, degraded: true };
-      // Single array-contains-any (auto single-field index); filters + ranking client-side.
-      const snap = await getDocs(query(col, where('searchKeywords', 'array-contains-any', tokens), qlimit(CANDIDATES)));
+      const qTokens = tokenize(req.q, 10);
+      if (!qTokens.length) return { hits: [], found: 0, page, perPage, provider: this.name, tookMs: Date.now() - t0, degraded: true };
+      // Geo-scoped: array-contains on the first query token + country equality
+      // (single-field index merge) keeps the bounded window full of on-topic,
+      // in-country docs instead of letting a broad token flood it continent-wide.
+      // Falls back to the un-scoped query if the merge needs a composite index.
+      let snap;
+      if (req.country) {
+        try {
+          snap = await getDocs(query(col,
+            where('searchKeywords', 'array-contains', qTokens[0]),
+            where('country', '==', req.country),
+            qlimit(CANDIDATES)));
+        } catch { snap = null; }
+      }
+      // City folded into ranking tokens (docs store city as a keyword), country
+      // deliberately NOT (too broad — matches everything in the country).
+      const tokens = tokenize([req.q, req.city].filter(Boolean).join(' '), 10);
+      if (!snap || snap.empty) {
+        snap = await getDocs(query(col, where('searchKeywords', 'array-contains-any', tokens), qlimit(CANDIDATES)));
+      }
       const scored: Array<{ h: SearchHit; s: number }> = [];
       snap.forEach((s) => {
         const d = s.data();
