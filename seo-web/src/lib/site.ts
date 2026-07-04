@@ -4,10 +4,12 @@ export const SITE = {
   name: 'Sabalist',
   url: 'https://www.sabalist.com',
   description:
-    "Sabalist is Africa's marketplace. Buy and sell electronics, vehicles, real estate, phones, fashion, jobs and more — browse listings near you.",
+    "Sabalist is Africa's business directory and classified marketplace. Find African businesses — restaurants, hotels, hospitals, schools, banks and shops — and buy & sell electronics, vehicles, real estate, phones, fashion and jobs.",
   twitter: '@sabalist',
   defaultOgImage: 'https://www.sabalist.com/og/default-1200x630.png',
   locale: 'en',
+  // Interactive Expo SPA (login/post/chat) lives on its own subdomain.
+  appUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://app.sabalist.com',
 } as const;
 
 // Quality gate (locked decision): a category/location page is only indexed +
