@@ -27,6 +27,10 @@ const arg = (k, d) => { const i = argv.indexOf(`--${k}`); if (i === -1) return d
 const dry = argv.includes('--dry');
 const limit = Number(arg('limit', 0)) || 0;
 const CONC = Math.max(1, Number(arg('concurrency', 12)) || 12);
+// Which staging reasons to process. The `duplicate` bucket is dominated by
+// Overture-era holds (81% carry phone/website) so the independent-signal gates
+// have real data to work with there too.
+const REASONS = String(arg('reasons', 'duplicate_uncertain,duplicate')).split(',').map((s) => s.trim()).filter(Boolean);
 
 const credential = process.env.FIREBASE_SERVICE_ACCOUNT
   ? admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT))
@@ -59,43 +63,64 @@ async function judge(sdoc) {
   const d = distM(L, M);
   const farApart = d != null && d > 300;
   if (phoneDiff || domainDiff || farApart) {
-    return { verdict: 'publish', why: [phoneDiff && 'phone', domainDiff && 'domain', farApart && `geo(${Math.round(d)}m)`].filter(Boolean).join('+') };
+    return {
+      verdict: 'publish',
+      why: [phoneDiff && 'phone', domainDiff && 'domain', farApart && 'geo'].filter(Boolean).join('+'),
+      pair: [L.title, M.title],
+    };
   }
   return { verdict: 'keep', why: 'no_independent_signal' };
 }
 
 (async () => {
   const PAGE = 500;
-  let last = null, scanned = 0, published = 0, kept = 0;
+  let scanned = 0, published = 0, kept = 0;
   const whyStats = {};
-  while (true) {
-    let q = STAGING.where('reason', '==', 'duplicate_uncertain').where('status', '==', 'pending')
-      .orderBy('__name__').limit(PAGE);
-    if (last) q = q.startAfter(last);
-    const snap = await q.get();
-    if (snap.empty) break;
+  const samples = []; // dry-run: example pairs for human precision review
 
-    for (let i = 0; i < snap.docs.length; i += CONC) {
-      await Promise.all(snap.docs.slice(i, i + CONC).map(async (sdoc) => {
-        scanned++;
-        const { verdict, why } = await judge(sdoc);
-        whyStats[why] = (whyStats[why] || 0) + 1;
-        if (verdict !== 'publish') { kept++; return; }
-        if (dry) { published++; return; }
-        const L = sdoc.data().listing;
-        const now = new Date().toISOString();
-        const doc = { ...L, ...buildSearchFields(L), createdAt: L.importedAt || now, updatedAt: now };
-        const ref = await LIVE.add(doc);
-        await sdoc.ref.set({ status: 'recovered', publishedId: ref.id, recoveredAt: now }, { merge: true });
-        published++;
-      }));
+  for (const reason of REASONS) {
+    let last = null;
+    while (true) {
+      let q = STAGING.where('reason', '==', reason).where('status', '==', 'pending')
+        .orderBy('__name__').limit(PAGE);
+      if (last) q = q.startAfter(last);
+      const snap = await q.get();
+      if (snap.empty) break;
+
+      for (let i = 0; i < snap.docs.length; i += CONC) {
+        await Promise.all(snap.docs.slice(i, i + CONC).map(async (sdoc) => {
+          scanned++;
+          const { verdict, why, pair } = await judge(sdoc);
+          const key = `${reason}:${why}`;
+          whyStats[key] = (whyStats[key] || 0) + 1;
+          if (verdict !== 'publish') { kept++; return; }
+          if (dry) {
+            published++;
+            if (pair && samples.length < 40 && published % 7 === 1) samples.push(`[${why}] "${pair[0]}"  vs live  "${pair[1]}"`);
+            return;
+          }
+          const L = sdoc.data().listing;
+          const now = new Date().toISOString();
+          const doc = { ...L, ...buildSearchFields(L), createdAt: L.importedAt || now, updatedAt: now };
+          const ref = await LIVE.add(doc);
+          await sdoc.ref.set({ status: 'recovered', publishedId: ref.id, recoveredAt: now }, { merge: true });
+          published++;
+        }));
+      }
+      last = snap.docs[snap.docs.length - 1];
+      if (scanned % 20000 < PAGE) console.log(`  …scanned ${scanned}, published ${published}, kept ${kept}`);
+      if (limit && scanned >= limit) break;
+      if (snap.size < PAGE) break;
     }
-    last = snap.docs[snap.docs.length - 1];
-    if (scanned % 5000 < PAGE) console.log(`  …scanned ${scanned}, published ${published}, kept ${kept}`);
+    console.log(`  [${reason}] done — cumulative scanned ${scanned}, published ${published}`);
     if (limit && scanned >= limit) break;
-    if (snap.size < PAGE) break;
   }
+
   console.log(`\n── REVIEW RECOVERY ${dry ? '[DRY]' : '[LIVE]'} ──`);
   console.log(JSON.stringify({ scanned, published, kept, whyStats }, null, 2));
+  if (dry && samples.length) {
+    console.log('\n── SAMPLE would-publish pairs (staged vs matched-live) ──');
+    for (const s of samples) console.log('  ' + s);
+  }
   process.exit(0);
 })().catch((e) => { console.error('recover failed:', e.message); process.exit(1); });
