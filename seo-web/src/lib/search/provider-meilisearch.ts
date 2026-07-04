@@ -50,6 +50,7 @@ export const meilisearchProvider: SearchProvider = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(3000), // fail fast → Firestore fallback, never hang
         next: { revalidate: 300 },
       });
       if (!res.ok) return null; // fall through to the next provider

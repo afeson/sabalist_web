@@ -52,10 +52,3 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: node import-overture.js --ndjson overture_africa.ndjson
-      - name: Re-sync search index
-        working-directory: ingestion
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          TYPESENSE_URL: ${{ secrets.TYPESENSE_URL }}
-          TYPESENSE_ADMIN_KEY: ${{ secrets.TYPESENSE_ADMIN_KEY }}
-        run: node reindex-search.js
