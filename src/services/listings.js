@@ -49,10 +49,8 @@ function expandCategoryIds(inputId) {
  */
 export async function createListing(listingData, imageUris = []) {
   try {
-    // Marketplace Engine — user ads write to `classified_listings` (Option A).
-    // Model: userId REQUIRED; businessId OPTIONAL (null for an individual seller,
-    // set when a claimed business posts inventory under its profile).
-    const listingsRef = collection(firestore, "classified_listings");
+    // Create listing document first to get listingId
+    const listingsRef = collection(firestore, "listings");
     // Build the canonical price fields (priceType, amount, currency,
     // isNegotiable, displayPriceText, plus a legacy `price` mirror).
     // If the caller already passed a priceType (the new path from
@@ -83,9 +81,7 @@ export async function createListing(listingData, imageUris = []) {
       subcategory: listingData.subcategory || "",
       location: listingData.location || "Africa",
       phoneNumber: listingData.phoneNumber || "",
-      userId: listingData.userId,            // REQUIRED — the poster
-      businessId: listingData.businessId || null, // OPTIONAL — set only when a business posts
-      type: "listing",                        // Option A discriminator (Marketplace Engine)
+      userId: listingData.userId,
       images: [],
       coverImage: "",
       hasImage: false,
@@ -112,7 +108,7 @@ export async function createListing(listingData, imageUris = []) {
       console.log(`✅ Uploaded ${imageUrls.length} images`);
 
       // Update listing with image URLs
-      const listingDocRef = doc(firestore, "classified_listings", listingId);
+      const listingDocRef = doc(firestore, "listings", listingId);
       await updateDoc(listingDocRef, {
         images: imageUrls,
         coverImage: imageUrls[0] || "",
@@ -159,7 +155,7 @@ async function uploadImage(uri, path) {
  */
 export async function fetchListings({ category = null, maxResults = 50 } = {}) {
   try {
-    const listingsRef = collection(firestore, "classified_listings");
+    const listingsRef = collection(firestore, "listings");
     let q;
 
     const expandedIds = expandCategoryIds(category);
@@ -239,7 +235,7 @@ async function fetchListingPool({ category = null } = {}) {
   if (category) {
     return fetchListings({ category, maxResults: POOL_CATEGORY_MAX });
   }
-  const listingsRef = collection(firestore, "classified_listings");
+  const listingsRef = collection(firestore, "listings");
   const homeCategories = getVisibleCategories().map((c) => c.id).filter(Boolean);
   const results = await Promise.all(homeCategories.map(async (cid) => {
     try {
@@ -307,7 +303,7 @@ export { clearDiscoveryCache, PAGE_SIZE } from "./discovery";
  */
 export async function getListing(listingId) {
   try {
-    const docRef = doc(firestore, "classified_listings", listingId);
+    const docRef = doc(firestore, "listings", listingId);
     const docSnap = await getDoc(docRef);
 
     if (!docSnap.exists()) {
@@ -331,7 +327,7 @@ export async function getListing(listingId) {
  */
 export async function getUserListings(userId) {
   try {
-    const listingsRef = collection(firestore, "classified_listings");
+    const listingsRef = collection(firestore, "listings");
     const q = query(
       listingsRef,
       where("userId", "==", userId),
@@ -388,7 +384,7 @@ export async function updateListing(listingId, updateData, newImageUris = [], ex
       updatedAt: serverTimestamp()
     };
 
-    const docRef = doc(firestore, "classified_listings", listingId);
+    const docRef = doc(firestore, "listings", listingId);
     await updateDoc(docRef, updates);
     console.log(`✅ Listing updated: ${listingId} with ${allImages.length} images`);
   } catch (error) {
@@ -404,7 +400,7 @@ export async function updateListing(listingId, updateData, newImageUris = [], ex
  */
 export async function markListingAsSold(listingId) {
   try {
-    const docRef = doc(firestore, "classified_listings", listingId);
+    const docRef = doc(firestore, "listings", listingId);
     await updateDoc(docRef, {
       status: 'sold',
       soldAt: serverTimestamp(),
@@ -424,7 +420,7 @@ export async function markListingAsSold(listingId) {
  */
 export async function reactivateListing(listingId) {
   try {
-    const docRef = doc(firestore, "classified_listings", listingId);
+    const docRef = doc(firestore, "listings", listingId);
     await updateDoc(docRef, {
       status: 'active',
       soldAt: null,
@@ -444,7 +440,7 @@ export async function reactivateListing(listingId) {
  */
 export async function incrementListingViews(listingId) {
   try {
-    const docRef = doc(firestore, "classified_listings", listingId);
+    const docRef = doc(firestore, "listings", listingId);
     await updateDoc(docRef, {
       views: increment(1),
       lastViewedAt: serverTimestamp()
@@ -489,7 +485,7 @@ export async function deleteListing(listingId) {
     }
 
     // Delete the document
-    const docRef = doc(firestore, "classified_listings", listingId);
+    const docRef = doc(firestore, "listings", listingId);
     await deleteDoc(docRef);
 
     console.log(`✅ Listing deleted: ${listingId}`);
@@ -508,7 +504,7 @@ export async function deleteListing(listingId) {
 export function subscribeToUserListings(userId, callback) {
   try {
     const q = query(
-      collection(firestore, "classified_listings"),
+      collection(firestore, "listings"),
       where("userId", "==", userId),
       orderBy("createdAt", "desc")
     );

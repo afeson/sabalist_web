@@ -58,7 +58,7 @@ export async function createListing(listingData, imageUris = [], videoData = nul
           currency: listingData.currency || "USD",
         };
 
-    const listingRef = await addDoc(collection(firestore, "classified_listings"), {
+    const listingRef = await addDoc(collection(firestore, "listings"), {
       title: listingData.title,
       description: listingData.description || "",
       ...priceFields,
@@ -129,7 +129,7 @@ export async function createListing(listingData, imageUris = [], videoData = nul
     console.log(`📝 Cover image:`, imageUrls[0] || "");
     console.log(`📝 Video URL:`, videoUrl);
 
-    await updateDoc(doc(firestore, "classified_listings", listingId), {
+    await updateDoc(doc(firestore, "listings", listingId), {
       images: imageUrls,
       coverImage: imageUrls[0] || "",
       hasImage: imageUrls.length > 0,
@@ -139,7 +139,7 @@ export async function createListing(listingData, imageUris = [], videoData = nul
 
     // Verify the update was successful by reading back the document
     console.log('🔍 Verifying listing was updated correctly...');
-    const verifyDoc = await getDocFromServer(doc(firestore, "classified_listings", listingId));
+    const verifyDoc = await getDocFromServer(doc(firestore, "listings", listingId));
     if (verifyDoc.exists()) {
       const savedData = verifyDoc.data();
       console.log('✅ Verification: images array in Firestore =', savedData.images?.length || 0, 'images');
@@ -282,14 +282,14 @@ export async function fetchListings(categoryFilter = null, limitCount = 20) {
     let q;
     if (expandedIds && expandedIds.length === 1) {
       q = query(
-        collection(firestore, "classified_listings"),
+        collection(firestore, "listings"),
         where("categoryId", "==", expandedIds[0]),
         orderBy("createdAt", "desc"),
         firestoreLimit(limitCount)
       );
     } else if (expandedIds && expandedIds.length > 1) {
       q = query(
-        collection(firestore, "classified_listings"),
+        collection(firestore, "listings"),
         where("categoryId", "in", expandedIds.slice(0, 10)),
         orderBy("createdAt", "desc"),
         firestoreLimit(limitCount)
@@ -305,7 +305,7 @@ export async function fetchListings(categoryFilter = null, limitCount = 20) {
       const results = await Promise.all(homeCategories.map(async (cid) => {
         try {
           const cq = query(
-            collection(firestore, "classified_listings"),
+            collection(firestore, "listings"),
             where("categoryId", "==", cid),
             firestoreLimit(perCat)
           );
@@ -346,7 +346,7 @@ export async function getListingById(listingId) {
   try {
     // Force fetch from server to get latest data (important for images!)
     console.log('📡 Fetching listing from server, ID:', listingId);
-    const docSnap = await getDocFromServer(doc(firestore, "classified_listings", listingId));
+    const docSnap = await getDocFromServer(doc(firestore, "listings", listingId));
     console.log('✅ Fetched listing, has images:', docSnap.exists() && docSnap.data().images?.length > 0);
 
     if (docSnap.exists()) {
@@ -368,7 +368,7 @@ export async function getListingById(listingId) {
 export async function getUserListings(userId) {
   try {
     const q = query(
-      collection(firestore, "classified_listings"),
+      collection(firestore, "listings"),
       where("userId", "==", userId),
       orderBy("createdAt", "desc")
     );
@@ -395,7 +395,7 @@ export async function getUserListings(userId) {
  */
 export async function updateListing(listingId, updates) {
   try {
-    await updateDoc(doc(firestore, "classified_listings", listingId), {
+    await updateDoc(doc(firestore, "listings", listingId), {
       ...updates,
       updatedAt: serverTimestamp()
     });
@@ -441,7 +441,7 @@ export async function deleteListing(listingId) {
     }
 
     // Delete listing document
-    await deleteDoc(doc(firestore, "classified_listings", listingId));
+    await deleteDoc(doc(firestore, "listings", listingId));
     console.log(`✅ Listing deleted: ${listingId}`);
   } catch (error) {
     console.error("❌ Error deleting listing:", error);
@@ -454,7 +454,7 @@ export async function deleteListing(listingId) {
  */
 export async function markListingAsSold(listingId) {
   try {
-    await updateDoc(doc(firestore, "classified_listings", listingId), {
+    await updateDoc(doc(firestore, "listings", listingId), {
       status: 'sold',
       soldAt: serverTimestamp(),
       updatedAt: serverTimestamp()
@@ -471,7 +471,7 @@ export async function markListingAsSold(listingId) {
  */
 export async function reactivateListing(listingId) {
   try {
-    await updateDoc(doc(firestore, "classified_listings", listingId), {
+    await updateDoc(doc(firestore, "listings", listingId), {
       status: 'active',
       soldAt: null,
       updatedAt: serverTimestamp()
@@ -488,7 +488,7 @@ export async function reactivateListing(listingId) {
  */
 export async function incrementListingViews(listingId) {
   try {
-    await updateDoc(doc(firestore, "classified_listings", listingId), {
+    await updateDoc(doc(firestore, "listings", listingId), {
       views: increment(1),
       lastViewedAt: serverTimestamp()
     });
@@ -527,7 +527,7 @@ async function fetchListingPool({ category = null } = {}) {
   const results = await Promise.all(homeCategories.map(async (cid) => {
     try {
       const cq = query(
-        collection(firestore, "classified_listings"),
+        collection(firestore, "listings"),
         where("categoryId", "==", cid),
         firestoreLimit(POOL_PER_CATEGORY)
       );
@@ -595,14 +595,14 @@ export function subscribeToListings(callback, categoryFilter = null, limitCount 
     let q;
     if (expandedIds && expandedIds.length === 1) {
       q = query(
-        collection(firestore, "classified_listings"),
+        collection(firestore, "listings"),
         where("categoryId", "==", expandedIds[0]),
         orderBy("createdAt", "desc"),
         firestoreLimit(limitCount)
       );
     } else if (expandedIds && expandedIds.length > 1) {
       q = query(
-        collection(firestore, "classified_listings"),
+        collection(firestore, "listings"),
         where("categoryId", "in", expandedIds.slice(0, 10)),
         orderBy("createdAt", "desc"),
         firestoreLimit(limitCount)
@@ -611,7 +611,7 @@ export function subscribeToListings(callback, categoryFilter = null, limitCount 
       // Home feed: rank listings WITH images first, then newest (so the home
       // isn't a wall of placeholders from imageless imported directory listings).
       q = query(
-        collection(firestore, "classified_listings"),
+        collection(firestore, "listings"),
         orderBy("hasImage", "desc"),
         orderBy("createdAt", "desc"),
         firestoreLimit(limitCount)
@@ -651,7 +651,7 @@ export function subscribeToListings(callback, categoryFilter = null, limitCount 
 export function subscribeToUserListings(userId, callback) {
   try {
     const q = query(
-      collection(firestore, "classified_listings"),
+      collection(firestore, "listings"),
       where("userId", "==", userId),
       orderBy("createdAt", "desc")
     );
