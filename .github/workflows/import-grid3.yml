@@ -1,0 +1,37 @@
+name: Import GRID3 (schools/health/markets)
+
+# Free CC-BY government/development POINT data (GRID3 ArcGIS Hub) for NG/CD/ZM/SL
+# — schools, health facilities, markets. Non-OSM/non-Overture → net-new. Runs
+# through the existing dedup pipeline (concurrency 16); reindex at the end.
+on:
+  push:
+    branches: [grid3-import]
+  workflow_dispatch:
+
+concurrency:
+  group: import-grid3
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Import GRID3
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node import-grid3.js
+      - name: Re-sync search index
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          TYPESENSE_URL: ${{ secrets.TYPESENSE_URL }}
+          TYPESENSE_ADMIN_KEY: ${{ secrets.TYPESENSE_ADMIN_KEY }}
+        run: node reindex-search.js
