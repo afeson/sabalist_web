@@ -21,6 +21,7 @@ const { scoreQuality } = require('./quality');
 const dedup = require('./dedup');
 const normalize = require('./normalize');
 const match = require('./match');
+const { buildSearchFields } = require('./searchKeywords');
 
 const DEFAULTS = {
   autoPublishQuality: 0.75,   // min quality score to auto-publish
@@ -69,6 +70,16 @@ function toListingDoc(draft, meta) {
     domain: normalize.domainOf(draft.website || draft.url || draft.sourceUrl),
     nameNorm: normalize.nameNorm(draft.title).norm,
     nameKey: normalize.nameNorm(draft.title).key,
+    // $0 Firestore search fallback fields (lib/searchKeywords.js): token array
+    // for array-contains-any keyword search + lowercase title for prefix
+    // autocomplete. Every engine can also index these.
+    ...buildSearchFields({
+      title: draft.title,
+      categoryId: draft.categoryId,
+      subcategory: draft.subcategory,
+      location: draft.location || [draft.city, draft.country].filter(Boolean).join(', '),
+      country: draft.country,
+    }),
     location: draft.location || [draft.city, draft.country].filter(Boolean).join(', '),
     language: draft.language || 'en',
     phoneNumber: draft.phoneNumber || '',

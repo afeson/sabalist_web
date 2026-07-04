@@ -1,0 +1,30 @@
+name: Backfill search keywords
+
+# Stamps searchKeywords[] + title_lc onto all existing listings so the $0
+# Firestore search fallback (/api/search) can match them. Idempotent +
+# resumable — if the 6h job cap hits mid-way, re-run and it continues.
+on:
+  push:
+    branches: [search-layer]
+  workflow_dispatch:
+
+concurrency:
+  group: backfill-search-keywords
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Backfill
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node backfill-search-keywords.js
