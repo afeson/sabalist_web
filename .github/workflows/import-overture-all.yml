@@ -1,0 +1,136 @@
+name: Import Overture — ALL Africa (parallel matrix)
+
+# Tier-1 at full scale: every African country as a PARALLEL job. Each job exports
+# its own country from Overture's public S3 parquet (DuckDB, no cloud infra) and
+# runs it through the EXISTING dedup v2 pipeline (cross-source dedup vs the OSM
+# base, non-business POIs excluded, taxonomy reused). Giants (ZA/EG/NG/MA/DZ) are
+# pre-sharded across parallel jobs so no single job exceeds the 6h limit. Idempotent
+# — already-imported businesses skip on any re-run, so `gh run rerun --failed` is a
+# safe retry. Final job re-syncs the search index once.
+on:
+  push:
+    branches: [overture-all]
+  workflow_dispatch:
+
+concurrency:
+  group: import-overture-all
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      max-parallel: 20
+      fail-fast: false
+      matrix:
+        include:
+          # --- giants, sharded (counts verified from release 2026-06-17) ---
+          - { cc: ZA, name: South Africa, shard: 1/6 }
+          - { cc: ZA, name: South Africa, shard: 2/6 }
+          - { cc: ZA, name: South Africa, shard: 3/6 }
+          - { cc: ZA, name: South Africa, shard: 4/6 }
+          - { cc: ZA, name: South Africa, shard: 5/6 }
+          - { cc: ZA, name: South Africa, shard: 6/6 }
+          - { cc: EG, name: Egypt, shard: 1/3 }
+          - { cc: EG, name: Egypt, shard: 2/3 }
+          - { cc: EG, name: Egypt, shard: 3/3 }
+          - { cc: NG, name: Nigeria, shard: 1/2 }
+          - { cc: NG, name: Nigeria, shard: 2/2 }
+          - { cc: MA, name: Morocco, shard: 1/2 }
+          - { cc: MA, name: Morocco, shard: 2/2 }
+          - { cc: DZ, name: Algeria, shard: 1/2 }
+          - { cc: DZ, name: Algeria, shard: 2/2 }
+          # --- single-job countries ---
+          - { cc: KE, name: Kenya, shard: '' }
+          - { cc: TN, name: Tunisia, shard: '' }
+          - { cc: GH, name: Ghana, shard: '' }
+          - { cc: UG, name: Uganda, shard: '' }
+          - { cc: TZ, name: Tanzania, shard: '' }
+          - { cc: ZW, name: Zimbabwe, shard: '' }
+          - { cc: LY, name: Libya, shard: '' }
+          - { cc: CI, name: Cote d'Ivoire, shard: '' }
+          - { cc: ZM, name: Zambia, shard: '' }
+          - { cc: AO, name: Angola, shard: '' }
+          - { cc: MU, name: Mauritius, shard: '' }
+          - { cc: CD, name: DR Congo, shard: '' }
+          - { cc: CM, name: Cameroon, shard: '' }
+          - { cc: MZ, name: Mozambique, shard: '' }
+          - { cc: SN, name: Senegal, shard: '' }
+          - { cc: BW, name: Botswana, shard: '' }
+          - { cc: NA, name: Namibia, shard: '' }
+          - { cc: MG, name: Madagascar, shard: '' }
+          - { cc: ET, name: Ethiopia, shard: '' }
+          - { cc: SD, name: Sudan, shard: '' }
+          - { cc: BF, name: Burkina Faso, shard: '' }
+          - { cc: MW, name: Malawi, shard: '' }
+          - { cc: BJ, name: Benin, shard: '' }
+          - { cc: GN, name: Guinea, shard: '' }
+          - { cc: SO, name: Somalia, shard: '' }
+          - { cc: CG, name: Congo, shard: '' }
+          - { cc: TG, name: Togo, shard: '' }
+          - { cc: RW, name: Rwanda, shard: '' }
+          - { cc: GA, name: Gabon, shard: '' }
+          - { cc: CV, name: Cape Verde, shard: '' }
+          - { cc: LR, name: Liberia, shard: '' }
+          - { cc: ML, name: Mali, shard: '' }
+          - { cc: LS, name: Lesotho, shard: '' }
+          - { cc: SZ, name: Eswatini, shard: '' }
+          - { cc: BI, name: Burundi, shard: '' }
+          - { cc: CF, name: Central African Republic, shard: '' }
+          - { cc: SL, name: Sierra Leone, shard: '' }
+          - { cc: SS, name: South Sudan, shard: '' }
+          - { cc: GM, name: Gambia, shard: '' }
+          - { cc: SC, name: Seychelles, shard: '' }
+          - { cc: NE, name: Niger, shard: '' }
+          - { cc: MR, name: Mauritania, shard: '' }
+          - { cc: DJ, name: Djibouti, shard: '' }
+          - { cc: TD, name: Chad, shard: '' }
+          - { cc: ER, name: Eritrea, shard: '' }
+          - { cc: GW, name: Guinea-Bissau, shard: '' }
+          - { cc: GQ, name: Equatorial Guinea, shard: '' }
+          - { cc: KM, name: Comoros, shard: '' }
+          - { cc: ST, name: Sao Tome and Principe, shard: '' }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install DuckDB
+        run: pip install --quiet duckdb
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Export ${{ matrix.name }} (${{ matrix.cc }}) ${{ matrix.shard }}
+        working-directory: ingestion
+        run: |
+          python export-overture.py c.ndjson ${{ matrix.cc }}
+          wc -l c.ndjson
+      - name: Import ${{ matrix.name }} ${{ matrix.shard }}
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          SHARD=""; [ -n "${{ matrix.shard }}" ] && SHARD="--shard ${{ matrix.shard }}"
+          node import-overture.js --ndjson c.ndjson $SHARD
+
+  reindex:
+    needs: import
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Re-sync search index
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          TYPESENSE_URL: ${{ secrets.TYPESENSE_URL }}
+          TYPESENSE_ADMIN_KEY: ${{ secrets.TYPESENSE_ADMIN_KEY }}
+        run: node reindex-search.js

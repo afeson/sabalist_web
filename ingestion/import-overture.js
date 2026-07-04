@@ -33,7 +33,21 @@ const ndjson = arg('ndjson');
 const onlyCC = typeof arg('country') === 'string' ? String(arg('country')).toUpperCase() : null;
 const dry = argv.includes('--dry');
 const limit = Number(arg('limit', 0)) || 0;
-if (!ndjson) { console.error('usage: node import-overture.js --ndjson <file> [--country GH] [--dry] [--limit N]'); process.exit(1); }
+// --shard i/n : process only lines where (lineIndex % n) === (i-1). Lets a giant
+// country (e.g. ZA ~670k) be split across N parallel 6h jobs. Shards are disjoint
+// and jointly cover every line. Concurrent shards can leak a few intra-country
+// dups (each unaware of the other's in-flight writes); the nightly reconciler
+// and precision-first review queue absorb that.
+let shardI = 0, shardN = 1;
+const shardArg = arg('shard');
+if (typeof shardArg === 'string' && /^\d+\/\d+$/.test(shardArg)) {
+  [shardI, shardN] = shardArg.split('/').map(Number);
+}
+// Concurrency: Overture records are contact-rich (81% have phone/website) so
+// each does several dedup lookups; serial processing is I/O-bound on Firestore
+// round-trips. Process records in concurrent chunks for a large speedup.
+const concurrency = Math.max(1, Number(arg('concurrency', 16)) || 16);
+if (!ndjson) { console.error('usage: node import-overture.js --ndjson <file> [--country GH] [--shard i/n] [--dry] [--limit N]'); process.exit(1); }
 
 // ISO-3166-1 alpha-2 -> display name (Africa). Falls back to the raw code.
 const CC_NAME = {
@@ -149,11 +163,13 @@ function toRecord(o) {
   let batch = [];
   const totals = { total: 0, published: 0, updated: 0, skipped: 0, review: 0, rejected: 0 };
   const add = (s) => { for (const k of Object.keys(totals)) totals[k] += s[k] || 0; };
-  let read = 0, filtered = 0;
+  let read = 0, filtered = 0, lineNo = -1;
 
   for await (const line of rl) {
     const t = line.trim();
     if (!t) continue;
+    lineNo++;
+    if (shardN > 1 && (lineNo % shardN) !== (shardI - 1)) continue; // not this shard
     let o;
     try { o = JSON.parse(t); } catch { continue; }
     if (onlyCC && String(o.country || '').toUpperCase() !== onlyCC) { filtered++; continue; }
@@ -161,12 +177,12 @@ function toRecord(o) {
     if (!rec) continue;
     batch.push(rec);
     read++;
-    if (batch.length >= BATCH) { add(await runBatch(batch, src, store, {})); batch = []; console.log(`  …${read} processed`); }
+    if (batch.length >= BATCH) { add(await runBatch(batch, src, store, { concurrency })); batch = []; console.log(`  …${read} processed`); }
     if (limit && read >= limit) break;
   }
-  if (batch.length) add(await runBatch(batch, src, store, {}));
+  if (batch.length) add(await runBatch(batch, src, store, { concurrency }));
 
-  console.log(`\n── Overture import: ${onlyCC || 'ALL Africa'} ${dry ? '[DRY]' : '[LIVE]'} ──`);
+  console.log(`\n── Overture import: ${onlyCC || 'ALL Africa'}${shardN > 1 ? ` shard ${shardI}/${shardN}` : ''} ${dry ? '[DRY]' : '[LIVE]'} ──`);
   console.log(`  records read  : ${read}${onlyCC ? `  (skipped ${filtered} other-country)` : ''}`);
   console.log(`  published: ${totals.published}  updated: ${totals.updated}  skipped: ${totals.skipped}  review: ${totals.review}  rejected: ${totals.rejected}`);
   process.exit(0);

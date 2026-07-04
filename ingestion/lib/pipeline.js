@@ -213,14 +213,18 @@ async function processRecord(raw, source, store, opts = {}) {
  */
 async function runBatch(records, source, store, opts = {}) {
   const stats = { total: records.length, published: 0, updated: 0, skipped: 0, review: 0, rejected: 0, byReason: {} };
-  for (const raw of records) {
+
+  // Process one record end-to-end (dedup decision + the resulting store write).
+  // Stats mutations are safe under concurrency: JS is single-threaded, so the
+  // ++ increments never interleave mid-operation.
+  const applyOne = async (raw) => {
     let res;
     try {
       res = await processRecord(raw, source, store, opts);
     } catch (e) {
       stats.rejected++; stats.byReason.error = (stats.byReason.error || 0) + 1;
       await store.reject({ raw, error: e.message, sourceId: source.id });
-      continue;
+      return;
     }
     stats.byReason[res.reason] = (stats.byReason[res.reason] || 0) + 1;
     if (res.decision === 'publish') { await store.publish(res.listing); stats.published++; }
@@ -228,6 +232,22 @@ async function runBatch(records, source, store, opts = {}) {
     else if (res.decision === 'skip') { stats.skipped++; } // incremental: unchanged, no write
     else if (res.decision === 'review') { await store.enqueueReview(res); stats.review++; }
     else { await store.reject({ raw, reason: res.reason, sourceId: source.id }); stats.rejected++; }
+  };
+
+  // opts.concurrency > 1 runs records in fixed-size concurrent chunks. Each
+  // record still sees every ALREADY-COMMITTED listing (cross-source dedup vs the
+  // existing catalogue is unaffected); only two records WITHIN the same chunk
+  // that are mutual duplicates can both slip through (neither sees the other's
+  // in-flight write). That rare intra-chunk leak is absorbed by the precision-
+  // first review queue + nightly reconciler. Default 1 = original serial path
+  // (unchanged for every existing caller).
+  const conc = Math.max(1, Number(opts.concurrency) || 1);
+  if (conc === 1) {
+    for (const raw of records) await applyOne(raw);
+  } else {
+    for (let i = 0; i < records.length; i += conc) {
+      await Promise.all(records.slice(i, i + conc).map(applyOne));
+    }
   }
   return stats;
 }
