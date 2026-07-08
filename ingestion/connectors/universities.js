@@ -22,6 +22,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 module.exports = {
   source: {
     id: 'hipolabs-universities-africa',
+    business: true, // directory profile source → businesses collection
     name: 'Hipolabs — African Universities (open API)',
     enabled: true,
     ownerUserId: 'imported-listings',

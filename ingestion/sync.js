@@ -75,6 +75,9 @@ async function main() {
   if (!sources.length) { console.error('No matching sources found.'); process.exit(1); }
 
   const store = dry ? createMemoryStore() : require('./lib/firestore').createFirestoreStore();
+  // Business-directory sources (source.business) write to `businesses`;
+  // marketplace feeds stay on `listings`. Dry runs share the memory store.
+  const bizStore = dry ? store : require('./lib/firestore').createFirestoreStore({ collection: 'businesses' });
 
   // Backend-driven ingestion config (priorities / disabled / cap). Applies to the
   // full "all sources" run only; an explicit --source/--only selection is authoritative.
@@ -95,7 +98,7 @@ async function main() {
     try {
       const opts = { now: new Date().toISOString() };
       if (limit) opts.limit = Number(limit);
-      const stats = await ingestSource(source, store, opts);
+      const stats = await ingestSource(source, source.business ? bizStore : store, opts);
       for (const k of Object.keys(totals)) totals[k] += stats[k] || 0;
       console.log(`pub ${stats.published} | upd ${stats.updated} | unchanged ${stats.skipped || 0} | review ${stats.review} | rej ${stats.rejected} (of ${stats.total})`);
       if (!dry) {

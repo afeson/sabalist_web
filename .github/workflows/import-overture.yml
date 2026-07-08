@@ -51,4 +51,5 @@ jobs:
         working-directory: ingestion
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          INGEST_COLLECTION: businesses
         run: node import-overture.js --ndjson overture_africa.ndjson

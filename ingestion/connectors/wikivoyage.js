@@ -122,6 +122,7 @@ function looksLikePhone(p) { return /\+?\d[\d\s().-]{6,}\d/.test(String(p || '')
 module.exports = {
   source: {
     id: 'wikivoyage-listings-africa',
+    business: true, // directory profile source → businesses collection
     name: 'Wikivoyage — African travel listings (MediaWiki API, CC-BY-SA)',
     enabled: true,
     ownerUserId: 'imported-listings',

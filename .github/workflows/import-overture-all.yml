@@ -111,6 +111,7 @@ jobs:
         working-directory: ingestion
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          INGEST_COLLECTION: businesses
         run: |
           SHARD=""; [ -n "${{ matrix.shard }}" ] && SHARD="--shard ${{ matrix.shard }}"
           node import-overture.js --ndjson c.ndjson $SHARD

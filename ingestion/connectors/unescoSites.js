@@ -87,6 +87,7 @@ function stripHtml(s) {
 module.exports = {
   source: {
     id: 'unesco-sites-africa',
+    business: true, // directory profile source → businesses collection
     name: 'UNESCO World Heritage Sites — Africa (official list, CSV)',
     enabled: true,
     ownerUserId: 'imported-listings',

@@ -22,7 +22,7 @@
  */
 const search = require('./search');
 
-function createFirestoreStore() {
+function createFirestoreStore({ collection } = {}) {
   const admin = require('firebase-admin');
   if (!admin.apps.length) {
     let credential;
@@ -35,7 +35,11 @@ function createFirestoreStore() {
   }
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
-  const LIVE = db.collection('listings');
+  // Post-split routing: business-directory imports write to `businesses`,
+  // marketplace feeds keep writing to `listings`. Selected per store instance
+  // (sync.js routes by source.business) or via INGEST_COLLECTION for the bulk
+  // import scripts' workflows.
+  const LIVE = db.collection(collection || process.env.INGEST_COLLECTION || 'listings');
   const STAGING = db.collection('listings_staging');
   const FAILED = db.collection('import_failures');
 

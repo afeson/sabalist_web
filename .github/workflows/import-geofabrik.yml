@@ -60,6 +60,7 @@ jobs:
         working-directory: ingestion
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          INGEST_COLLECTION: businesses
           # No TYPESENSE_* here on purpose: skip per-record search sync during bulk
           # import (much faster); the search index is re-synced afterward by the
           # search-reindex workflow (nightly + on-demand).
