@@ -15,6 +15,8 @@
  */
 
 const { mapRecord } = require('./mappingEngine');
+const { COUNTRIES } = require('./geo');
+const AFRICAN_NAMES = new Set(COUNTRIES.map((c) => c.name.toLowerCase()));
 const { enrichGeo } = require('./geo');
 const { categorize, resolveCategory, classifySubcategory, VALID_SUBS } = require('./taxonomy');
 const { scoreQuality } = require('./quality');
@@ -89,6 +91,8 @@ function toListingDoc(draft, meta) {
     coverImage: draft.coverImage || (draft.images || [])[0] || '',
     hasImage: !!(draft.coverImage || (draft.images && draft.images.length)),
     status: 'active',
+    // Two-product discriminator (post-split): directory profile vs marketplace ad.
+    type: meta.business ? 'business' : 'listing',
     views: 0,
     // provenance + dedup metadata (kept on the doc for re-sync + audits)
     source: meta.sourceId,
@@ -157,6 +161,12 @@ async function processRecord(raw, source, store, opts = {}) {
   const meta = { sourceId: source.id, sourceKey, fingerprint, ownerUserId: source.ownerUserId, now, qualityScore: q.score, business: !!source.business };
 
   // Hard rejects.
+  // Marketplace feeds must stay African: a classified-feed record with a clearly
+  // non-African country is rejected instead of polluting the marketplace.
+  // Business sources may be global (e.g. the African-diaspora directory).
+  if (!source.business && draft.country && !AFRICAN_NAMES.has(String(draft.country).trim().toLowerCase())) {
+    return { decision: 'reject', reason: 'non_african', meta };
+  }
   if (q.isSpam) return { decision: 'reject', reason: 'spam', meta, issues: q.issues };
   if (!draft.title || !draft.categoryId) {
     return { decision: 'review', reason: 'missing_required', listing: toListingDoc(draft, meta), confidence, quality: q, meta };

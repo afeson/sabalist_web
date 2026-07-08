@@ -27,4 +27,5 @@ jobs:
         working-directory: ingestion
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          INGEST_COLLECTION: businesses
         run: node import-grid3.js

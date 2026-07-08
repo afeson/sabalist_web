@@ -35,6 +35,7 @@ jobs:
       - name: Import each country
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          INGEST_COLLECTION: businesses
         run: |
           set -e
           FLAG=""; [ "${{ github.event.inputs.mode }}" = "dry_run" ] && FLAG="--dry"
