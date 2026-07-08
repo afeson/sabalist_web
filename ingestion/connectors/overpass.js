@@ -225,14 +225,34 @@ function agrarianSub(tags) {
   return 'crops';
 }
 
+// office=* → Sabalist category. Anything not listed degrades to services.
+const OFFICE_MAP = {
+  estate_agent: ['real-estate', 'houses-rent'],
+  educational_institution: ['education', 'tutoring-edu'],
+  travel_agent: ['travel', null],
+  ngo: ['community', null],
+  association: ['community', null],
+  charity: ['community', null],
+  government: ['community', null],
+  diplomatic: ['community', null],
+  religion: ['community', null],
+  company: ['business-industrial', null],
+  construction_company: ['construction', null],
+  it: ['services', null],
+  telecommunication: ['services', null],
+  employment_agency: ['jobs', null],
+};
+
 // Resolve [category, subcategory] for a tag set. Returns category-only ['services']
 // when no precise mapping exists, so behaviour degrades safely.
 function mapFor(tags) {
   if (tags.shop === 'agrarian') return ['agriculture', agrarianSub(tags)];
   if (tags.shop) return SHOP_MAP[tags.shop] || ['services', null];
   if (tags.tourism) return TOURISM_MAP[tags.tourism] || ['travel', null];
-  if (tags.office === 'estate_agent') return ['real-estate', 'houses-rent'];
-  if (tags.office === 'educational_institution') return ['education', 'tutoring-edu'];
+  if (tags.office) return OFFICE_MAP[tags.office] || ['services', null];
+  // healthcare=* (clinic, doctor, laboratory, pharmacy…) — reuse the amenity
+  // mapping for the same word where it exists, else services like clinics.
+  if (tags.healthcare) return AMENITY_MAP[tags.healthcare] || AMENITY_MAP.clinic || ['services', null];
   if (tags.craft) return CRAFT_MAP[tags.craft] || ['repair-services', null];
   if (tags.leisure && LEISURE_MAP[tags.leisure]) return LEISURE_MAP[tags.leisure];
   if (tags.amenity) return AMENITY_MAP[tags.amenity] || ['services', null];

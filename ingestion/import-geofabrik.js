@@ -62,7 +62,7 @@ function toRecord(feature) {
   const type = TYPEWORD[raw[0]] || 'node';
   const num = raw.replace(/^[nwr]/, '');
   const [category, subcategory] = overpass.categorySubFor(p);
-  const kind = overpass.titleCaseWord(p.shop || p.craft || p.tourism || p.amenity || p.leisure || 'business');
+  const kind = overpass.titleCaseWord(p.shop || p.craft || p.tourism || p.amenity || p.office || p.healthcare || p.leisure || 'business');
   const city = p['addr:city'] || '';
   const street = p['addr:street'] ? `, ${p['addr:street']}` : '';
   const c = centroid(feature.geometry);

@@ -35,7 +35,10 @@ function createFirestoreStore() {
   }
   const db = admin.firestore();
   const FieldValue = admin.firestore.FieldValue;
-  const LIVE = db.collection('listings');
+  // Business Engine writes ONLY to `businesses` (Option A). Marketplace ads live
+  // in `classified_listings` (written by the app). Dedup (findCandidates) runs
+  // against `businesses` — imports dedup against the directory, never user ads.
+  const LIVE = db.collection('businesses');
   const STAGING = db.collection('listings_staging');
   const FAILED = db.collection('import_failures');
 

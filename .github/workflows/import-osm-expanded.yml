@@ -1,0 +1,108 @@
+name: Import OSM expanded tags (delta, parallel matrix)
+
+# Roadmap #1/#6 (grow toward 5M): imports the OSM business tag families the
+# original filter MISSED — all of office=*, all of healthcare=*, plus extra
+# amenity/tourism/leisure values. DELTA ONLY: the original tags (shop, craft,
+# hotel amenities, …) are excluded, so already-imported businesses are not
+# re-scanned. Runs one country per job across ALL of Africa (including the
+# countries imported in earlier batches — the new tags were never taken there
+# either). Same pipeline: dedup v2, diff-only, claimable, search fields; writes
+# to the `businesses` collection.
+on:
+  push:
+    branches: [import-osm-expanded]
+
+concurrency:
+  group: import-osm-expanded
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      max-parallel: 20
+      fail-fast: false
+      matrix:
+        include:
+          - { slug: africa/algeria, name: Algeria }
+          - { slug: africa/angola, name: Angola }
+          - { slug: africa/benin, name: Benin }
+          - { slug: africa/botswana, name: Botswana }
+          - { slug: africa/burkina-faso, name: Burkina Faso }
+          - { slug: africa/burundi, name: Burundi }
+          - { slug: africa/cameroon, name: Cameroon }
+          - { slug: africa/cape-verde, name: Cape Verde }
+          - { slug: africa/central-african-republic, name: Central African Republic }
+          - { slug: africa/chad, name: Chad }
+          - { slug: africa/comores, name: Comoros }
+          - { slug: africa/congo-brazzaville, name: Congo }
+          - { slug: africa/congo-democratic-republic, name: DR Congo }
+          - { slug: africa/djibouti, name: Djibouti }
+          - { slug: africa/egypt, name: Egypt }
+          - { slug: africa/equatorial-guinea, name: Equatorial Guinea }
+          - { slug: africa/eritrea, name: Eritrea }
+          - { slug: africa/ethiopia, name: Ethiopia }
+          - { slug: africa/gabon, name: Gabon }
+          - { slug: africa/ghana, name: Ghana }
+          - { slug: africa/guinea, name: Guinea }
+          - { slug: africa/guinea-bissau, name: Guinea-Bissau }
+          - { slug: africa/ivory-coast, name: "Cote d'Ivoire" }
+          - { slug: africa/kenya, name: Kenya }
+          - { slug: africa/lesotho, name: Lesotho }
+          - { slug: africa/liberia, name: Liberia }
+          - { slug: africa/libya, name: Libya }
+          - { slug: africa/madagascar, name: Madagascar }
+          - { slug: africa/malawi, name: Malawi }
+          - { slug: africa/mali, name: Mali }
+          - { slug: africa/mauritania, name: Mauritania }
+          - { slug: africa/mauritius, name: Mauritius }
+          - { slug: africa/morocco, name: Morocco }
+          - { slug: africa/mozambique, name: Mozambique }
+          - { slug: africa/namibia, name: Namibia }
+          - { slug: africa/niger, name: Niger }
+          - { slug: africa/nigeria, name: Nigeria }
+          - { slug: africa/rwanda, name: Rwanda }
+          - { slug: africa/sao-tome-and-principe, name: Sao Tome and Principe }
+          - { slug: africa/senegal-and-gambia, name: Senegal }
+          - { slug: africa/seychelles, name: Seychelles }
+          - { slug: africa/sierra-leone, name: Sierra Leone }
+          - { slug: africa/somalia, name: Somalia }
+          - { slug: africa/south-africa, name: South Africa }
+          - { slug: africa/south-sudan, name: South Sudan }
+          - { slug: africa/sudan, name: Sudan }
+          - { slug: africa/swaziland, name: Eswatini }
+          - { slug: africa/tanzania, name: Tanzania }
+          - { slug: africa/togo, name: Togo }
+          - { slug: africa/tunisia, name: Tunisia }
+          - { slug: africa/uganda, name: Uganda }
+          - { slug: africa/zambia, name: Zambia }
+          - { slug: africa/zimbabwe, name: Zimbabwe }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install osmium
+        run: sudo apt-get update && sudo apt-get install -y osmium-tool
+      - name: Install ingestion deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Import ${{ matrix.name }} (expanded tags)
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -e
+          URL="https://download.geofabrik.de/${{ matrix.slug }}-latest.osm.pbf"
+          echo "Downloading $URL"
+          if ! curl -sSL "$URL" -o c.pbf; then echo "download failed for ${{ matrix.name }}; skipping"; exit 0; fi
+          ls -lh c.pbf
+          # DELTA filter: only the tag families the original import missed.
+          osmium tags-filter c.pbf \
+            nwr/office nwr/healthcare \
+            nwr/tourism=apartment,motel,camp_site,caravan_site,chalet,zoo,theme_park,gallery \
+            nwr/leisure=golf_course,water_park,bowling_alley,sauna,marina,dance,amusement_arcade,horse_riding \
+            nwr/amenity=doctors,dentist,bar,pub,car_wash,post_office,courier,bureau_de_change,money_transfer,internet_cafe,coworking_space,childcare,events_venue,casino,studio,conference_centre,exhibition_centre \
+            -o f.pbf --overwrite
+          osmium export f.pbf --add-unique-id=type_id -f geojsonseq -o feats.geojsonseq --overwrite
+          wc -l feats.geojsonseq
+          node ingestion/import-geofabrik.js --country "${{ matrix.name }}" --geojson feats.geojsonseq

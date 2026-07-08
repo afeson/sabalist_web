@@ -89,6 +89,7 @@ function toListingDoc(draft, meta) {
     coverImage: draft.coverImage || (draft.images || [])[0] || '',
     hasImage: !!(draft.coverImage || (draft.images && draft.images.length)),
     status: 'active',
+    type: 'business', // Option A discriminator (Business Engine → businesses collection)
     views: 0,
     // provenance + dedup metadata (kept on the doc for re-sync + audits)
     source: meta.sourceId,
