@@ -65,13 +65,19 @@ export default function HomeScreenSimple({ navigation }) {
   const [loading, setLoading] = useState(true);
 
   const categories = useMemo(() => {
+    // Only REAL categories — skip the 'All' and '__more__' nav pseudo-chips and
+    // any hidden category, so tapping a chip always opens a valid subcategory set.
+    const out = [];
     try {
-      return (getNavChips() || []).slice(0, 10).map((c) => {
-        const key = c.key || c.id || c;
-        const cat = (getCategoryByKey && getCategoryByKey(key)) || {};
-        return { key, label: getTranslatedCategoryLabel ? getTranslatedCategoryLabel(cat) : (c.label || key), icon: cat.icon || 'pricetag-outline' };
-      });
-    } catch (_) { return []; }
+      for (const chip of (getNavChips() || [])) {
+        const key = chip && (chip.key || chip.id || chip);
+        if (!key || key === 'All' || key === '__more__') continue;
+        const cat = getCategoryByKey && getCategoryByKey(key);
+        if (!cat || cat.hidden) continue;
+        out.push({ key: cat.key, label: cat.label || cat.key, icon: cat.icon || 'pricetag-outline' });
+      }
+    } catch (_) { /* fall through to whatever we collected */ }
+    return out;
   }, []);
 
   const load = useCallback(async () => {
