@@ -2,37 +2,24 @@
 'use strict';
 /**
  * eBay DRY-RUN — samples real eBay Browse API products for Sabalist's empty
- * PRODUCT categories, maps them into the EXISTING taxonomy, and reports per-
- * category quality metrics. WRITES NOTHING. Imports NOTHING.
+ * product categories, maps into the EXISTING taxonomy, applies the shared
+ * validators (photo/price/seller/stale/dedup) and reports per-category metrics.
+ * WRITES NOTHING. IMPORTS NOTHING.
  *
  * Needs EBAY_CLIENT_ID + EBAY_CLIENT_SECRET (free eBay dev keys). Optional
- * EBAY_MARKETPLACE (default EBAY_GB — GB sellers ship internationally).
- *
- * "Africa-shippable" is measured with the Browse API `deliveryCountry` filter
- * (Nigeria = largest African market, representative). Cross-listing dedup vs the
- * existing collection happens in the real pipeline (dedup v2: sourceKey/
- * fingerprint); this dry-run dedups WITHIN the batch by eBay itemId.
+ * EBAY_MARKETPLACE (default EBAY_GB), EBAY_AFRICA_COUNTRY (default NG), and
+ * EBAY_PAGES (pages of 100 per category, default 2).
  */
 const https = require('https');
 const { classifySubcategory } = require('./lib/taxonomy');
+const { QUERY_PACKS } = require('./lib/product-query-packs');
+const { makeReport } = require('./lib/dryrun-filters');
 
 const MARKET = process.env.EBAY_MARKETPLACE || 'EBAY_GB';
-const AFRICA_PROBE = process.env.EBAY_AFRICA_COUNTRY || 'NG'; // Nigeria, representative
+const AFRICA = process.env.EBAY_AFRICA_COUNTRY || 'NG';
+const PAGES = Math.max(1, Math.min(5, parseInt(process.env.EBAY_PAGES || '2', 10)));
+const PER = 100;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-// Priority EXISTING categories (match ingestion/connectors/ebay.js).
-const SEARCHES = [
-  { cat: 'electronics', q: 'tv OR speaker OR camera OR headphones', limit: 100 },
-  { cat: 'phones-tablets', q: 'smartphone unlocked OR tablet', limit: 100 },
-  { cat: 'computers', q: 'laptop OR desktop OR monitor', limit: 100 },
-  { cat: 'fashion', q: 'mens womens clothing shoes bag', limit: 100 },
-  { cat: 'home-furniture', q: 'home furniture decor appliance', limit: 100 },
-  { cat: 'beauty', q: 'makeup skincare fragrance haircare', limit: 100 },
-  { cat: 'sports-fitness', q: 'fitness gym equipment sports', limit: 100 },
-  { cat: 'baby-kids', q: 'baby kids toys stroller', limit: 100 },
-  { cat: 'business-industrial', q: 'industrial machinery tools equipment', limit: 100 },
-  { cat: 'vehicles', q: 'car parts accessories tyres', limit: 100 }, // Vehicle Parts / Accessories
-];
 
 function req({ host, path, method = 'GET', headers = {}, body = null }) {
   return new Promise((resolve, reject) => {
@@ -59,59 +46,52 @@ async function token() {
   return t;
 }
 
-async function search(tok, q, limit, deliveryCountry) {
+async function search(tok, q, { offset = 0, deliveryCountry = null } = {}) {
   let filter = 'buyingOptions:%7BFIXED_PRICE%7D';
   if (deliveryCountry) filter += `,deliveryCountry:${deliveryCountry}`;
-  const path = `/buy/browse/v1/item_summary/search?q=${encodeURIComponent(q)}&limit=${Math.min(limit, 200)}&filter=${filter}`;
+  const path = `/buy/browse/v1/item_summary/search?q=${encodeURIComponent(q)}&limit=${PER}&offset=${offset}&filter=${filter}`;
   const r = await req({ host: 'api.ebay.com', path, headers: { Authorization: `Bearer ${tok}`, 'X-EBAY-C-MARKETPLACE-ID': MARKET } });
   try { return JSON.parse(r.body).itemSummaries || []; } catch { return []; }
 }
 
+function toDraft(it, cat) {
+  const img = it.image && it.image.imageUrl;
+  return {
+    externalId: `ebay-${it.itemId}`,
+    source: 'ebay-products',
+    title: String(it.title || '').slice(0, 120),
+    category: cat,
+    amount: it.price && it.price.value != null ? Number(it.price.value) : null,
+    currency: (it.price && it.price.currency) || 'USD',
+    images: img ? [img] : [], coverImage: img || null,
+    url: it.itemWebUrl || null,
+    seller: it.seller && it.seller.username,
+    subcategory: classifySubcategory(cat, it.title || '', '', 'ebay-products') || null,
+  };
+}
+
 (async () => {
   const tok = await token();
-  const totals = { candidates: 0, africa: 0, photo: 0, price: 0, seller: 0, dupes: 0, importable: 0 };
-  const perCat = [];
-  const seen = new Set();
-  console.log(`--- eBay DRY-RUN (marketplace ${MARKET}, africa-probe ${AFRICA_PROBE}) — NOTHING WRITTEN ---\n`);
-  for (const s of SEARCHES) {
-    const items = await search(tok, s.q, s.limit);
-    await sleep(350);
-    const africaItems = await search(tok, s.q, s.limit, AFRICA_PROBE);
-    await sleep(350);
-    const africaIds = new Set(africaItems.map((i) => i.itemId));
-    let candidates = 0, africa = 0, photo = 0, price = 0, seller = 0, dupes = 0, importable = 0;
-    const subTally = {};
-    for (const it of items) {
-      candidates++;
-      const img = it.image && it.image.imageUrl;
-      const hasPhoto = !!(it.title && img);
-      const hasPrice = !!(it.price && it.price.value != null && Number(it.price.value) > 0);
-      const hasSeller = !!(it.itemWebUrl && it.seller && it.seller.username);
-      const ships = africaIds.has(it.itemId);
-      if (hasPhoto) photo++; if (hasPrice) price++; if (hasSeller) seller++; if (ships) africa++;
-      const key = `ebay-${it.itemId}`;
-      const dup = seen.has(key); if (dup) { dupes++; continue; } seen.add(key);
-      // eBay search returns ACTIVE fixed-price listings → not stale.
-      const ok = hasPhoto && hasPrice && hasSeller; // diaspora-relevant = any real priced product
-      if (ok) {
-        importable++;
-        const sub = classifySubcategory(s.cat, it.title, '', 'ebay-products') || '(cat default)';
-        subTally[sub] = (subTally[sub] || 0) + 1;
-      }
+  const report = makeReport();
+  console.log(`--- eBay DRY-RUN (marketplace ${MARKET}, africa-probe ${AFRICA}, ${PAGES} page(s)x${PER}) — NOTHING WRITTEN ---\n`);
+  for (const pack of QUERY_PACKS) {
+    const africaIds = new Set((await search(tok, pack.q, { deliveryCountry: AFRICA })).map((i) => i.itemId));
+    await sleep(300);
+    for (let p = 0; p < PAGES; p++) {
+      const items = await search(tok, pack.q, { offset: p * PER });
+      await sleep(300);
+      for (const it of items) report.add(pack.cat, toDraft(it, pack.cat), { shipsAfrica: africaIds.has(it.itemId) });
+      if (items.length < PER) break;
     }
-    perCat.push({ cat: s.cat, candidates, africa, photo, price, seller, dupes, importable, subs: subTally });
-    totals.candidates += candidates; totals.africa += africa; totals.photo += photo; totals.price += price; totals.seller += seller; totals.dupes += dupes; totals.importable += importable;
-    console.log(`${s.cat.padEnd(20)} CANDIDATES_FOUND:${String(candidates).padStart(3)}  AFRICA_SHIPPABLE:${String(africa).padStart(3)}  WITH_PHOTO:${String(photo).padStart(3)}  WITH_PRICE:${String(price).padStart(3)}  WITH_VALID_SELLER:${String(seller).padStart(3)}  DUPLICATES_REMOVED:${dupes}  STALE_REMOVED:0  FINAL_IMPORTABLE:${importable}`);
+    const c = report.categories[pack.cat] || {};
+    console.log(`${pack.cat.padEnd(20)} CANDIDATES:${String(c.candidates || 0).padStart(3)}  AFRICA_SHIPPABLE:${String(c.africa || 0).padStart(3)}  PHOTO:${String(c.photo || 0).padStart(3)}  PRICE:${String(c.price || 0).padStart(3)}  SELLER:${String(c.seller || 0).padStart(3)}  DUP:${c.dupes || 0}  STALE:${c.stale || 0}  IMPORTABLE:${c.importable || 0}`);
   }
-  console.log('\n--- TOTALS ---');
-  console.log(JSON.stringify(totals, null, 2));
-  console.log('\nIMPORTABLE_BY_SUBCATEGORY (importable items):');
-  perCat.forEach((c) => {
+  console.log('\n--- TOTALS ---'); console.log(JSON.stringify(report.totals(), null, 2));
+  console.log('\nIMPORTABLE_BY_SUBCATEGORY:');
+  for (const [cat, c] of Object.entries(report.categories)) {
     const subs = Object.entries(c.subs).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}:${v}`).join('  ');
-    if (subs) console.log(`  ${c.cat}: ${subs}`);
-  });
-  console.log('\nDIASPORA_RELEVANT = all importable (real priced consumer products).');
-  console.log('AFRICA_SHIPPABLE measured via deliveryCountry=' + AFRICA_PROBE + ' (representative).');
-  console.log('Cross-listing dedup vs existing collection runs in the pipeline (dedup v2) at import time.');
+    if (subs) console.log(`  ${cat}: ${subs}`);
+  }
+  console.log('\nAFRICA_SHIPPABLE via deliveryCountry=' + AFRICA + ' · DIASPORA_RELEVANT=all importable · cross-collection dedup runs in pipeline dedup v2 at import.');
   process.exit(0);
 })().catch((e) => { console.error('ebay dry-run failed:', e.message); process.exit(1); });
