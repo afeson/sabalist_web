@@ -132,10 +132,21 @@ async function processRecord(raw, source, store, opts = {}) {
   Object.assign(draft, enrichGeo(draft));
 
   // 3) CATEGORIZE (respect explicit source category, else infer)
-  const explicit = resolveCategory(draft.category);
-  const cat = explicit
-    ? { categoryId: explicit, subcategory: draft.subcategory || null, confidence: 0.95 }
-    : categorize({ title: draft.title, description: draft.description, rawCategory: draft.category });
+  // CONTENT-FIRST, CONSERVATIVE: the listing's own title/description picks the
+  // best EXISTING category; the source's label is only a weak hint. Content wins
+  // ONLY when confident (>= 0.6 ≈ two keyword cues); on low confidence we PRESERVE
+  // the source's recognized category rather than guess. Never invents a category —
+  // an unclassifiable draft keeps categoryId null and is rejected/flagged below.
+  const sourceCat = resolveCategory(draft.category); // weak hint, may be null
+  const content = categorize({ title: draft.title, description: draft.description, rawCategory: '' });
+  let cat;
+  if (content.categoryId && content.confidence >= 0.6) {
+    cat = { categoryId: content.categoryId, subcategory: content.subcategory, confidence: content.confidence };
+  } else if (sourceCat) {
+    cat = { categoryId: sourceCat, subcategory: draft.subcategory || null, confidence: 0.5 };
+  } else {
+    cat = { categoryId: content.categoryId || null, subcategory: content.subcategory || null, confidence: content.confidence || 0 };
+  }
   draft.categoryId = cat.categoryId;
   if (cat.subcategory && !draft.subcategory) draft.subcategory = cat.subcategory;
   // Ensure every listing lands in a subcategory section: if none was provided/
