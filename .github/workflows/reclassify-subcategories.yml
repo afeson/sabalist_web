@@ -1,0 +1,30 @@
+name: Reclassify Subcategories (safe, subcategory-only)
+
+# One-off, operator-triggered. Refines ONLY the `subcategory` field of existing
+# listings to a more specific EXISTING subcategory based on the title. Never
+# changes top-level categories or the taxonomy. Protects genuine user listings.
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'true = report only (no writes), false = apply writes'
+        required: true
+        default: 'true'
+
+jobs:
+  reclassify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: Reclassify subcategories
+        working-directory: ingestion
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: node reclassify-subcategories.js

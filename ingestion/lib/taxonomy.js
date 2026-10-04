@@ -195,4 +195,4 @@ function classifySubcategory(categoryId, title = '', description = '', source = 
   return null;
 }
 
-module.exports = { CATEGORIES, CATEGORY_IDS, SUB_IDS, VALID_SUBS, resolveCategory, categorize, classifySubcategory };
+module.exports = { CATEGORIES, CATEGORY_IDS, SUB_IDS, VALID_SUBS, SUB_RULES, resolveCategory, categorize, classifySubcategory };
