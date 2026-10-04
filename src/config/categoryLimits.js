@@ -6,32 +6,32 @@ import { canonicalCategoryName } from './categoryMapping';
 
 export const CATEGORY_IMAGE_LIMITS = {
   'Vehicles': {
-    min: 3,
+    min: 1,
     max: 30,
     description: 'Cars, motorcycles, trucks — show all angles',
   },
   'Real Estate': {
-    min: 3,
+    min: 1,
     max: 25,
     description: 'Properties — interior, exterior, amenities',
   },
   'Electronics': {
-    min: 3,
+    min: 1,
     max: 10,
     description: 'TVs, cameras, gadgets',
   },
   'Phones & Tablets': {
-    min: 3,
+    min: 1,
     max: 10,
     description: 'Phones, tablets, accessories',
   },
   'Computers': {
-    min: 3,
+    min: 1,
     max: 10,
     description: 'Laptops, desktops, components',
   },
   'Fashion': {
-    min: 3,
+    min: 1,
     max: 8,
     description: 'Clothing, shoes, accessories',
   },
@@ -41,7 +41,7 @@ export const CATEGORY_IMAGE_LIMITS = {
     description: 'Beauty products',
   },
   'Home & Furniture': {
-    min: 3,
+    min: 1,
     max: 15,
     description: 'Furniture, appliances, decor',
   },
@@ -66,7 +66,7 @@ export const CATEGORY_IMAGE_LIMITS = {
     description: 'Repair offerings — photos optional',
   },
   'Rentals': {
-    min: 3,
+    min: 1,
     max: 15,
     description: 'Items for rent',
   },

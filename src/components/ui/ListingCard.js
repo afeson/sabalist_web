@@ -58,6 +58,8 @@ export default function ListingCard({
     }
     console.log('❤️ Heart pressed for listing:', listing.id, '| isFavorited:', isFavorited, '| has onFavoriteToggle:', !!onFavoriteToggle);
     if (onFavoriteToggle) {
+      // GA4: only count adding a favorite (not un-favoriting).
+      if (!isFavorited) { try { require('../../utils/analytics').track('favorite_listing', { item_id: listing.id, category: listing.category || listing.categoryId || '' }); } catch (_) {} }
       onFavoriteToggle(listing.id, !isFavorited);
     } else {
       console.warn('❤️ No onFavoriteToggle handler passed to ListingCard');

@@ -35,6 +35,26 @@ import { subscribeToFavorites, addToFavorites, removeFromFavorites } from '../se
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { ListingCard } from '../components/ui';
 import AppHeader from '../components/AppHeader';
+import { track } from '../utils/analytics';
+
+const RENEW_ENDPOINT = 'https://www.sabalist.com/api/listings/renew';
+
+// Owner-facing lifecycle chip for ORGANIC listings only. Imported/directory
+// records carry no `sourceType`, so they show nothing here — their lifecycle is
+// not owned by the user. Returns null when there's nothing to show.
+function lifecycleBadge(item) {
+  if (!item || item.sourceType !== 'organic') return null;
+  const st = item.status;
+  if (st === 'archived') return { label: 'Archived', color: COLORS.textMuted, canRenew: true };
+  if (st === 'expired') return { label: 'Expired', color: '#DC2626', canRenew: true };
+  if (st === 'sold') return null; // sold already has its own badge
+  const exp = Date.parse(item.expiresAt);
+  if (!exp) return null;
+  const days = Math.ceil((exp - Date.now()) / 864e5);
+  if (days <= 0) return { label: 'Expired', color: '#DC2626', canRenew: true };
+  if (days <= 7) return { label: `Expires in ${days}d`, color: '#D97706', canRenew: true };
+  return null; // healthy active listing — keep the card clean
+}
 
 export default function MyListingsScreen({ navigation, route }) {
   const { t, i18n } = useTranslation();
@@ -42,6 +62,7 @@ export default function MyListingsScreen({ navigation, route }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState([]);
+  const [renewingId, setRenewingId] = useState(null);
   const [, forceUpdate] = useState(0);
 
   // Force re-render when language changes (even if screen is already focused)
@@ -168,8 +189,37 @@ export default function MyListingsScreen({ navigation, route }) {
     }
   };
 
+  // One-tap renewal. Ownership + the new expiry window are decided server-side
+  // (the client can't write expiresAt/renewalCount — Firestore rules block it),
+  // so we just send the owner's ID token and the listing id. The doc is updated
+  // in place (no duplicate); on success we refresh the list.
+  const handleRenew = async (item) => {
+    if (!item?.id || renewingId) return;
+    track('organic_listing_renew_clicked', { item_id: item.id, category: item.categoryId || item.category || '' });
+    try {
+      setRenewingId(item.id);
+      const cur = Platform.OS === 'web' ? auth.currentUser : auth().currentUser;
+      if (!cur) { navigation.navigate('Auth'); return; }
+      const token = await cur.getIdToken();
+      const res = await fetch(RENEW_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ listingId: item.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.error || `renew failed (${res.status})`);
+      track('organic_listing_renewed', { item_id: item.id, renewal_count: data.renewalCount });
+      await loadMyListings();
+    } catch (err) {
+      console.warn('Renew failed', err);
+    } finally {
+      setRenewingId(null);
+    }
+  };
+
   const renderListing = ({ item }) => {
     if (!item) return null;
+    const life = lifecycleBadge(item);
     return (
       <View style={styles.listingCardWrapper}>
         <ListingCard
@@ -182,6 +232,28 @@ export default function MyListingsScreen({ navigation, route }) {
           <View style={styles.soldBadge}>
             <Text style={styles.soldBadgeText}>{t('listing.sold')}</Text>
           </View>
+        )}
+        {life && (
+          <View style={[styles.lifeBadge, { backgroundColor: life.color }]}>
+            <Text style={styles.lifeBadgeText}>{life.label}</Text>
+          </View>
+        )}
+        {life?.canRenew && (
+          <TouchableOpacity
+            style={styles.renewButton}
+            onPress={() => handleRenew(item)}
+            disabled={renewingId === item.id}
+            activeOpacity={0.8}
+          >
+            {renewingId === item.id ? (
+              <ActivityIndicator size="small" color={COLORS.card} />
+            ) : (
+              <>
+                <Ionicons name="refresh" size={15} color={COLORS.card} />
+                <Text style={styles.renewButtonText}>Renew</Text>
+              </>
+            )}
+          </TouchableOpacity>
         )}
       </View>
     );
@@ -337,6 +409,35 @@ const styles = StyleSheet.create({
   },
   soldBadgeText: {
     fontSize: 12,
+    fontWeight: '800',
+    color: COLORS.card,
+  },
+  lifeBadge: {
+    position: 'absolute',
+    top: SPACING.sm,
+    left: SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 3,
+    borderRadius: RADIUS.sm,
+  },
+  lifeBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: COLORS.card,
+  },
+  renewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    backgroundColor: COLORS.primary,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.sm,
+    marginTop: SPACING.xs,
+    minHeight: 34,
+  },
+  renewButtonText: {
+    fontSize: 13,
     fontWeight: '800',
     color: COLORS.card,
   },

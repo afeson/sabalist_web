@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StatusBar,
   Platform,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -16,11 +17,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { Card } from '../components/ui';
 import SEO from '../components/SEO';
+import { deleteCurrentAccount } from '../services/deleteAccount';
 
 export default function ProfileScreen({ navigation }) {
   const { t, i18n } = useTranslation();
   const { user, logout } = useAuth();
   const [, forceUpdate] = useState(0);
+  const [deleting, setDeleting] = useState(false);
 
   // Force re-render when language changes (even if screen is already focused)
   useEffect(() => {
@@ -38,6 +41,98 @@ export default function ProfileScreen({ navigation }) {
 
   console.log('📱 ProfileScreen rendered');
   console.log('👤 Current user:', user ? (user.phoneNumber || user.email) : 'No user');
+
+  // Account deletion: required by App Store guideline 5.1.1(v). Two-step
+  // confirmation, then full deletion of the user's listings, favorites,
+  // settings, profile doc, and Firebase Auth user.
+  const performDelete = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      console.log('PROFILE: deleting account');
+      await deleteCurrentAccount();
+      console.log('PROFILE: account deleted — auth state listener will redirect');
+      // Auth listener takes the user back to the sign-in screen
+      // automatically when currentUser becomes null.
+      if (Platform.OS === 'web') {
+        window.alert(t('profile.deleteAccountDoneMessage') || 'Your account has been deleted.');
+      } else {
+        Alert.alert(
+          t('profile.deleteAccountDone') || 'Account deleted',
+          t('profile.deleteAccountDoneMessage') || 'Your account and all related data have been permanently deleted.'
+        );
+      }
+    } catch (e) {
+      console.error('PROFILE: deleteAccount error', e);
+      if (e?.code === 'auth/requires-recent-login') {
+        // Firebase requires a recent sign-in to delete the account. Sign
+        // the user out so they can sign back in and immediately retry.
+        const msg =
+          t('profile.deleteRequiresRecentLogin') ||
+          'For your security, please sign in again, then try deleting your account.';
+        if (Platform.OS === 'web') {
+          window.alert(msg);
+        } else {
+          Alert.alert(t('profile.deleteAccount') || 'Sign in required', msg, [
+            { text: 'OK', onPress: () => logout().catch(() => {}) },
+          ]);
+        }
+      } else {
+        const generic =
+          t('profile.deleteAccountFailed') ||
+          'Could not delete your account. Please try again or contact support.';
+        if (Platform.OS === 'web') {
+          window.alert(generic + (e?.message ? `\n\n${e.message}` : ''));
+        } else {
+          Alert.alert(t('common.error') || 'Error', generic);
+        }
+      }
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    if (deleting) return;
+    const title =
+      t('profile.deleteAccount') !== 'profile.deleteAccount'
+        ? t('profile.deleteAccount')
+        : 'Delete account';
+    const warning =
+      t('profile.deleteAccountWarning') !== 'profile.deleteAccountWarning'
+        ? t('profile.deleteAccountWarning')
+        : 'This permanently deletes your account, all your listings, favorites, and profile. This cannot be undone.';
+    const finalConfirm =
+      t('profile.deleteAccountFinalConfirm') !== 'profile.deleteAccountFinalConfirm'
+        ? t('profile.deleteAccountFinalConfirm')
+        : 'Permanently delete your account?';
+
+    // Two-step confirmation, per Apple's guidance (confirmation OK, but
+    // do not require contacting support).
+    if (Platform.OS === 'web') {
+      if (!window.confirm(`${title}\n\n${warning}`)) return;
+      if (!window.confirm(finalConfirm)) return;
+      performDelete();
+      return;
+    }
+    Alert.alert(title, warning, [
+      { text: t('common.cancel') || 'Cancel', style: 'cancel' },
+      {
+        text: t('profile.deleteAccountContinue') || 'Continue',
+        style: 'destructive',
+        onPress: () => {
+          Alert.alert(title, finalConfirm, [
+            { text: t('common.cancel') || 'Cancel', style: 'cancel' },
+            {
+              text: t('profile.deleteAccountConfirm') || 'Delete forever',
+              style: 'destructive',
+              onPress: performDelete,
+            },
+          ]);
+        },
+      },
+    ]);
+  };
 
   const handleSignOut = async () => {
     // On web, use window.confirm since Alert.alert doesn't work
@@ -181,8 +276,8 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
         {/* Sign Out Button */}
-        <TouchableOpacity 
-          style={styles.signOutButton} 
+        <TouchableOpacity
+          style={styles.signOutButton}
           onPress={() => {
             console.log('🔴 Sign Out button clicked');
             handleSignOut();
@@ -192,6 +287,41 @@ export default function ProfileScreen({ navigation }) {
           <Ionicons name="log-out-outline" size={24} color={COLORS.error} />
           <Text style={styles.signOutText}>{t('auth.signOut')}</Text>
         </TouchableOpacity>
+
+        {/* Delete Account — required by App Store guideline 5.1.1(v).
+            Placed in its own visually separate "Danger zone" so users
+            can't tap it by mistake. */}
+        <View style={styles.dangerSection}>
+          <Text style={styles.dangerSectionTitle}>
+            {t('profile.dangerZone') !== 'profile.dangerZone'
+              ? t('profile.dangerZone')
+              : 'Danger zone'}
+          </Text>
+          <TouchableOpacity
+            style={styles.deleteAccountButton}
+            onPress={handleDeleteAccount}
+            activeOpacity={0.7}
+            disabled={deleting}
+          >
+            <Ionicons name="trash-outline" size={22} color={COLORS.error} />
+            <View style={{ flex: 1, marginLeft: SPACING.md }}>
+              <Text style={styles.deleteAccountText}>
+                {deleting
+                  ? t('profile.deletingAccount') !== 'profile.deletingAccount'
+                    ? t('profile.deletingAccount')
+                    : 'Deleting your account...'
+                  : t('profile.deleteAccount') !== 'profile.deleteAccount'
+                  ? t('profile.deleteAccount')
+                  : 'Delete account'}
+              </Text>
+              <Text style={styles.deleteAccountSubtitle}>
+                {t('profile.deleteAccountSubtitle') !== 'profile.deleteAccountSubtitle'
+                  ? t('profile.deleteAccountSubtitle')
+                  : 'Permanently delete your account and all your data'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -309,5 +439,36 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: COLORS.error,
+  },
+  dangerSection: {
+    marginTop: SPACING.xxl,
+  },
+  dangerSectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
+  },
+  deleteAccountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: `${COLORS.error}10`,
+    padding: SPACING.base,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: `${COLORS.error}40`,
+  },
+  deleteAccountText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.error,
+    marginBottom: 2,
+  },
+  deleteAccountSubtitle: {
+    fontSize: 12,
+    color: COLORS.textMuted,
   },
 });

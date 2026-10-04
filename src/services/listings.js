@@ -4,6 +4,7 @@
  * Uses React Native Firebase for Storage (native file uploads)
  */
 
+import { buildSearchFields } from "../lib/searchFields";
 import {
   firestore,
   storage,
@@ -82,6 +83,17 @@ export async function createListing(listingData, imageUris = []) {
       location: listingData.location || "Africa",
       phoneNumber: listingData.phoneNumber || "",
       userId: listingData.userId,
+      // Additive search fields — see src/lib/searchFields.js. Without these the
+      // listing is invisible to Sabalist search (searchKeywords / title_lc) and
+      // excluded by every category filter (categoryId).
+      categoryId: resolveCategoryId(listingData.category) || String(listingData.category || "").toLowerCase(),
+      ...buildSearchFields({
+        title: listingData.title,
+        category: listingData.category,
+        categoryId: resolveCategoryId(listingData.category) || String(listingData.category || "").toLowerCase(),
+        subcategory: listingData.subcategory || "",
+        location: listingData.location || "Africa",
+      }),
       images: [],
       coverImage: "",
       hasImage: false,
@@ -269,7 +281,7 @@ function applyListingFilters(pool, { subcategoryId = null, minPrice = null, maxP
  */
 export async function searchListings(searchText = "", category = null, minPrice = null, maxPrice = null, subcategoryId = null, userLocation = null) {
   try {
-    const params = { searchText, category, subcategoryId, minPrice, maxPrice, userLocation };
+    const params = { scope: 'listings', searchText, category, subcategoryId, minPrice, maxPrice, userLocation };
     const applyFilters = (pool) => applyListingFilters(pool, { subcategoryId, minPrice, maxPrice });
     const fetchPool = () => fetchListingPool({ category });
     // pageSize huge → return the FULL ranked list (a FlatList virtualizes it, so
@@ -280,6 +292,40 @@ export async function searchListings(searchText = "", category = null, minPrice 
   } catch (error) {
     console.error("❌ Error searching listings:", error);
     throw error;
+  }
+}
+
+/** Raw pool from the `businesses` directory collection (NATIVE). */
+async function fetchBusinessPool({ category = null } = {}) {
+  const ref = collection(firestore, "businesses");
+  const cats = category
+    ? [category]
+    : getVisibleCategories().map((c) => c.id).filter(Boolean);
+  const per = category ? POOL_CATEGORY_MAX : POOL_PER_CATEGORY;
+  const results = await Promise.all(cats.map(async (cid) => {
+    try {
+      const cq = query(ref, where("categoryId", "==", cid), limit(per));
+      const snap = await getDocs(cq);
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    } catch (e) { return []; }
+  }));
+  return results.flat().filter((l) => l.status === 'active' || !l.status);
+}
+
+/**
+ * Search the Business Directory (NATIVE). Same engine as searchListings over
+ * `businesses`, with the home photo-gate disabled. Never throws — returns [].
+ */
+export async function searchBusinesses(searchText = "", category = null, minPrice = null, maxPrice = null, subcategoryId = null, userLocation = null) {
+  try {
+    const params = { scope: 'businesses', photoOptional: true, searchText, category, subcategoryId, minPrice, maxPrice, userLocation };
+    const applyFilters = (pool) => applyListingFilters(pool, { subcategoryId, minPrice, maxPrice });
+    const fetchPool = () => fetchBusinessPool({ category });
+    const { items } = await discover(fetchPool, { ...params, applyFilters }, { pageSize: 100000 });
+    return items;
+  } catch (error) {
+    console.error("❌ Error searching businesses:", error);
+    return [];
   }
 }
 
@@ -316,6 +362,21 @@ export async function getListing(listingId) {
     };
   } catch (error) {
     console.error("❌ Error fetching listing:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get a single Business Directory profile by id (NATIVE). Reads the `businesses`
+ * collection — NEVER `listings`. Used by the dedicated Business Detail screen.
+ */
+export async function getBusinessById(businessId) {
+  try {
+    const docSnap = await getDoc(doc(firestore, "businesses", businessId));
+    if (!docSnap.exists()) throw new Error("Business not found");
+    return { id: docSnap.id, ...docSnap.data() };
+  } catch (error) {
+    console.error("❌ Error fetching business:", error);
     throw error;
   }
 }
@@ -383,6 +444,18 @@ export async function updateListing(listingId, updateData, newImageUris = [], ex
       coverImage: allImages[0] || "",
       updatedAt: serverTimestamp()
     };
+    // Keep search fields correct when title/category/subcategory/location change.
+    if (updateData && (updateData.title || updateData.category || updateData.subcategory || updateData.location)) {
+      const catId = resolveCategoryId(updateData.category) || String(updateData.category || "").toLowerCase();
+      if (updateData.category) updates.categoryId = catId;
+      Object.assign(updates, buildSearchFields({
+        title: updateData.title,
+        category: updateData.category,
+        categoryId: catId,
+        subcategory: updateData.subcategory,
+        location: updateData.location,
+      }));
+    }
 
     const docRef = doc(firestore, "listings", listingId);
     await updateDoc(docRef, updates);

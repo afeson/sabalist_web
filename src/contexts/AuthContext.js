@@ -8,6 +8,12 @@ import { onAuthStateChanged as webOnAuthStateChanged, signOut as webSignOut } fr
 // We'll dynamically require native Firebase only on native platforms
 let nativeAuth;
 
+// GA4 sign-in tracking guards (web). Skip the first auth event (session
+// restore) and repeated same-user events so login/sign_up fire only on a
+// genuine new sign-in, never on page reload.
+let __gaFirstAuth = true;
+let __gaPrevUid = null;
+
 const AuthContext = createContext({});
 
 // DEV-ONLY: Fake user for development bypass
@@ -64,6 +70,24 @@ export function AuthProvider({ children }) {
             resolved = true;
             console.log('✅ AUTH_CONTEXT: Web auth state changed');
             console.log('   User =', currentUser ? currentUser.email || currentUser.uid : 'NULL');
+            // GA4: fire login/sign_up only on a genuine new sign-in (not restore).
+            try {
+              const uid = currentUser?.uid || null;
+              if (!__gaFirstAuth && currentUser && uid !== __gaPrevUid) {
+                const m = currentUser.metadata || {};
+                const isNew = m.creationTime && m.lastSignInTime &&
+                  Math.abs(new Date(m.creationTime).getTime() - new Date(m.lastSignInTime).getTime()) < 120000;
+                const method = currentUser.phoneNumber ? 'phone' : 'email';
+                require('../utils/analytics').track(isNew ? 'sign_up' : 'login', { method });
+                // Meta Pixel: CompleteRegistration on a genuine NEW account only
+                // (web only — fbq is loaded from index.html; native has no fbq).
+                if (isNew && typeof window !== 'undefined' && typeof window.fbq === 'function') {
+                  window.fbq('track', 'CompleteRegistration', { method, content_name: 'account_signup' });
+                }
+              }
+              __gaFirstAuth = false;
+              __gaPrevUid = uid;
+            } catch (_) { /* analytics best-effort */ }
             setUser(currentUser ?? null);
             setLoading(false);
           });

@@ -14,7 +14,8 @@
  * - Clear error messages
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -47,6 +48,9 @@ import { getImageLimits, GLOBAL_IMAGE_LIMITS } from '../config/categoryLimits';
 import { recordListingPosted } from '../services/reviewService';
 import SEO from '../components/SEO';
 import AuthScreen from './AuthScreen';
+// Web-only "what's stopping you from posting?" prompt. Resolves to a no-op on
+// native (PostAbandonPrompt.js), so iOS/Android behaviour is unchanged.
+import PostAbandonPrompt from '../components/PostAbandonPrompt';
 import { getSubCategories, CATEGORIES, getCategoryByKey, getCategoryIcon, categoryRequiresPricing } from '../config/categories';
 import { getTranslatedCategoryLabel, getTranslatedSubCategoryLabel } from '../utils/categoryI18n';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
@@ -59,6 +63,60 @@ import {
   formatListingPrice,
 } from '../lib/pricing';
 import { DEFAULT_CURRENCY } from '../lib/currencies';
+
+// Organic-listing lifecycle window (days) by category. Mirrors the server
+// (seo-web/src/lib/lifecycle.ts + ingestion/migrate-organic-expiration.js) so a
+// freshly posted listing gets the same window a renewal or the backfill grants.
+function organicDurationDays(categoryId, subcategory) {
+  const c = String(categoryId || '').toLowerCase();
+  const s = String(subcategory || '').toLowerCase();
+  if (c === 'vehicles') return 60;
+  if (c === 'services' || c === 'repair-services') return 60;
+  if (c === 'rentals') return 30;
+  if (c === 'real-estate') return /rent|short-let|apartment/.test(s) ? 30 : 90;
+  if (c === 'jobs') return 30;
+  return 30;
+}
+
+// Platform stamp for cross-platform listing analytics. This one line resolves to
+// 'web' on the web build (deploys immediately) and 'ios'/'android' on the native
+// builds (takes effect on the next store release). Never overwrites — only set at
+// create time.
+function detectPlatform() {
+  if (Platform.OS === 'web') return 'web';
+  if (Platform.OS === 'ios') return 'ios';
+  if (Platform.OS === 'android') return 'android';
+  return 'unknown';
+}
+
+// Best-effort acquisition attribution — WEB only, no guessing. Prefer explicit
+// utm_* on the create URL (propagated from the /sell landing across origins);
+// fall back to a coarse referrer classification; otherwise leave unknown. Returns
+// only fields we can actually determine, so we never fabricate a source.
+function getWebAcquisition() {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return {};
+  try {
+    const p = new URLSearchParams(window.location.search);
+    const src = (p.get('utm_source') || '').toLowerCase().trim();
+    const med = (p.get('utm_medium') || '').toLowerCase().trim();
+    const camp = (p.get('utm_campaign') || '').trim();
+    if (src) {
+      const paid = /cpc|paid|ppc|ads?/.test(med);
+      const map = { facebook: paid ? 'facebook_paid' : 'facebook_organic', fb: paid ? 'facebook_paid' : 'facebook_organic',
+        instagram: paid ? 'instagram_paid' : 'instagram', ig: 'instagram', google: paid ? 'google_paid' : 'google_organic' };
+      return { acquisitionSource: map[src] || src, acquisitionMedium: med || null, campaign: camp || null };
+    }
+    // No UTM → coarse, non-guessing referrer classification.
+    const ref = String(document.referrer || '');
+    if (!ref) return { acquisitionSource: 'direct' };
+    const h = (() => { try { return new URL(ref).hostname; } catch { return ''; } })();
+    if (/sabalist\.com$/.test(h)) return {}; // internal nav — leave unknown, not a source
+    if (/facebook\.com|fb\.com|l\.facebook/.test(h)) return { acquisitionSource: 'facebook_organic' };
+    if (/instagram\.com/.test(h)) return { acquisitionSource: 'instagram' };
+    if (/google\./.test(h)) return { acquisitionSource: 'google_organic' };
+    return { acquisitionSource: 'referral', referrerHost: h };
+  } catch (_) { return {}; }
+}
 
 // All canonical category keys (source of truth in src/config/categories.js)
 // Validate against the LIVE taxonomy (reflects backend config) at call time,
@@ -74,8 +132,45 @@ export default function CreateListingScreen({ navigation }) {
   // so the draft is preserved in state — after sign-in this effect hides the
   // prompt and the user can publish their draft.
   const [needsAuth, setNeedsAuth] = useState(false);
+  // Deferred-auth ("create first, verify once, publish automatically") refs.
+  const pendingPublishRef = useRef(false); // Publish pressed while signed out
+  const submittingRef = useRef(false);     // dedup guard — never double-write
+  const draftRestoredRef = useRef(false);
+  // Set true the moment a publish succeeds, so the web abandon-prompt never fires
+  // on the post-success navigation. A ref (not state) so it's read synchronously
+  // before finish() navigates away.
+  const postedRef = useRef(false);
+
+  // Funnel: the Create Listing screen was opened (top of the posting funnel).
   useEffect(() => {
-    if (user && needsAuth) setNeedsAuth(false);
+    try { require('../utils/analytics').track('create_listing_started'); } catch (_) {}
+  }, []);
+
+  // Pre-select the category from a ?category=<id> deep link (web). The seller
+  // landing (/sell) links to /create?category=vehicles etc.; without this the
+  // form always opened on 'Electronics' and the ad's intent was lost. Maps the
+  // URL id (e.g. 'real-estate') to the picker's key (e.g. 'Real Estate').
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    try {
+      const cid = (new URLSearchParams(window.location.search).get('category') || '').toLowerCase();
+      if (!cid) return;
+      const match = CATEGORIES.find((c) => c.id === cid);
+      if (match) setCategory(match.key);
+    } catch (_) { /* deep-link parse is best-effort */ }
+  }, []);
+
+  // Auth completed while a publish was pending → resume the publish AUTOMATICALLY
+  // (no re-press, no re-fill). Runs with fresh state because deps change on auth.
+  useEffect(() => {
+    if (user && needsAuth) {
+      setNeedsAuth(false);
+      try { require('../utils/analytics').track('authentication_completed'); } catch (_) {}
+      if (pendingPublishRef.current) {
+        pendingPublishRef.current = false;
+        setTimeout(() => { try { handleSubmit(); } catch (_) {} }, 0);
+      }
+    }
   }, [user, needsAuth]);
   const insets = useSafeAreaInsets();
   const [, forceUpdate] = useState(0);
@@ -223,16 +318,26 @@ export default function CreateListingScreen({ navigation }) {
             continue;
           }
 
-          // Compress image
-          const compressed = await manipulateAsync(
-            asset.uri,
-            [{ resize: { width: GLOBAL_IMAGE_LIMITS.compressionWidth } }],
-            {
-              compress: GLOBAL_IMAGE_LIMITS.compressionQuality,
-              format: SaveFormat.JPEG,
-              base64: Platform.OS === 'web', // Only get base64 on web
-            }
-          );
+          // Compress image. On low-end mobile browsers the canvas-based
+          // resize can throw or run out of memory on large camera photos —
+          // if that happens, DON'T drop the photo (that stranded users at the
+          // required-photo step). Fall back to the original asset so they can
+          // still add their one photo and continue.
+          let compressed;
+          try {
+            compressed = await manipulateAsync(
+              asset.uri,
+              [{ resize: { width: GLOBAL_IMAGE_LIMITS.compressionWidth } }],
+              {
+                compress: GLOBAL_IMAGE_LIMITS.compressionQuality,
+                format: SaveFormat.JPEG,
+                base64: Platform.OS === 'web', // Only get base64 on web
+              }
+            );
+          } catch (compressErr) {
+            console.warn('⚠️ Compression failed, using original asset:', compressErr?.message);
+            compressed = { uri: asset.uri, base64: asset.base64, width: asset.width, height: asset.height };
+          }
 
           // LOG: Compressed result
           console.log('🖼️ ========== COMPRESSED OBJECT ==========');
@@ -297,6 +402,7 @@ export default function CreateListingScreen({ navigation }) {
         }
 
         setImages((prev) => [...prev, ...processedImages]);
+        try { require('../utils/analytics').track('photo_added', { count: processedImages.length }); } catch (_) {}
       } finally {
         setCompressing(false);
       }
@@ -395,6 +501,7 @@ export default function CreateListingScreen({ navigation }) {
         }
 
         setImages((prev) => [...prev, imageUri]);
+        try { require('../utils/analytics').track('photo_added', { count: 1 }); } catch (_) {}
       } finally {
         setCompressing(false);
       }
@@ -500,7 +607,52 @@ export default function CreateListingScreen({ navigation }) {
    * - Guaranteed spinner cleanup (finally block)
    * - Clear error messages
    */
+  // ── Deferred-auth draft persistence ────────────────────────────────────────
+  // Keeps a finished-but-unpublished listing so nothing is lost across an auth
+  // redirect/refresh or a cancelled sign-in. In the common in-session flow the
+  // React state already survives (component stays mounted through inline auth).
+  const DRAFT_KEY = 'sabalist_pending_listing_draft';
+  const saveDraft = async () => {
+    try {
+      await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({
+        title, description, priceForm, category, subcategory,
+        location, phoneNumber, images, video, savedAt: Date.now(),
+      }));
+    } catch (_) {}
+  };
+  const clearDraft = async () => { try { await AsyncStorage.removeItem(DRAFT_KEY); } catch (_) {} };
+
+  // Restore an in-progress draft once, on first mount — never clobber a form the
+  // user has already started.
+  useEffect(() => {
+    if (draftRestoredRef.current) return;
+    draftRestoredRef.current = true;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(DRAFT_KEY);
+        if (!raw) return;
+        if ((title && title.trim()) || (images && images.length)) return;
+        const d = JSON.parse(raw);
+        if (d.title) setTitle(d.title);
+        if (d.description) setDescription(d.description);
+        if (d.priceForm) setPriceForm(d.priceForm);
+        if (d.category) setCategory(d.category);
+        if (d.subcategory) setSubcategory(d.subcategory);
+        if (d.location) setLocation(d.location);
+        if (d.phoneNumber) setPhoneNumber(d.phoneNumber);
+        if (Array.isArray(d.images) && d.images.length) setImages(d.images);
+        if (d.video) setVideo(d.video);
+        try { require('../utils/analytics').track('draft_restored'); } catch (_) {}
+      } catch (_) {}
+    })();
+  }, []);
+
   const handleSubmit = async () => {
+    try { require('../utils/analytics').track('publish_clicked', { category, photos: images.length }); } catch (_) {}
+    // Sanitized code for analytics: Firebase error CODE only (e.g. 'permission-denied',
+    // 'unavailable', 'storage/quota-exceeded') — never a message, PII, or token.
+    const sanitizeCode = (e) => String((e && (e.code || e.name)) || 'unknown').replace(/[^a-zA-Z0-9_.:-]/g, '').slice(0, 40);
+    if (submittingRef.current) return; // dedup: never create two listings
     console.log('🚀 ========== SUBMIT STARTED ==========');
     console.log('🚀 Platform:', Platform.OS);
     console.log('🚀 Images count:', images.length);
@@ -508,12 +660,14 @@ export default function CreateListingScreen({ navigation }) {
 
     if (!canSubmit) {
       console.warn('⚠️ Submit validation failed');
+      try { require('../utils/analytics').track('publish_blocked_validation', { reason: 'incomplete_fields' }); } catch (_) {}
       Alert.alert(t('common.incomplete'), t('validation.fillAllFields'));
       return;
     }
 
     if (Platform.OS === 'web' && !navigator.onLine) {
       console.error('❌ No internet connection');
+      try { require('../utils/analytics').track('publish_blocked_validation', { reason: 'offline' }); } catch (_) {}
       Alert.alert(t('alerts.noInternet'), t('alerts.checkConnection'));
       return;
     }
@@ -540,19 +694,22 @@ export default function CreateListingScreen({ navigation }) {
         setUploading(false);
         setUploadProgress('');
 
-        if (Platform.OS === 'web') {
-          // Build-first: keep the draft and prompt sign-in inline (no navigation
-          // away, so the form state survives). After sign-in the user taps Post.
-          setNeedsAuth(true);
-        } else {
-          Alert.alert(t('alerts.signInRequired'), t('alerts.pleaseSignInCreate'), [
-            { text: t('common.ok'), onPress: () => navigation.navigate('Home') }
-          ]);
-        }
+        // Build-first on EVERY platform: keep the finished listing, save a draft,
+        // prompt sign-in inline, and auto-resume the publish once verified — the
+        // user never re-presses Publish or re-enters anything.
+        pendingPublishRef.current = true;
+        try { await saveDraft(); } catch (_) {}
+        try {
+          const trk = require('../utils/analytics').track;
+          trk('authentication_required', { where: 'publish' });
+          trk('authentication_started', { where: 'publish' });
+        } catch (_) {}
+        setNeedsAuth(true);
         return;
       }
 
       console.log('✅ Authenticated as:', userId, '(' + user.email + ')');
+      submittingRef.current = true; // committed to writing — block any duplicate submit
 
       // Use ISO timestamp instead of serverTimestamp() to avoid potential Firestore connection issues
       const now = new Date().toISOString();
@@ -564,12 +721,37 @@ export default function CreateListingScreen({ navigation }) {
       // for backwards-compatible queries).
       const priceFields = buildPriceData(priceForm);
 
+      // Search index fields — the $0 Firestore search fallback (seo-web
+      // /api/search) matches on searchKeywords[] and autocompletes on
+      // title_lc. Without these a listing is invisible to Sabalist search.
+      // Kept dependency-free and in sync with the query-side tokenizer
+      // (seo-web/src/lib/search/normalize.ts) and the ingestion stamper
+      // (ingestion/lib/searchKeywords.js).
+      const __STOP = new Set(['the','and','of','in','at','de','la','le','el','al']);
+      let __SPLIT; try { __SPLIT = new RegExp('[^\\p{L}\\p{N}]+', 'u'); } catch (e) { __SPLIT = /[^0-9A-Za-z\u00C0-\uFFFF]+/; }
+      const __norm = (t) => String(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const __toks = (text) => { const o=[]; for (const raw of String(text||'').split(__SPLIT)) { if(!raw) continue; const k=__norm(raw); if(k.length<2||__STOP.has(k)) continue; o.push(k);} return o; };
+      const __city = String(location || '').split(',')[0].trim();
+      const __locParts = String(location || '').split(',');
+      const __country = __locParts.length > 1 ? __locParts[__locParts.length - 1].trim() : '';
+      const __seen = new Set(); const __kw = [];
+      for (const grp of [__toks(title), __toks(categoryId || category), __toks(subcategory), __toks(__city), __toks(__country)]) {
+        for (const tk of grp) { if (!__seen.has(tk) && __kw.length < 25) { __seen.add(tk); __kw.push(tk); } }
+      }
+      const searchFields = {
+        searchKeywords: __kw,
+        title_lc: __norm(title).slice(0, 60),
+        city: __city,
+        country: __country,
+      };
+
       const listingData = {
         title: title.trim(),
         description: description.trim(),
         ...priceFields,
         category,
         categoryId,
+        ...searchFields,
         subcategory: subcategory || '',
         location: location.trim(),
         phoneNumber: phoneNumber.trim(),
@@ -581,6 +763,24 @@ export default function CreateListingScreen({ navigation }) {
         views: 0,
         createdAt: now,
         updatedAt: now,
+        // Organic expiration lifecycle (Option B). A genuine user post is
+        // `sourceType:'organic'` — imported records never carry this — which is
+        // exactly what the daily scheduler queries on. expiresAt is seeded from
+        // the category duration so the post has a full window from day one; the
+        // owner renews (free, one tap) from My Listings before it lapses.
+        sourceType: 'organic',
+        publishedAt: now,
+        expiresAt: new Date(Date.now() + organicDurationDays(categoryId, subcategory) * 864e5).toISOString(),
+        renewedAt: null,
+        renewalCount: 0,
+        expirationReminder7Sent: false,
+        expirationReminder1Sent: false,
+        // Cross-platform analytics stamps (source of truth = this doc, not GA4).
+        // platform: web now, ios/android on next native build. acquisition:
+        // web-only best-effort (utm/referrer), never fabricated — omitted when
+        // unknown so the dashboard reports it as unknown rather than a wrong source.
+        platform: detectPlatform(),
+        ...getWebAcquisition(),
       };
 
       console.log('📝 Listing data prepared:', {
@@ -605,21 +805,31 @@ export default function CreateListingScreen({ navigation }) {
 
       let listingRef;
       try {
+        try { require('../utils/analytics').track('firestore_write_started', { photos: images.length }); } catch (_) {}
         listingRef = await addDoc(collection(db, 'listings'), listingData);
         console.log(`✅ Firestore addDoc completed`);
       } catch (error) {
+        try { require('../utils/analytics').track('firestore_write_failed', { code: sanitizeCode(error) }); } catch (_) {}
         console.error(`❌ Firestore addDoc failed:`, error.code, error.message);
         throw new Error(`Failed to create listing: ${error.message}`);
       }
 
       const listingId = listingRef.id;
+      try { require('../utils/analytics').track('firestore_write_succeeded'); } catch (_) {}
       console.log(`✅ Listing created in Firestore: ${listingId}`);
+      try {
+        const t = require('../utils/analytics').track;
+        const meta = { item_id: listingId, category: listingData?.categoryId || listingData?.category || '' };
+        t('create_listing_completed', meta);
+        t('listing_published', meta); // the conversion / Key Event
+      } catch (_) {}
 
       const imageUrls = [];
 
       // Upload images using new imageToBlob approach
       if (images.length > 0) {
         console.log(`📤 Starting upload of ${images.length} images...`);
+        try { require('../utils/analytics').track('storage_upload_started', { count: images.length }); } catch (_) {}
         const storage = getStorage();
 
         for (let i = 0; i < images.length; i++) {
@@ -646,6 +856,7 @@ export default function CreateListingScreen({ navigation }) {
 
             console.log(`✅ [${i + 1}/${images.length}] Uploaded:`, url.substring(0, 60));
           } catch (error) {
+            try { require('../utils/analytics').track('storage_upload_failed', { code: sanitizeCode(error) }); } catch (_) {}
             console.error(`❌ [${i + 1}/${images.length}] Upload failed:`, error.message);
             throw new Error(`Image ${i + 1} upload failed: ${error.message}`);
           }
@@ -736,8 +947,11 @@ export default function CreateListingScreen({ navigation }) {
       const shareUrl = `https://sabalist.com/listing/${listingId}`;
       const shareMsg = `${title} — now on Sabalist\n${shareUrl}`;
       const finish = () => {
+        postedRef.current = true; // suppress the abandon-prompt on success nav
+        submittingRef.current = false;
+        clearDraft();
         resetForm();
-        navigation.navigate('Home', { refresh: Date.now() });
+        navigation.navigate('MyListings', { refresh: Date.now() });
         setTimeout(() => { recordListingPosted(); }, 1500);
       };
 
@@ -767,6 +981,7 @@ export default function CreateListingScreen({ navigation }) {
         );
       }
     } catch (error) {
+      submittingRef.current = false; // allow retry; draft is kept intact
       console.error('❌ ========== SUBMIT FAILED ==========');
       console.error('❌ Error:', error.message);
       console.error('❌ Stack:', error.stack);
@@ -1134,9 +1349,9 @@ export default function CreateListingScreen({ navigation }) {
    * at the bottom of the screen on both Android and iOS.
    */
   const renderStickyFooter = () => {
-    // What's blocking the user, per step?
+    // What's blocking the user, per step? (Order: 1=Details, 2=Photos, 3=Review)
     const missing = [];
-    if (step === 1) {
+    const pushPhotos = () => {
       if (!canProceedFromPhotos) {
         missing.push(
           t('createListing.needMinPhotos', {
@@ -1146,19 +1361,26 @@ export default function CreateListingScreen({ navigation }) {
           })
         );
       }
-    } else if (step === 2 || step === 3) {
-      if (!canProceedFromPhotos) {
-        missing.push(`Photos: need ${imageLimits.min} (have ${images.length})`);
-      }
-      if (!title.trim()) missing.push(t('createListing.titleMissing') || 'Title is empty');
-      if (!priceValid) missing.push(t('createListing.priceMissing') || 'Price details are incomplete');
-      if (!location.trim()) missing.push(t('createListing.locationMissing') || 'Location is empty');
-      if (!phoneNumber.trim()) missing.push(t('createListing.phoneMissing') || 'Phone number is empty');
+    };
+    const pushDetails = () => {
+      if (!title.trim()) missing.push(t('createListing.titleMissing', { defaultValue: 'Add a title' }));
+      if (!priceValid) missing.push(t('createListing.priceMissing', { defaultValue: 'Add a price' }));
+      if (!location.trim()) missing.push(t('createListing.locationMissing', { defaultValue: 'Add a location' }));
+      if (!phoneNumber.trim()) missing.push(t('createListing.phoneMissing', { defaultValue: 'Add a phone number' }));
+    };
+    if (step === 1) {
+      pushDetails();
+    } else if (step === 2) {
+      pushPhotos();
+    } else if (step === 3) {
+      pushDetails();
+      pushPhotos();
     }
 
+    const detailsComplete = title.trim() && priceValid && location.trim() && phoneNumber.trim();
     const stepDisabled =
-      (step === 1 && !canProceedFromPhotos) ||
-      (step === 2 && missing.length > 0) ||
+      (step === 1 && !detailsComplete) ||
+      (step === 2 && !canProceedFromPhotos) ||
       (step === 3 && (!canSubmit || uploading));
 
     return (
@@ -1171,7 +1393,7 @@ export default function CreateListingScreen({ navigation }) {
         {stepDisabled && missing.length > 0 && (
           <View style={styles.missingPanel}>
             <Text style={styles.missingTitle}>
-              {t('createListing.missingFields') || 'Required to continue:'}
+              {t('createListing.missingFields', { defaultValue: 'A few things to finish:' })}
             </Text>
             {missing.map((m, i) => (
               <Text key={i} style={styles.missingItem}>• {m}</Text>
@@ -1230,12 +1452,25 @@ export default function CreateListingScreen({ navigation }) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 8 }}>
-          <TouchableOpacity onPress={() => setNeedsAuth(false)} style={{ padding: 8 }} accessibilityLabel="Back to listing">
+          <TouchableOpacity
+            onPress={() => {
+              // Cancellation: keep the draft, don't auto-publish later, return to form.
+              pendingPublishRef.current = false;
+              try {
+                const trk = require('../utils/analytics').track;
+                trk('authentication_failed', { reason: 'cancelled' });
+                trk('authentication_abandoned', { reason: 'cancelled' }); // explicit user action only
+              } catch (_) {}
+              setNeedsAuth(false);
+            }}
+            style={{ padding: 8 }}
+            accessibilityLabel="Back to listing"
+          >
             <Ionicons name="arrow-back" size={24} color={COLORS.text} />
           </TouchableOpacity>
           <View style={{ marginLeft: 4 }}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.text }}>Sign in to publish</Text>
-            <Text style={{ fontSize: 13, color: COLORS.textMuted }}>Your draft is saved — sign in, then tap Post.</Text>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.text }}>Your listing is ready 🎉</Text>
+            <Text style={{ fontSize: 13, color: COLORS.textMuted }}>Verify your account to publish — it posts automatically, nothing to re-enter.</Text>
           </View>
         </View>
         <View style={{ flex: 1 }}>
@@ -1248,6 +1483,12 @@ export default function CreateListingScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <SEO title="Create Listing" noIndex />
+      {/* Web-only: if a visitor started this form and tries to leave without
+          posting, ask what stopped them + offer help. No-op on native. */}
+      <PostAbandonPrompt
+        getActive={() => !postedRef.current && !needsAuth && !!(title.trim() || description.trim() || phoneNumber.trim() || images.length)}
+        getContext={() => ({ step, hasTitle: !!title.trim(), hasPhotos: images.length > 0 })}
+      />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -1269,10 +1510,14 @@ export default function CreateListingScreen({ navigation }) {
         ))}
       </View>
 
-      {/* Step Content */}
+      {/* Step Content — DETAILS first, PHOTOS second, REVIEW last. Photos moved
+          off step 1 because GA4 showed the mandatory-photo-first gate was the #1
+          abandonment point: users bounced before investing anything. Letting them
+          fill title/price/location first, then add the (still required) photo,
+          keeps the 1-photo rule while removing the upfront wall. */}
       <View style={styles.stepWrapper}>
-        {step === 1 && renderPhotosStep()}
-        {step === 2 && renderDetailsStep()}
+        {step === 1 && renderDetailsStep()}
+        {step === 2 && renderPhotosStep()}
         {step === 3 && renderReviewStep()}
       </View>
 
@@ -1286,6 +1531,7 @@ export default function CreateListingScreen({ navigation }) {
         onClose={() => setCategoryPickerOpen(false)}
         onSelect={(newKey) => {
           setCategory(newKey);
+          try { require('../utils/analytics').track('category_selected', { category: newKey }); } catch (_) {}
           setSubcategory(null);
           // When switching to a non-pricing category (Jobs, Services,
           // Community, Events, Education), default priceType to "none"

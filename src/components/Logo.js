@@ -20,7 +20,7 @@ export default function Logo({ size = 'medium', showTagline = false }) {
       {showTagline ? (
         <View style={styles.textContent}>
           <Text style={[styles.brandName, { fontSize: currentSize.fontSize }]}>Sabalist</Text>
-          {size !== 'small' && <Text style={styles.tagline}>Buy & Sell across Africa</Text>}
+          {size !== 'small' && <Text style={styles.tagline}>Your community marketplace — here and back home</Text>}
         </View>
       ) : (
         <Text style={[styles.brandNameSolo, { fontSize: currentSize.fontSize }]}>Sabalist</Text>

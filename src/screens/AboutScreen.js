@@ -28,7 +28,7 @@ export default function AboutScreen({ navigation }) {
     <View style={styles.container}>
       <SEO
         title="About Sabalist"
-        description="Sabalist is Africa's leading marketplace. Learn about our mission to connect buyers and sellers across Africa."
+        description="Sabalist is the community marketplace for Africa and the African diaspora, connecting people, businesses and opportunities here and back home."
         canonicalUrl="/about"
       />
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.card} />

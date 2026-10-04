@@ -84,6 +84,21 @@ i18n
     react: {
       useSuspense: false,
     },
+    // Safety net: a raw dotted key must NEVER reach the UI. If a translation is
+    // missing (and no defaultValue was passed), humanize the last key segment —
+    // e.g. "createListing.missingFields" -> "Missing Fields" — instead of
+    // showing "createListing.missingFields" to the user.
+    parseMissingKeyHandler: (key, defaultValue) => {
+      // An explicit defaultValue (friendly message) always wins; only truly
+      // fallback-less keys get humanized.
+      if (defaultValue && defaultValue !== key) return defaultValue;
+      const leaf = String(key || '').split('.').pop() || '';
+      const words = leaf
+        .replace(/[_-]+/g, ' ')
+        .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+        .trim();
+      return words ? words.charAt(0).toUpperCase() + words.slice(1) : '';
+    },
   });
 
 // Load saved language after init

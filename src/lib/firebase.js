@@ -1,6 +1,21 @@
 // React Native Firebase for auth and storage (native performance)
 import auth from '@react-native-firebase/auth';
 import storage from '@react-native-firebase/storage';
+// Crashlytics captures native iOS crashes (uncaught NSExceptions, EXC_*
+// signals) that JS try/catch cannot intercept. Reports upload to Firebase
+// Console → Crashlytics on the next app launch after a crash.
+let crashlytics;
+try {
+  crashlytics = require('@react-native-firebase/crashlytics').default;
+  if (crashlytics) {
+    // Enable collection eagerly so the first crash on a fresh install is
+    // captured. (Default is enabled, but be explicit in case of mismatch.)
+    crashlytics().setCrashlyticsCollectionEnabled(true);
+  }
+} catch (e) {
+  console.warn('Crashlytics module not available:', e?.message);
+}
+export { crashlytics };
 
 // Firebase JS SDK for Firestore (avoids gRPC native dependency issues on iOS)
 import { initializeApp, getApps } from 'firebase/app';

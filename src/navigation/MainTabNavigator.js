@@ -14,6 +14,7 @@ import CreateListingScreen from '../screens/CreateListingScreen';
 import MyListingsScreen from '../screens/MyListingsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import ListingDetailScreen from '../screens/ListingDetailScreen';
+import BusinessDetailScreen from '../screens/BusinessDetailScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import HelpSupportScreen from '../screens/HelpSupportScreen';
@@ -82,7 +83,11 @@ function TabNavigator() {
         // Hide the bottom tab bar while creating a listing so its absolute
         // positioning can't cover the step's Next/Post button. The header X
         // in CreateListingScreen handles exiting back to the previous tab.
-        tabBarStyle: route.name === 'CreateListing'
+        // Hide the tab bar while creating a listing (all platforms), and on the
+        // WEB homepage only (the redesigned web landing has its own nav/footer).
+        // Guarded by Platform.OS==='web' so native iOS/Android navigation is
+        // completely unchanged.
+        tabBarStyle: (route.name === 'CreateListing' || (Platform.OS === 'web' && route.name === 'Home'))
           ? { display: 'none' }
           : {
               ...styles.tabBar,
@@ -176,6 +181,14 @@ export default function MainTabNavigator() {
       <Stack.Screen
         name="ListingDetail"
         component={ListingDetailScreen}
+        options={{
+          headerShown: false,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="BusinessDetail"
+        component={BusinessDetailScreen}
         options={{
           headerShown: false,
           presentation: 'card',

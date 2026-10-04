@@ -16,7 +16,7 @@ function SEO({ title, description, canonicalUrl, ogImage, ogType = 'website', js
   // Dynamically require react-helmet-async only on web
   const { Helmet } = require('react-helmet-async');
 
-  const fullTitle = title ? `${title} | Sabalist` : 'Sabalist - Buy & Sell across Africa';
+  const fullTitle = title ? `${title} | Sabalist` : 'Sabalist — Marketplace for Africa and the African Diaspora';
   const fullDescription = description || 'Sabalist is Africa\'s marketplace. Buy and sell electronics, vehicles, real estate, fashion and more.';
   const fullCanonical = canonicalUrl ? `${BASE_URL}${canonicalUrl}` : BASE_URL;
   const fullOgImage = ogImage || DEFAULT_OG_IMAGE;

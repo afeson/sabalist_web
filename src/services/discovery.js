@@ -26,11 +26,12 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const CACHE_PREFIX = '@sabalist:discovery:';
 const memCache = new Map(); // key -> { ts, listings }
 
-function cacheKey({ searchText, category, subcategoryId, minPrice, maxPrice, userLocation }) {
+function cacheKey({ scope, searchText, category, subcategoryId, minPrice, maxPrice, userLocation }) {
   const loc = userLocation
     ? `${userLocation.city || ''}|${userLocation.state || ''}|${userLocation.country || ''}`
     : '';
   return [
+    scope || 'listings',
     (searchText || '').trim().toLowerCase(),
     category || 'all',
     subcategoryId || '',
@@ -313,7 +314,9 @@ export async function discover(fetchPool, params, page = {}) {
     if (typeof applyFilters === 'function') pool = applyFilters(pool);
 
     // Home front-page: pictures only (respects homePhotoOnly flag), same as before.
-    if (isHomeFeed && getFlags().homePhotoOnly !== false) {
+    // Business Directory is exempt — imported directory profiles have no photos and
+    // must still appear when browsing (callers pass photoOptional:true).
+    if (isHomeFeed && !params.photoOptional && getFlags().homePhotoOnly !== false) {
       pool = pool.filter((l) => !!(l.coverImage || (l.images && l.images.length) || l.hasImage));
     }
 

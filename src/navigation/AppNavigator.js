@@ -13,6 +13,7 @@ import CreateListingScreen from '../screens/CreateListingScreen';
 import MyListingsScreen from '../screens/MyListingsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import ListingDetailScreen from '../screens/ListingDetailScreen';
+import BusinessDetailScreen from '../screens/BusinessDetailScreen';
 import EditListingScreen from '../screens/EditListingScreen';
 
 const Stack = createNativeStackNavigator();
@@ -115,6 +116,11 @@ export default function AppNavigator() {
             headerBackTitle: t('navigation.back'),
             headerTintColor: COLORS.primary,
           }}
+        />
+        <Stack.Screen
+          name="BusinessDetail"
+          component={BusinessDetailScreen}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="EditListing"

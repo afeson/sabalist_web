@@ -6,6 +6,7 @@
 import { firestore, storage } from "../lib/firebase.web";
 import { collection, addDoc, updateDoc, doc, serverTimestamp, query, where, orderBy, limit as firestoreLimit, deleteDoc, increment, getDocsFromServer, getDocFromServer, onSnapshot } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { buildSearchFields } from "../lib/searchFields";
 import { CATEGORIES, resolveCategoryId, getLegacyAliasesFor, getVisibleCategories } from "../config/categories";
 import { getRanking, getFlags } from "../config/runtimeConfig";
 import { discover } from "./discovery";
@@ -67,6 +68,17 @@ export async function createListing(listingData, imageUris = [], videoData = nul
       location: listingData.location || "Africa",
       phoneNumber: listingData.phoneNumber || "",
       userId: listingData.userId,
+      // Additive search fields — see src/lib/searchFields.js. Without these the
+      // listing is invisible to Sabalist search (searchKeywords / title_lc) and
+      // excluded by every category filter (categoryId).
+      categoryId: resolveCategoryId(listingData.category) || String(listingData.category || "").toLowerCase(),
+      ...buildSearchFields({
+        title: listingData.title,
+        category: listingData.category,
+        categoryId: resolveCategoryId(listingData.category) || String(listingData.category || "").toLowerCase(),
+        subcategory: listingData.subcategory || "",
+        location: listingData.location || "Africa",
+      }),
       images: [],
       coverImage: "",
       hasImage: false,
@@ -363,6 +375,21 @@ export async function getListingById(listingId) {
 }
 
 /**
+ * Get a single Business Directory profile by id (WEB). Reads the `businesses`
+ * collection — NEVER `listings`. Used by the dedicated Business Detail screen.
+ */
+export async function getBusinessById(businessId) {
+  try {
+    const docSnap = await getDocFromServer(doc(firestore, "businesses", businessId));
+    if (docSnap.exists()) return { id: docSnap.id, ...docSnap.data() };
+    throw new Error("Business not found");
+  } catch (error) {
+    console.error("❌ Error getting business:", error);
+    throw error;
+  }
+}
+
+/**
  * Get user's listings (WEB VERSION)
  */
 export async function getUserListings(userId) {
@@ -395,10 +422,20 @@ export async function getUserListings(userId) {
  */
 export async function updateListing(listingId, updates) {
   try {
-    await updateDoc(doc(firestore, "listings", listingId), {
-      ...updates,
-      updatedAt: serverTimestamp()
-    });
+    const patch = { ...updates, updatedAt: serverTimestamp() };
+    // Keep search fields correct when title/category/subcategory/location change.
+    if (updates && (updates.title || updates.category || updates.subcategory || updates.location)) {
+      const catId = resolveCategoryId(updates.category) || String(updates.category || "").toLowerCase();
+      if (updates.category) patch.categoryId = catId;
+      Object.assign(patch, buildSearchFields({
+        title: updates.title,
+        category: updates.category,
+        categoryId: catId,
+        subcategory: updates.subcategory,
+        location: updates.location,
+      }));
+    }
+    await updateDoc(doc(firestore, "listings", listingId), patch);
     console.log(`✅ Listing updated: ${listingId}`);
   } catch (error) {
     console.error("❌ Error updating listing:", error);
@@ -560,7 +597,7 @@ function applyListingFilters(pool, { subcategoryId = null, minPrice = null, maxP
  */
 export async function searchListings(searchText = "", category = null, minPrice = null, maxPrice = null, subcategoryId = null, userLocation = null) {
   try {
-    const params = { searchText, category, subcategoryId, minPrice, maxPrice, userLocation };
+    const params = { scope: 'listings', searchText, category, subcategoryId, minPrice, maxPrice, userLocation };
     const applyFilters = (pool) => applyListingFilters(pool, { subcategoryId, minPrice, maxPrice });
     const fetchPool = () => fetchListingPool({ category });
     const { items } = await discover(fetchPool, { ...params, applyFilters }, { pageSize: 100000 });
@@ -568,6 +605,48 @@ export async function searchListings(searchText = "", category = null, minPrice 
   } catch (error) {
     console.error("❌ Error searching listings:", error);
     throw error;
+  }
+}
+
+/**
+ * Raw pool from the `businesses` directory collection (WEB). Mirrors
+ * fetchListingPool but targets Business Directory profiles instead of
+ * marketplace ads. Single-field categoryId== + limit — no composite index.
+ */
+async function fetchBusinessPool({ category = null } = {}) {
+  const cats = category
+    ? [category]
+    : getVisibleCategories().map((c) => c.id).filter(Boolean);
+  const per = category ? POOL_CATEGORY_MAX : POOL_PER_CATEGORY;
+  const results = await Promise.all(cats.map(async (cid) => {
+    try {
+      const cq = query(
+        collection(firestore, "businesses"),
+        where("categoryId", "==", cid),
+        firestoreLimit(per)
+      );
+      const snap = await getDocsFromServer(cq);
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    } catch (e) { return []; }
+  }));
+  return results.flat().filter((l) => l.status === 'active' || !l.status);
+}
+
+/**
+ * Search the Business Directory (WEB). Same ranking/geo-fill engine as
+ * searchListings, but over `businesses` and with the home photo-gate disabled
+ * (directory profiles are imported without photos). Never throws — returns [].
+ */
+export async function searchBusinesses(searchText = "", category = null, minPrice = null, maxPrice = null, subcategoryId = null, userLocation = null) {
+  try {
+    const params = { scope: 'businesses', photoOptional: true, searchText, category, subcategoryId, minPrice, maxPrice, userLocation };
+    const applyFilters = (pool) => applyListingFilters(pool, { subcategoryId, minPrice, maxPrice });
+    const fetchPool = () => fetchBusinessPool({ category });
+    const { items } = await discover(fetchPool, { ...params, applyFilters }, { pageSize: 100000 });
+    return items;
+  } catch (error) {
+    console.error("❌ Error searching businesses:", error);
+    return [];
   }
 }
 
