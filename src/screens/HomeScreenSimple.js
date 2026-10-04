@@ -4,6 +4,7 @@ import {
   StyleSheet, Dimensions, ActivityIndicator, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { getNavChips } from '../config/runtimeConfig';
 import { getCategoryByKey, getTranslatedCategoryLabel } from '../config/categories';
@@ -56,6 +57,7 @@ const catOf = (it) => it?.category || it?.categoryId || '';
 
 export default function HomeScreenSimple({ navigation }) {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [scope, setScope] = useState('marketplace');
   const [q, setQ] = useState('');
   const [items, setItems] = useState([]);
@@ -102,20 +104,20 @@ export default function HomeScreenSimple({ navigation }) {
     <ScrollView style={s.screen} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
       <View style={s.inner}>
       {/* HEADER */}
-      <View style={s.header}>
+      <View style={[s.header, { paddingTop: Platform.OS === 'web' ? 16 : insets.top + 8 }]}>
         <View style={s.brandRow}>
           <Image source={logoAsset} style={s.logo} resizeMode="contain" />
-          <View>
-            <Text style={s.word}>Sabalist</Text>
-            <Text style={s.tag}>MARKETPLACE & DIRECTORY</Text>
+          <View style={{ flexShrink: 1 }}>
+            <Text style={s.word} numberOfLines={1}>Sabalist</Text>
+            {!IS_SMALL && <Text style={s.tag}>MARKETPLACE & DIRECTORY</Text>}
           </View>
         </View>
         <View style={s.headerActions}>
-          <TouchableOpacity style={s.acct} onPress={() => navigation?.navigate(user ? 'Profile' : 'Profile')}>
-            <Ionicons name="person-outline" size={18} color={C.ink} />
+          <TouchableOpacity style={s.acct} onPress={() => navigation?.navigate('Profile')}>
+            <Ionicons name="person-outline" size={IS_SMALL ? 17 : 18} color={C.ink} />
           </TouchableOpacity>
           <TouchableOpacity style={s.postBtn} onPress={goPost} activeOpacity={0.85}>
-            <Text style={s.postBtnTxt}>＋ Post Free</Text>
+            <Text style={s.postBtnTxt}>{IS_SMALL ? '＋ Post' : '＋ Post Free'}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -243,6 +245,9 @@ export default function HomeScreenSimple({ navigation }) {
 const W = Dimensions.get('window').width;
 const GAP = 14;
 const H_PAD = 16;
+// Phone-width breakpoint — tightens ONLY the header on small screens. Tablets
+// (W >= 480) and the web home (separate .web.js) are unaffected.
+const IS_SMALL = W < 480;
 // Phone-first: cap the content column so it stays premium on tablets/large
 // screens and renders faithfully in an in-browser RN-Web preview. On a real
 // phone W < CONTENT_MAX, so this is a no-op there.
@@ -254,15 +259,15 @@ const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   scrollContent: { paddingBottom: 100, alignItems: 'center' },
   inner: { width: '100%', maxWidth: CONTENT_MAX },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: H_PAD, paddingTop: Platform.OS === 'web' ? 16 : 10, paddingBottom: 12 },
-  brandRow: { flexDirection: 'row', alignItems: 'center' },
-  logo: { width: 46, height: 46, marginRight: 10 },
-  word: { fontSize: 22, fontWeight: '800', color: C.ink, letterSpacing: -0.5, lineHeight: 24 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: IS_SMALL ? 14 : H_PAD, paddingTop: Platform.OS === 'web' ? 16 : 10, paddingBottom: 12 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', flexShrink: 1, marginRight: 8 },
+  logo: { width: IS_SMALL ? 36 : 46, height: IS_SMALL ? 36 : 46, marginRight: IS_SMALL ? 8 : 10 },
+  word: { fontSize: IS_SMALL ? 19 : 22, fontWeight: '800', color: C.ink, letterSpacing: -0.5, lineHeight: IS_SMALL ? 21 : 24 },
   tag: { fontSize: 9, fontWeight: '800', letterSpacing: 1, color: C.muted, marginTop: 2 },
-  headerActions: { flexDirection: 'row', alignItems: 'center' },
-  acct: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: C.line2, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
-  postBtn: { backgroundColor: C.gold, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, shadowColor: C.gold6, shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
-  postBtnTxt: { fontWeight: '800', color: '#3b2a06', fontSize: 14 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
+  acct: { width: IS_SMALL ? 36 : 40, height: IS_SMALL ? 36 : 40, borderRadius: IS_SMALL ? 18 : 20, borderWidth: 1, borderColor: C.line2, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', marginRight: IS_SMALL ? 6 : 8 },
+  postBtn: { backgroundColor: C.gold, borderRadius: 999, paddingHorizontal: IS_SMALL ? 13 : 16, paddingVertical: IS_SMALL ? 8 : 10, shadowColor: C.gold6, shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  postBtnTxt: { fontWeight: '800', color: '#3b2a06', fontSize: IS_SMALL ? 13 : 14 },
 
   hero: { paddingHorizontal: H_PAD, paddingTop: 8, paddingBottom: 6, backgroundColor: C.bg },
   eyebrow: { color: C.red, fontWeight: '800', fontSize: 11, letterSpacing: 0.6, marginBottom: 10 },
