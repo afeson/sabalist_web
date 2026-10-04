@@ -159,7 +159,7 @@ function categorize({ title = '', description = '', rawCategory = '' } = {}) {
 const VALID_SUBS = Object.fromEntries(CATEGORIES.map((c) => [c.id, new Set(c.subs)]));
 const SUB_RULES = {
   vehicles: [[/motorcycle|scooter|\bbike\b|moped/, 'motorcycles'], [/truck|lorry|trailer|pickup/, 'trucks'], [/\bbus\b|coaster|minibus/, 'buses'], [/bicycle|cycling/, 'bicycles'], [/boat|yacht|canoe|jetski/, 'boats'], [/spare|tyre|tire|\bpart|engine|battery|rim/, 'spare-parts'], [/./, 'cars']],
-  'real-estate': [[/\bland\b|plot|acre/, 'land'], [/office|shop|commercial|warehouse/, 'commercial-property'], [/short.?let|short stay|nightly/, 'short-let'], [/for sale|\bsale\b/, 'houses-sale'], [/apartment|flat|condo|studio/, 'apartments'], [/./, 'houses-rent']],
+  'real-estate': [[/\bland\b|plot|acre/, 'land'], [/\b(office|shop|retail|commercial|warehouse|showroom)\b/, 'commercial-property'], [/short.?let|short stay|nightly/, 'short-let'], [/for sale|\bsale\b/, 'houses-sale'], [/apartment|flat|condo|studio/, 'apartments'], [/./, 'houses-rent']],
   electronics: [[/\btv\b|television/, 'tvs'], [/speaker|audio|headphone|earbud|soundbar/, 'audio-speakers'], [/camera|dslr|gopro|lens/, 'cameras'], [/playstation|\bps5\b|\bps4\b|xbox|nintendo|console/, 'gaming-consoles'], [/smart (home|device)|alexa|echo|iot/, 'smart-devices'], [/watch|wearable|fitbit|band/, 'wearables'], [/./, 'accessories']],
   'phones-tablets': [[/tablet|ipad/, 'tablets'], [/feature phone|keypad/, 'feature-phones'], [/\bsim\b/, 'sim-cards'], [/case|charger|cable|cover|accessor/, 'phone-accessories'], [/./, 'smartphones']],
   computers: [[/laptop|macbook|notebook|chromebook/, 'laptops'], [/desktop|tower|imac/, 'desktops'], [/\bram\b|\bcpu\b|\bgpu\b|motherboard|component|ssd/, 'components'], [/printer|scanner|toner/, 'printers'], [/router|network|switch|modem/, 'networking'], [/software|license|windows|antivirus/, 'software'], [/./, 'laptops']],
@@ -179,7 +179,7 @@ const SUB_RULES = {
   travel: [[/flight|airline|airfare/, 'flights'], [/hotel|guesthouse|lodge|resort|hostel/, 'hotels'], [/tour|safari|excursion|attraction|museum/, 'tours'], [/luggage|suitcase/, 'luggage'], [/./, 'hotels']],
   construction: [[/cement|mixer|concrete/, 'cement-mixers'], [/generator/, 'generators'], [/excavat|bulldozer|loader/, 'excavators'], [/drill/, 'drilling-machines'], [/\btool|grinder|saw|hammer/, 'power-tools'], [/./, 'building-materials']],
   'repair-services': [[/car|auto|mechanic|vehicle/, 'car-repair'], [/phone|mobile/, 'phone-repair'], [/appliance|fridge|washing|air condition/, 'appliance-repair'], [/plumb/, 'plumbing-repair'], [/electric/, 'electrical-repair'], [/./, 'appliance-repair']],
-  rentals: [[/car|vehicle/, 'car-rentals'], [/equipment|\btool|machine/, 'equipment-rentals'], [/event|party|tent/, 'event-rentals'], [/./, 'property-rentals']],
+  rentals: [[/\bcar\b|\bcars\b|\bvehicle/, 'car-rentals'], [/equipment|\btool|machine/, 'equipment-rentals'], [/event|party|tent/, 'event-rentals'], [/./, 'property-rentals']],
   entertainment: [[/music|album|song|vinyl/, 'music'], [/movie|film|\bdvd\b|cinema/, 'movies'], [/\bgame|gaming/, 'games'], [/instrument|guitar|piano|drum/, 'instruments'], [/./, 'art-collectibles']],
   community: [[/lost|found/, 'lost-found'], [/\bfree\b|giveaway|donat/, 'free-items'], [/volunteer/, 'volunteers'], [/./, 'announcements']],
 };
