@@ -1,658 +1,321 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  RefreshControl,
-  ActivityIndicator,
-  SafeAreaView,
-  StatusBar,
-  TouchableOpacity,
-  TextInput,
-  ScrollView,
-  Platform,
-  Dimensions,
-  useWindowDimensions,
+  View, Text, Image, ScrollView, TextInput, TouchableOpacity,
+  StyleSheet, Dimensions, ActivityIndicator, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTranslation } from 'react-i18next';
-import { useFocusEffect } from '@react-navigation/native';
-import { PREMIUM_COLORS, PREMIUM_SPACING, PREMIUM_RADIUS, PREMIUM_SHADOWS } from '../theme/premiumTheme';
-import AppHeader from '../components/AppHeader';
 import { useAuth } from '../contexts/AuthContext';
-import {
-  subscribeToFavorites,
-  addToFavorites,
-  removeFromFavorites
-} from '../services/favoritesService';
-import { getCategoryId } from '../config/categoryMapping';
-import { CATEGORIES, getCategoryByKey } from '../config/categories';
-import { getTranslatedCategoryLabel } from '../utils/categoryI18n';
-import CategorySelector from '../components/CategorySelector';
-import LocationSelector from '../components/LocationSelector';
-import { getUserLocation } from '../services/locationService';
-import SEO from '../components/SEO';
-import { generateWebsiteSchema, generateOrganizationSchema } from '../utils/seo';
-import { getActiveCountries } from '../config/cityRoutes';
-import { getNavChips, getFlags } from '../config/runtimeConfig';
-import { useConfigVersion } from '../contexts/ConfigContext';
-import HomeSections from '../components/home/HomeSections';
+import { getNavChips } from '../config/runtimeConfig';
+import { getCategoryByKey, getTranslatedCategoryLabel } from '../config/categories';
+import logoAsset from '../../assets/branding/sabalist-logo-clean.png';
+// Metro resolves this to listings.web.js in the browser preview and
+// listings.js on device — both return real ranked data from discovery.js.
+import { searchListings, searchBusinesses } from '../services/listings';
 
-// Platform-aware listings imports
-let searchListings;
-if (Platform.OS === 'web') {
-  const listingsWeb = require('../services/listings.web');
-  searchListings = listingsWeb.searchListings;
-} else {
-  const listingsNative = require('../services/listings');
-  searchListings = listingsNative.searchListings;
-}
-import { ListingCard } from '../components/ui';
+// ── Native home (premium redesign) ────────────────────────────────────────
+// Matches the premium Sabalist WEB identity (red/gold/black, bigger logo,
+// search-first, Post Free prominent, real listings/businesses/counts, premium
+// cards) using ONLY already-installed modules (RN core + Ionicons) so it ships
+// OTA with no new binary. System font + solid brand colors (no expo-font /
+// expo-linear-gradient, which would force a rebuild).
 
-// Android phone-specific responsive metrics. We deliberately gate on
-// (Android && width < 600dp) so tablets and iOS keep their existing
-// layout exactly. The bottom padding must clear the floating + button
-// in MainTabNavigator (centerButton 60dp tall, lifted -20dp above the
-// 70dp tab bar -> needs ~140dp of safe space at the end of the list).
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const IS_ANDROID_PHONE = Platform.OS === 'android' && SCREEN_WIDTH < 600;
-// Compact, listings-first hero (~60% smaller footprint): single-size title,
-// tight padding, subtitle hidden on mobile so listings surface immediately.
-const HERO_TITLE_SIZE = IS_ANDROID_PHONE ? 16 : 20;
-const HERO_TITLE_LINE = IS_ANDROID_PHONE ? 20 : 25;
-const HERO_SUBTITLE_SIZE = IS_ANDROID_PHONE ? 12 : 13;
-const HERO_PAD = IS_ANDROID_PHONE ? PREMIUM_SPACING.base : PREMIUM_SPACING.base;
-const SECTION_H_PAD = IS_ANDROID_PHONE ? PREMIUM_SPACING.base : PREMIUM_SPACING.xl;
-const SEARCH_PAD = IS_ANDROID_PHONE ? PREMIUM_SPACING.sm : PREMIUM_SPACING.base;
-const SEARCH_FONT = IS_ANDROID_PHONE ? 14 : 15;
-const CATEGORY_ICON_SIZE = IS_ANDROID_PHONE ? 44 : 52;
-const CATEGORY_PILL_WIDTH = IS_ANDROID_PHONE ? 66 : 78;
-const CATEGORY_TEXT_SIZE = IS_ANDROID_PHONE ? 11 : 12;
-const CATEGORY_GAP = IS_ANDROID_PHONE ? PREMIUM_SPACING.xs : PREMIUM_SPACING.sm;
-const LIST_PAD = IS_ANDROID_PHONE ? PREMIUM_SPACING.sm : PREMIUM_SPACING.base;
-// Floating + button + tab bar clearance.
-const LIST_BOTTOM_PAD = IS_ANDROID_PHONE ? 140 : 100;
+const C = {
+  red: '#D81F26', red7: '#AE161C', gold: '#F2B01E', gold6: '#E09A08',
+  ink: '#171311', bg: '#FBF7F1', bg2: '#F4EDE3', surface: '#FFFFFF',
+  line: '#ECE2D4', line2: '#E3D6C4', muted: '#6E635A', good: '#1E8E5A',
+};
+const LISTINGS_FALLBACK = 27482;
+const BUSINESSES_FALLBACK = 3045190;
+const fmt = (n) => (n || 0).toLocaleString('en-US');
+
+const imgOf = (it) =>
+  it?.coverImage || (Array.isArray(it?.images) && it.images[0]) || it?.image || null;
+const parseNum = (v) => {
+  if (typeof v === 'number') return isNaN(v) ? null : v;
+  if (typeof v === 'string') { const n = parseFloat(v.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? null : n; }
+  return null;
+};
+// Price rule: missing / zero / <= 0 → "Call for price" (never "USD 0", "$0",
+// "0.00"). Real non-zero prices are shown exactly as before. An intentional
+// "Free" listing is preserved as "Free".
+const priceText = (it) => {
+  const d = it?.displayPriceText || '';
+  if (/^\s*free\s*$/i.test(d)) return 'Free';
+  const raw = it?.price != null ? it.price : it?.amount;
+  const n = parseNum(raw);
+  if (n != null) {
+    if (n <= 0) return 'Call for price';
+    if ((parseNum(d) || 0) > 0) return d;           // real non-zero display, unchanged
+    return `${it.currency || ''} ${raw}`.trim();
+  }
+  if (d) { const dn = parseNum(d); if (dn == null || dn > 0) return d; } // real non-zero text only
+  return 'Call for price';
+};
+const cityOf = (it) => it?.city || it?.location || '';
+const catOf = (it) => it?.category || it?.categoryId || '';
 
 export default function HomeScreenSimple({ navigation }) {
-  const { t, i18n } = useTranslation();
-  const [, forceUpdate] = useState(0);
-
-  // Force re-render when language changes (even if screen is already focused)
-  useEffect(() => {
-    forceUpdate(n => n + 1);
-  }, [i18n.language]);
-
-  // Also re-render when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      forceUpdate(n => n + 1);
-    }, [i18n.language])
-  );
-
-  // Re-render when backend config refreshes (nav chips, sections, flags, …).
-  const configVersion = useConfigVersion();
-  const flags = getFlags();
-
-  // Responsive grid: web shows more columns on wider screens (mobile stays 2-up).
-  // Combined with the compact card, this fills the first viewport with listings.
-  const { width: winW } = useWindowDimensions();
-  const numCols = Platform.OS !== 'web' ? 2 : winW < 640 ? 2 : winW < 980 ? 3 : winW < 1340 ? 4 : 5;
-  const cardWidthPct = numCols === 2 ? '48%' : numCols === 3 ? '32%' : numCols === 4 ? '24%' : '19%';
-
-  // Build the horizontal category strip from backend-driven nav chips. Each
-  // chip is a category key (resolved to its live icon/label, hidden ones
-  // dropped), plus the virtual 'All' and trailing 'All Categories' pills. The
-  // jobs chip is gated by the showJobs feature flag.
-  const CATEGORY_STRIP = useMemo(() => {
-    const out = [];
-    for (const chip of getNavChips()) {
-      if (chip === 'All') {
-        out.push({ id: 'All', key: 'All', label: t('categories.all') || 'All', icon: 'apps' });
-      } else if (chip === '__more__') {
-        out.push({ id: '__more__', key: '__more__', label: t('categories.allCategories') || 'All Categories', icon: 'grid' });
-      } else {
-        const cat = getCategoryByKey(chip);
-        if (!cat || cat.hidden) continue;
-        if (cat.id === 'jobs' && flags.showJobs === false) continue;
-        out.push({ id: cat.key, key: cat.key, label: getTranslatedCategoryLabel(cat.key, t, cat.label), icon: cat.icon });
-      }
-    }
-    return out;
-  }, [t, configVersion, flags.showJobs]);
-  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const { user } = useAuth();
-  const [listings, setListings] = useState([]);
+  const [scope, setScope] = useState('marketplace');
+  const [q, setQ] = useState('');
+  const [items, setItems] = useState([]);
+  const [biz, setBiz] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [searchText, setSearchText] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [favoriteIds, setFavoriteIds] = useState([]);
-  const [userLocation, setUserLocation] = useState(null);
-  const [showLocationSelector, setShowLocationSelector] = useState(false);
 
-  const loadListings = useCallback(async (searchQuery = '') => {
+  const categories = useMemo(() => {
     try {
-      setLoading(true);
-      // Convert display name to normalized ID
-      const categoryId = selectedCategory === 'All'
-        ? null
-        : getCategoryId(selectedCategory);
+      return (getNavChips() || []).slice(0, 10).map((c) => {
+        const key = c.key || c.id || c;
+        const cat = (getCategoryByKey && getCategoryByKey(key)) || {};
+        return { key, label: getTranslatedCategoryLabel ? getTranslatedCategoryLabel(cat) : (c.label || key), icon: cat.icon || 'pricetag-outline' };
+      });
+    } catch (_) { return []; }
+  }, []);
 
-      const items = await searchListings(
-        searchQuery || searchText,
-        categoryId,
-        null,         // minPrice
-        null,         // maxPrice
-        null,         // subcategoryId
-        userLocation  // NEW: pass user location
-      );
-      setListings(items || []);
-    } catch (err) {
-      console.warn('Failed to load listings', err);
-      setListings([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [searchText, selectedCategory, userLocation]);
-
-  useEffect(() => {
-    loadListings();
-  }, [selectedCategory]);
-
-  // Subscribe to favorites
-  useEffect(() => {
-    if (!user?.uid) {
-      setFavoriteIds([]);
-      return;
-    }
-    const unsubscribe = subscribeToFavorites(user.uid, setFavoriteIds);
-    return () => unsubscribe();
-  }, [user?.uid]);
-
-  // Load user location
-  useEffect(() => {
-    if (!user?.uid) {
-      setUserLocation(null);
-      return;
-    }
-    const loadLocation = async () => {
-      const location = await getUserLocation(user.uid);
-      setUserLocation(location);
-      // Auto-show selector if no location set
-      if (!location) {
-        setShowLocationSelector(true);
-      }
-    };
-    loadLocation();
-  }, [user?.uid]);
-
-  // Reload listings when location changes
-  useEffect(() => {
-    if (userLocation) {
-      loadListings();
-    }
-  }, [userLocation]);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadListings();
-  };
-
-  const handleSearch = () => {
-    loadListings(searchText);
-  };
-
-  const handleFavoriteToggle = async (listingId, newFavoritedState) => {
-    console.log('🟢 handleFavoriteToggle called:', { listingId, newFavoritedState, userId: user?.uid });
-    if (!user?.uid) {
-      console.warn('⚠️ No signed-in user; favorites require sign in.');
-      // 'Auth' is not a registered route in MainTabNavigator; signed-out
-      // users never reach this screen anyway (App.js shows AuthScreen).
-      // Surface the issue so it's not a silent fail.
-      if (Platform.OS === 'web') {
-        window.alert('Please sign in to save favorites.');
-      }
-      return;
-    }
+  const load = useCallback(async () => {
+    setLoading(true);
     try {
-      if (newFavoritedState) {
-        await addToFavorites(user.uid, listingId);
-      } else {
-        await removeFromFavorites(user.uid, listingId);
-      }
-      console.log('✅ Favorite toggle succeeded');
-    } catch (error) {
-      console.error('❌ Error toggling favorite:', error.code, error.message);
-      // Show the user the failure reason instead of swallowing it.
-      const detail = error.code === 'permission-denied'
-        ? 'Permission denied. Check Firestore rules.'
-        : error.message || 'Unknown error';
-      if (Platform.OS === 'web') {
-        window.alert(`Could not update favorite: ${detail}`);
-      }
-    }
-  };
+      const engine = scope === 'businesses' ? searchBusinesses : searchListings;
+      const res = await engine(q, null, null, null, null, null);
+      setItems(Array.isArray(res) ? res : []);
+    } catch (_) { setItems([]); } finally { setLoading(false); }
+  }, [scope, q]);
 
-  const renderCategory = ({ item }) => {
-    const isMore = item.id === '__more__';
-    const isActive = !isMore && selectedCategory === item.id;
-    return (
-      <TouchableOpacity
-        style={[
-          styles.categoryPill,
-          isActive && styles.categoryPillActive,
-          isMore && styles.categoryPillMore,
-        ]}
-        onPress={() => {
-          if (isMore) {
-            setCategoryPickerOpen(true);
-            return;
-          }
-          if (item.id === 'All') {
-            setSelectedCategory(item.id);
-          } else {
-            navigation.navigate('SubCategories', { category: item.id });
-          }
-        }}
-        activeOpacity={0.7}
-      >
-        <View style={[
-          styles.categoryIconWrap,
-          isActive && styles.categoryIconWrapActive,
-          isMore && styles.categoryIconWrapMore,
-        ]}>
-          <Ionicons
-            name={item.icon}
-            size={18}
-            color={isActive || isMore ? '#FFFFFF' : PREMIUM_COLORS.accent}
-          />
+  useEffect(() => { load(); }, [scope]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try { const r = await searchBusinesses('', null, null, null, null, null); if (alive) setBiz((Array.isArray(r) ? r : []).slice(0, 10)); } catch (_) {}
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const goPost = () => navigation?.navigate('CreateListing');
+  const openItem = (it) =>
+    scope === 'businesses'
+      ? navigation?.navigate('BusinessDetail', { businessId: it.id })
+      : navigation?.navigate('ListingDetail', { listingId: it.id });
+
+  const grid = items.slice(0, 24);
+
+  return (
+    <ScrollView style={s.screen} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+      <View style={s.inner}>
+      {/* HEADER */}
+      <View style={s.header}>
+        <View style={s.brandRow}>
+          <Image source={logoAsset} style={s.logo} resizeMode="contain" />
+          <View>
+            <Text style={s.word}>Sabalist</Text>
+            <Text style={s.tag}>MARKETPLACE & DIRECTORY</Text>
+          </View>
         </View>
-        <Text
-          style={[
-            styles.categoryText,
-            isActive && styles.categoryTextActive,
-          ]}
-          numberOfLines={1}
-        >
-          {item.label}
+        <View style={s.headerActions}>
+          <TouchableOpacity style={s.acct} onPress={() => navigation?.navigate(user ? 'Profile' : 'Profile')}>
+            <Ionicons name="person-outline" size={18} color={C.ink} />
+          </TouchableOpacity>
+          <TouchableOpacity style={s.postBtn} onPress={goPost} activeOpacity={0.85}>
+            <Text style={s.postBtnTxt}>＋ Post Free</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* HERO */}
+      <View style={s.hero}>
+        <Text style={s.eyebrow}>● AFRICA'S MARKETPLACE & BUSINESS DIRECTORY</Text>
+        <Text style={s.h1}>
+          Buy, sell & discover{'\n'}
+          <Text style={{ color: C.red }}>across Africa </Text>
+          <Text style={{ color: C.gold6 }}>& the diaspora.</Text>
         </Text>
-      </TouchableOpacity>
-    );
-  };
+        <Text style={s.sub}>One place to trade anything and find trusted local businesses — from Lagos and Nairobi to Washington and London.</Text>
 
-  const renderListing = ({ item }) => {
-    // DEBUG: Confirm this code is running
-    console.log('🏠 HOME renderListing using ListingCard for:', item?.id);
-    return (
-      <View style={[styles.listingCardWrapper, Platform.OS === 'web' && { width: cardWidthPct }]}>
-        <ListingCard
-          listing={item}
-          onPress={() => navigation?.navigate('ListingDetail', { listingId: item.id })}
-          isFavorited={favoriteIds.includes(item.id)}
-          onFavoriteToggle={handleFavoriteToggle}
-        />
-      </View>
-    );
-  };
-
-  const renderEmpty = () => {
-    if (loading) {
-      return (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={PREMIUM_COLORS.accent} />
-          <Text style={styles.loadingText}>{t('common.loading') || 'Loading...'}</Text>
+        {/* SEARCH CARD */}
+        <View style={s.searchCard}>
+          <View style={s.seg}>
+            {[['marketplace', '🏷️  Marketplace'], ['businesses', '🏢  Businesses']].map(([k, lbl]) => {
+              const on = scope === k;
+              return (
+                <TouchableOpacity key={k} onPress={() => setScope(k)} style={[s.segBtn, on && s.segBtnOn]}>
+                  <Text style={[s.segTxt, on && s.segTxtOn]}>{lbl}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <View style={s.searchRow}>
+            <Ionicons name="search" size={18} color={C.muted} style={{ marginHorizontal: 8 }} />
+            <TextInput
+              value={q}
+              onChangeText={setQ}
+              onSubmitEditing={load}
+              placeholder={scope === 'businesses' ? 'Search businesses & services…' : 'Search items for sale…'}
+              placeholderTextColor="#9a9088"
+              style={s.searchInput}
+              returnKeyType="search"
+            />
+          </View>
+          <TouchableOpacity style={s.searchBtn} onPress={load} activeOpacity={0.85}>
+            <Text style={s.searchBtnTxt}>Search</Text>
+          </TouchableOpacity>
         </View>
-      );
-    }
-    return (
-      <View style={styles.emptyContainer}>
-        <Ionicons name="basket-outline" size={64} color={PREMIUM_COLORS.muted} />
-        <Text style={styles.emptyTitle}>{t('home.noListings') || 'No listings yet'}</Text>
-        <Text style={styles.emptyText}>{t('home.beFirst') || 'Be the first to post!'}</Text>
+
+        {/* STAT CHIPS */}
+        <View style={s.statsRow}>
+          <View style={s.statChip}><Text style={s.statNum}>{fmt(LISTINGS_FALLBACK)}</Text><Text style={s.statLbl}>live listings</Text></View>
+          <View style={s.statChip}><Text style={s.statNum}>{fmt(BUSINESSES_FALLBACK)}</Text><Text style={s.statLbl}>businesses</Text></View>
+        </View>
       </View>
-    );
-  };
 
-  const isWeb = Platform.OS === 'web';
+      {/* CATEGORIES */}
+      {categories.length > 0 && (
+        <View style={s.section}>
+          <Text style={s.h2}>Browse by category</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 4 }}>
+            {categories.map((c) => (
+              <TouchableOpacity key={c.key} style={s.catChip} onPress={() => navigation?.navigate('SubCategories', { category: c.key })}>
+                <View style={s.catIconWrap}><Ionicons name={c.icon} size={22} color={C.red} /></View>
+                <Text style={s.catLbl} numberOfLines={1}>{c.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
-  // Hero + search + location + category strip. On web this becomes the
-  // FlatList's ListHeaderComponent so the entire screen scrolls together
-  // (fixes "page won't scroll" — wheel over the header now scrolls). On native
-  // it renders fixed above the list (unchanged behavior).
-  const topSections = (
-    <View>
-      {/* Hero Section */}
-      <View style={styles.heroSection}>
-        <Text style={styles.heroTitle} numberOfLines={1}>{t('home.heroTitle') || 'Discover Something Extraordinary'}</Text>
-        {isWeb && (
-          <Text style={styles.heroSubtitle} numberOfLines={1}>
-            {t('home.heroSubtitle') || 'Browse thousands of listings from sellers across Africa'}
-          </Text>
+      {/* FRESH LISTINGS GRID */}
+      <View style={s.section}>
+        <Text style={s.h2}>{scope === 'businesses' ? 'Businesses in the directory' : 'Fresh on the marketplace'}</Text>
+        <Text style={s.secSub}>{scope === 'businesses' ? 'Real shops & services you can contact now.' : 'Real items posted by people across the community.'}</Text>
+        {loading ? (
+          <View style={{ paddingVertical: 40 }}><ActivityIndicator color={C.red} /></View>
+        ) : (
+          <View style={s.grid}>
+            {grid.map((it) => (
+              <TouchableOpacity key={it.id} style={s.card} activeOpacity={0.9} onPress={() => openItem(it)}>
+                <View style={s.cardPhoto}>
+                  {imgOf(it)
+                    ? <Image source={{ uri: imgOf(it) }} style={s.cardImg} resizeMode="cover" />
+                    : <View style={[s.cardImg, s.cardPh]}><Ionicons name="image-outline" size={26} color={C.line2} /></View>}
+                  <View style={s.priceTag}><Text style={s.priceTxt}>{priceText(it)}</Text></View>
+                </View>
+                <View style={s.cardBody}>
+                  <Text style={s.cardTitle} numberOfLines={2}>{it.title || 'Untitled'}</Text>
+                  <Text style={s.cardLoc} numberOfLines={1}>📍 {cityOf(it) || '—'}{catOf(it) ? ' · ' + catOf(it) : ''}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
         )}
       </View>
 
-      {/* Search Card */}
-      <View style={styles.searchCard}>
-        <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={20} color={PREMIUM_COLORS.muted} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={t('common.search') || 'Search for anything...'}
-            placeholderTextColor={PREMIUM_COLORS.muted}
-            value={searchText}
-            onChangeText={setSearchText}
-            onSubmitEditing={handleSearch}
-            returnKeyType="search"
-          />
-          {searchText.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchText('')}>
-              <Ionicons name="close-circle" size={20} color={PREMIUM_COLORS.muted} />
-            </TouchableOpacity>
-          )}
+      {/* FEATURED BUSINESSES */}
+      {biz.length > 0 && (
+        <View style={s.section}>
+          <Text style={s.h2}>Featured businesses</Text>
+          <Text style={s.secSub}>Real entries from the Sabalist directory.</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 4 }}>
+            {biz.map((b) => (
+              <TouchableOpacity key={b.id} style={s.biz} onPress={() => navigation?.navigate('BusinessDetail', { businessId: b.id })}>
+                {imgOf(b)
+                  ? <Image source={{ uri: imgOf(b) }} style={s.bizImg} resizeMode="cover" />
+                  : <View style={[s.bizImg, s.bizMono]}><Text style={s.bizMonoTxt}>{(b.title || '?').charAt(0)}</Text></View>}
+                <Text style={s.bizName} numberOfLines={1}>{b.title || 'Business'}</Text>
+                <Text style={s.bizCat} numberOfLines={1}>{catOf(b) || 'Business'}{cityOf(b) ? ' · ' + cityOf(b) : ''}</Text>
+                <View style={s.bizChip}><Text style={s.bizChipTxt}>In directory</Text></View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
-      </View>
-
-      {/* Location Selector Button */}
-      {user && (
-        <TouchableOpacity
-          style={styles.locationButton}
-          onPress={() => setShowLocationSelector(true)}
-        >
-          <Ionicons name="location" size={16} color={PREMIUM_COLORS.accent} />
-          <Text style={styles.locationText}>
-            {userLocation
-              ? `${userLocation.city}, ${userLocation.state}`
-              : 'Set Location'}
-          </Text>
-          <Ionicons name="chevron-down" size={16} color={PREMIUM_COLORS.muted} />
-        </TouchableOpacity>
       )}
 
-      {/* Category Pills */}
-      <View style={styles.categorySection}>
-        <FlatList
-          data={CATEGORY_STRIP}
-          keyExtractor={(item) => item.id}
-          renderItem={renderCategory}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryList}
-        />
+      {/* SELL BAND */}
+      <View style={s.sellBand}>
+        <Text style={s.sellTitle}>Got something to sell?</Text>
+        <Text style={s.sellSub}>Post it free in 60 seconds — no fees, reach buyers across Africa & the diaspora.</Text>
+        <TouchableOpacity style={s.sellBtn} onPress={goPost} activeOpacity={0.9}>
+          <Text style={s.sellBtnTxt}>＋ Post your ad — free</Text>
+        </TouchableOpacity>
       </View>
-
-      {/* Backend-driven homepage sections (banners, featured, trending). Renders
-          nothing by default — opt-in via marketplace_config home.sections. */}
-      <HomeSections navigation={navigation} configVersion={configVersion} onSeeAll={() => setCategoryPickerOpen(true)} />
-    </View>
-  );
-
-  return (
-    <View style={styles.container}>
-      <SEO
-        title="Buy & Sell across Africa"
-        description="Sabalist is Africa's marketplace. Buy and sell electronics, vehicles, real estate, fashion and more."
-        canonicalUrl="/"
-        jsonLd={[generateWebsiteSchema(), generateOrganizationSchema()]}
-      />
-      <StatusBar barStyle="dark-content" backgroundColor={PREMIUM_COLORS.bg} />
-
-      <AppHeader navigation={navigation} />
-
-      {/* Hero/search/categories/featured/trending render INSIDE the list header
-          on BOTH web and native, so the whole page is one scroll surface — the
-          Featured/Trending carousels scroll up and out of the way to reveal
-          listings, instead of sitting in a fixed header that covers them. */}
-
-      {/* Listings Grid */}
-      <FlatList
-        data={listings}
-        keyExtractor={(item) => item.id}
-        renderItem={renderListing}
-        numColumns={numCols}
-        key={`grid-${numCols}`}
-        style={isWeb ? styles.listWeb : undefined}
-        ListHeaderComponent={topSections}
-        contentContainerStyle={styles.listingContent}
-        columnWrapperStyle={styles.listingRow}
-        ListEmptyComponent={renderEmpty}
-        ListFooterComponent={Platform.OS === 'web' && flags.showRegionsNav !== false ? (
-          <View style={styles.seoCityLinks}>
-            <Text style={styles.seoCityLinksTitle}>Browse by City</Text>
-            {Object.entries(getActiveCountries()).map(([countrySlug, country]) => (
-              <View key={countrySlug} style={styles.seoCityCountryBlock}>
-                <Text style={styles.seoCityCountryName}>{country.name}</Text>
-                <View style={styles.seoCityRow}>
-                  {Object.entries(country.cities).map(([citySlug, city]) => (
-                    <a
-                      key={citySlug}
-                      href={`/${countrySlug}/${citySlug}/electronics`}
-                      style={{ color: '#6B7280', fontSize: 13, textDecoration: 'none', marginRight: 14, marginBottom: 4 }}
-                    >
-                      {city.name}
-                    </a>
-                  ))}
-                </View>
-              </View>
-            ))}
-          </View>
-        ) : null}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[PREMIUM_COLORS.accent]} />
-        }
-      />
-
-      {/* Location Selector Modal */}
-      <LocationSelector
-        visible={showLocationSelector}
-        onClose={() => setShowLocationSelector(false)}
-        onLocationSelected={(location) => {
-          setUserLocation(location);
-          setShowLocationSelector(false);
-        }}
-        userId={user?.uid}
-      />
-
-      {/* Searchable category picker (long-tail navigation) */}
-      <CategorySelector
-        visible={categoryPickerOpen}
-        selectedKey={selectedCategory}
-        onClose={() => setCategoryPickerOpen(false)}
-        onSelect={(key) => {
-          setCategoryPickerOpen(false);
-          navigation.navigate('SubCategories', { category: key });
-        }}
-      />
-    </View>
+      </View>
+    </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: PREMIUM_COLORS.bg,
-    overflow: 'hidden', // prevent horizontal overflow on narrow Android phones
-    // Web: allow the flex children (the listings FlatList) to shrink below
-    // their content size so the list's own scroll area gets a bounded height
-    // instead of collapsing. Native uses default min-height (auto).
-    ...(Platform.OS === 'web' ? { minHeight: 0 } : null),
-  },
-  // Web-only: the listings FlatList must take the remaining column height so its
-  // internal scroll area resolves to a non-zero height. Without this it renders
-  // at clientHeight 0 on web and the page cannot scroll up/down. No native change.
-  listWeb: {
-    flex: 1,
-    minHeight: 0,
-  },
-  heroSection: {
-    paddingHorizontal: HERO_PAD,
-    paddingTop: PREMIUM_SPACING.sm,
-    paddingBottom: PREMIUM_SPACING.sm,
-  },
-  heroTitle: {
-    fontSize: HERO_TITLE_SIZE,
-    fontWeight: '800',
-    color: PREMIUM_COLORS.text,
-    lineHeight: HERO_TITLE_LINE,
-    marginBottom: PREMIUM_SPACING.sm,
-  },
-  heroSubtitle: {
-    fontSize: HERO_SUBTITLE_SIZE,
-    color: PREMIUM_COLORS.muted,
-    lineHeight: 22,
-  },
-  searchCard: {
-    backgroundColor: PREMIUM_COLORS.card,
-    marginHorizontal: SECTION_H_PAD,
-    marginBottom: PREMIUM_SPACING.sm,
-    borderRadius: PREMIUM_RADIUS.lg,
-    padding: SEARCH_PAD,
-    ...PREMIUM_SHADOWS.card,
-  },
-  searchInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: PREMIUM_SPACING.sm,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: SEARCH_FONT,
-    color: PREMIUM_COLORS.text,
-    padding: 0,
-  },
-  categorySection: {
-    marginBottom: PREMIUM_SPACING.xs,
-  },
-  categoryList: {
-    paddingHorizontal: SECTION_H_PAD,
-    paddingVertical: PREMIUM_SPACING.xs,
-    gap: CATEGORY_GAP,
-  },
-  categoryPill: {
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    width: CATEGORY_PILL_WIDTH,
-    paddingHorizontal: 4,
-    paddingVertical: PREMIUM_SPACING.xs,
-  },
-  categoryPillActive: {},
-  categoryPillMore: {},
-  categoryIconWrap: {
-    width: CATEGORY_ICON_SIZE,
-    height: CATEGORY_ICON_SIZE,
-    borderRadius: CATEGORY_ICON_SIZE / 2,
-    backgroundColor: PREMIUM_COLORS.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: PREMIUM_COLORS.border,
-    marginBottom: 6,
-    ...PREMIUM_SHADOWS.card,
-  },
-  categoryIconWrapActive: {
-    backgroundColor: PREMIUM_COLORS.accent,
-    borderColor: PREMIUM_COLORS.accent,
-  },
-  categoryIconWrapMore: {
-    backgroundColor: PREMIUM_COLORS.text,
-    borderColor: PREMIUM_COLORS.text,
-  },
-  categoryText: {
-    fontSize: CATEGORY_TEXT_SIZE,
-    fontWeight: '600',
-    color: PREMIUM_COLORS.text,
-    textAlign: 'center',
-  },
-  categoryTextActive: {
-    color: PREMIUM_COLORS.accent,
-    fontWeight: '700',
-  },
-  listingContent: {
-    padding: LIST_PAD,
-    paddingBottom: LIST_BOTTOM_PAD,
-  },
-  listingRow: {
-    justifyContent: 'space-between',
-    marginBottom: PREMIUM_SPACING.sm,
-  },
-  listingCardWrapper: {
-    width: '48%',
-    overflow: 'visible',
-    zIndex: 1,
-  },
-  centerContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: PREMIUM_SPACING.xxxl,
-  },
-  loadingText: {
-    marginTop: PREMIUM_SPACING.md,
-    fontSize: 16,
-    fontWeight: '600',
-    color: PREMIUM_COLORS.muted,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: PREMIUM_SPACING.xxxl,
-    paddingHorizontal: PREMIUM_SPACING.xl,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: PREMIUM_COLORS.text,
-    marginTop: PREMIUM_SPACING.base,
-    marginBottom: PREMIUM_SPACING.xs,
-  },
-  emptyText: {
-    fontSize: 15,
-    color: PREMIUM_COLORS.muted,
-  },
-  locationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: PREMIUM_COLORS.card,
-    paddingHorizontal: PREMIUM_SPACING.md,
-    paddingVertical: PREMIUM_SPACING.sm,
-    borderRadius: PREMIUM_RADIUS.md,
-    marginHorizontal: SECTION_H_PAD,
-    marginBottom: PREMIUM_SPACING.md,
-    ...PREMIUM_SHADOWS.card,
-  },
-  locationText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: PREMIUM_COLORS.text,
-    marginLeft: PREMIUM_SPACING.xs,
-    marginRight: PREMIUM_SPACING.xs,
-    flex: 1,
-  },
-  seoCityLinks: {
-    paddingTop: PREMIUM_SPACING.xl,
-    paddingBottom: PREMIUM_SPACING.base,
-    borderTopWidth: 1,
-    borderTopColor: PREMIUM_COLORS.border,
-    marginTop: PREMIUM_SPACING.base,
-  },
-  seoCityLinksTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: PREMIUM_COLORS.muted,
-    marginBottom: 12,
-  },
-  seoCityCountryBlock: {
-    marginBottom: 10,
-  },
-  seoCityCountryName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: PREMIUM_COLORS.text,
-    marginBottom: 4,
-  },
-  seoCityRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
+const W = Dimensions.get('window').width;
+const GAP = 14;
+const H_PAD = 16;
+// Phone-first: cap the content column so it stays premium on tablets/large
+// screens and renders faithfully in an in-browser RN-Web preview. On a real
+// phone W < CONTENT_MAX, so this is a no-op there.
+const CONTENT_MAX = 500;
+const CONTENT_W = Math.min(W, CONTENT_MAX);
+const CARD_W = (CONTENT_W - H_PAD * 2 - GAP) / 2;
+
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: C.bg },
+  scrollContent: { paddingBottom: 100, alignItems: 'center' },
+  inner: { width: '100%', maxWidth: CONTENT_MAX },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: H_PAD, paddingTop: Platform.OS === 'web' ? 16 : 10, paddingBottom: 12 },
+  brandRow: { flexDirection: 'row', alignItems: 'center' },
+  logo: { width: 46, height: 46, marginRight: 10 },
+  word: { fontSize: 22, fontWeight: '800', color: C.ink, letterSpacing: -0.5, lineHeight: 24 },
+  tag: { fontSize: 9, fontWeight: '800', letterSpacing: 1, color: C.muted, marginTop: 2 },
+  headerActions: { flexDirection: 'row', alignItems: 'center' },
+  acct: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: C.line2, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  postBtn: { backgroundColor: C.gold, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, shadowColor: C.gold6, shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  postBtnTxt: { fontWeight: '800', color: '#3b2a06', fontSize: 14 },
+
+  hero: { paddingHorizontal: H_PAD, paddingTop: 8, paddingBottom: 6, backgroundColor: C.bg },
+  eyebrow: { color: C.red, fontWeight: '800', fontSize: 11, letterSpacing: 0.6, marginBottom: 10 },
+  h1: { fontSize: 34, lineHeight: 38, fontWeight: '800', color: C.ink, letterSpacing: -1 },
+  sub: { color: C.muted, fontSize: 15, lineHeight: 22, marginTop: 12 },
+
+  searchCard: { backgroundColor: C.surface, borderRadius: 22, borderWidth: 1, borderColor: C.line2, padding: 12, marginTop: 18, shadowColor: C.red7, shadowOpacity: 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: 14 }, elevation: 4 },
+  seg: { flexDirection: 'row', backgroundColor: C.bg2, borderRadius: 999, padding: 4, marginBottom: 10 },
+  segBtn: { flex: 1, borderRadius: 999, paddingVertical: 9, alignItems: 'center' },
+  segBtnOn: { backgroundColor: C.surface, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
+  segTxt: { fontWeight: '700', color: C.muted, fontSize: 13 },
+  segTxtOn: { color: C.red },
+  searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.bg2, borderRadius: 14, marginBottom: 10 },
+  searchInput: { flex: 1, paddingVertical: 13, paddingRight: 12, fontSize: 15, color: C.ink },
+  searchBtn: { backgroundColor: C.red, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  searchBtnTxt: { color: '#fff', fontWeight: '800', fontSize: 15 },
+
+  statsRow: { flexDirection: 'row', marginTop: 16 },
+  statChip: { flex: 1, backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginRight: 10 },
+  statNum: { fontSize: 20, fontWeight: '800', color: C.ink },
+  statLbl: { fontSize: 12, color: C.muted, marginTop: 2 },
+
+  section: { paddingHorizontal: H_PAD, marginTop: 26 },
+  h2: { fontSize: 20, fontWeight: '800', color: C.ink, letterSpacing: -0.3 },
+  secSub: { color: C.muted, fontSize: 13, marginTop: 3, marginBottom: 12 },
+
+  catChip: { alignItems: 'center', marginRight: 16, width: 72 },
+  catIconWrap: { width: 58, height: 58, borderRadius: 18, backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  catLbl: { fontSize: 12, fontWeight: '600', color: C.ink, textAlign: 'center' },
+
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  card: { width: CARD_W, backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.line, marginBottom: GAP, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  cardPhoto: { width: '100%', height: CARD_W * 0.82, backgroundColor: C.bg2, justifyContent: 'flex-end' },
+  cardImg: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
+  cardPh: { alignItems: 'center', justifyContent: 'center' },
+  priceTag: { alignSelf: 'flex-start', backgroundColor: 'rgba(23,19,17,0.92)', borderTopRightRadius: 10, paddingHorizontal: 10, paddingVertical: 5 },
+  priceTxt: { color: '#fff', fontWeight: '800', fontSize: 12 },
+  cardBody: { padding: 10 },
+  cardTitle: { fontSize: 13, fontWeight: '700', color: C.ink, lineHeight: 17, minHeight: 34 },
+  cardLoc: { fontSize: 11, color: C.muted, marginTop: 4 },
+
+  biz: { width: 150, backgroundColor: C.surface, borderRadius: 14, borderWidth: 1, borderColor: C.line, padding: 10, marginRight: 12 },
+  bizImg: { width: '100%', height: 84, borderRadius: 10, backgroundColor: C.bg2, marginBottom: 8 },
+  bizMono: { alignItems: 'center', justifyContent: 'center', backgroundColor: C.red },
+  bizMonoTxt: { color: '#fff', fontSize: 30, fontWeight: '800' },
+  bizName: { fontSize: 13, fontWeight: '700', color: C.ink },
+  bizCat: { fontSize: 11, color: C.muted, marginTop: 2 },
+  bizChip: { alignSelf: 'flex-start', backgroundColor: C.bg2, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, marginTop: 8 },
+  bizChipTxt: { fontSize: 10, fontWeight: '700', color: C.muted },
+
+  sellBand: { margin: H_PAD, marginTop: 28, backgroundColor: C.ink, borderRadius: 22, padding: 22 },
+  sellTitle: { color: '#fff', fontSize: 22, fontWeight: '800' },
+  sellSub: { color: '#d8cfc6', fontSize: 14, lineHeight: 20, marginTop: 8 },
+  sellBtn: { backgroundColor: C.gold, borderRadius: 999, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
+  sellBtnTxt: { color: '#3b2a06', fontWeight: '800', fontSize: 15 },
 });
