@@ -1,0 +1,33 @@
+name: eBay Dry-Run (sample + map, no import)
+
+# Samples real eBay Browse API products for Sabalist's empty product categories,
+# maps them into the EXISTING taxonomy, and reports per-category metrics.
+# WRITES NOTHING / IMPORTS NOTHING. Requires EBAY_CLIENT_ID + EBAY_CLIENT_SECRET
+# repo secrets (free eBay developer keys); without them the job fails fast.
+on:
+  workflow_dispatch:
+    inputs:
+      africa_country:
+        description: 'African market to probe for shippability (ISO-2, e.g. NG, KE, ZA, GH)'
+        required: false
+        default: 'NG'
+
+jobs:
+  ebay-dryrun:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install deps
+        working-directory: ingestion
+        run: npm install --no-audit --no-fund
+      - name: eBay dry-run
+        working-directory: ingestion
+        env:
+          EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
+          EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
+          EBAY_MARKETPLACE: ${{ vars.EBAY_MARKETPLACE }}
+          EBAY_AFRICA_COUNTRY: ${{ github.event.inputs.africa_country }}
+        run: node ebay-dryrun.js
