@@ -76,7 +76,7 @@ module.exports = ({ config }) => {
     name: 'Sabalist',
     slug: 'sabalist',
     owner: 'afrson',
-    version: '1.5.5',
+    version: '1.5.6',
     // EAS Update (OTA): JS/UI/logic changes publish over-the-air with `eas update`
     // and reach installed apps without a new store build. runtimeVersion is tied to
     // the app version string: publish OTA updates WITHOUT bumping `version` and they
@@ -100,7 +100,7 @@ module.exports = ({ config }) => {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.sabalist.app',
-      buildNumber: '26',
+      buildNumber: '27',
       icon: './assets/branding/sabalist-icon-square.png',
       googleServicesFile: process.env.GOOGLE_SERVICES_PLIST || './ios/GoogleService-Info.plist',
       usesAppleSignIn: true,
@@ -145,7 +145,7 @@ module.exports = ({ config }) => {
     },
     android: {
       package: 'com.sabalist.app',
-      versionCode: 33,
+      versionCode: 34,
       icon: './assets/branding/sabalist-icon-square.png',
       adaptiveIcon: {
         foregroundImage: './assets/branding/sabalist-icon-square.png',
