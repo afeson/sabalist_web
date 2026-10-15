@@ -107,6 +107,14 @@ const loadSavedLanguage = async () => {
     const storedLanguage = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
     if (storedLanguage && storedLanguage !== i18n.language) {
       await i18n.changeLanguage(storedLanguage);
+      // Re-apply text direction on load so a persisted RTL language (Arabic)
+      // renders RTL after a reload/reopen — not only when switched live. This
+      // mirrors the RTL handling in changeLanguage() above; no-op on native
+      // (document is undefined) and for LTR languages.
+      if (typeof document !== 'undefined') {
+        const savedLang = LANGUAGES.find((lang) => lang.code === storedLanguage);
+        document.dir = savedLang?.rtl ? 'rtl' : 'ltr';
+      }
       console.log('Loaded saved language:', storedLanguage);
     }
   } catch (error) {

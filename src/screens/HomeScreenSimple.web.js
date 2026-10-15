@@ -21,6 +21,7 @@ import { getNavChips, getFlags } from '../config/runtimeConfig';
 import { getActiveCountries } from '../config/cityRoutes';
 import { getUserLocation } from '../services/locationService';
 import LocationSelector from '../components/LocationSelector';
+import LanguageModal from '../components/LanguageModal';
 import SEO from '../components/SEO';
 import { generateWebsiteSchema, generateOrganizationSchema } from '../utils/seo';
 import { searchListings, searchBusinesses } from '../services/listings.web';
@@ -60,7 +61,7 @@ const cityOf = (it) => it.city || it.location || '';
 const catOf = (it) => it.categoryId || it.category || '';
 
 export default function HomeScreenSimple({ navigation }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const flags = getFlags();
 
@@ -74,6 +75,7 @@ export default function HomeScreenSimple({ navigation }) {
   const [userLocation, setUserLocation] = useState(null);
   const [locOpen, setLocOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
   const [visible, setVisible] = useState(48);
   const qRef = useRef('');
 
@@ -208,6 +210,15 @@ export default function HomeScreenSimple({ navigation }) {
               <a href="#sb-cats" onClick={(e)=>e.preventDefault()}>Categories</a>
             </nav>
             <div className="sb-top-actions">
+              <button
+                className="sb-lang"
+                onClick={() => setLangOpen(true)}
+                aria-label="Change language"
+                title="Change language"
+              >
+                <Ionicons name="globe-outline" size={18} color="#D81F26" />
+                <span className="sb-lang-code">{(i18n.language || 'en').toUpperCase()}</span>
+              </button>
               <div className="sb-acct-wrap">
                 <button
                   className="sb-acct"
@@ -229,6 +240,8 @@ export default function HomeScreenSimple({ navigation }) {
                           <button role="menuitem" onClick={() => nav('Favorites')}><Ionicons name="heart-outline" size={18} color="#6E635A" /><span>Favorites</span></button>
                           <button role="menuitem" onClick={() => nav('MyListings')}><Ionicons name="list-outline" size={18} color="#6E635A" /><span>My Listings</span></button>
                           <button role="menuitem" onClick={() => nav('Profile')}><Ionicons name="person-outline" size={18} color="#6E635A" /><span>Profile &amp; account</span></button>
+                          <div className="sb-menu-sep" />
+                          <button role="menuitem" onClick={() => { setMenuOpen(false); setLangOpen(true); }}><Ionicons name="globe-outline" size={18} color="#6E635A" /><span>Language · {(i18n.language || 'en').toUpperCase()}</span></button>
                         </>
                       ) : (
                         <>
@@ -236,6 +249,8 @@ export default function HomeScreenSimple({ navigation }) {
                           <div className="sb-menu-sep" />
                           <button role="menuitem" onClick={() => nav('Favorites')}><Ionicons name="heart-outline" size={18} color="#6E635A" /><span>Favorites</span></button>
                           <button role="menuitem" onClick={() => nav('MyListings')}><Ionicons name="list-outline" size={18} color="#6E635A" /><span>My Listings</span></button>
+                          <div className="sb-menu-sep" />
+                          <button role="menuitem" onClick={() => { setMenuOpen(false); setLangOpen(true); }}><Ionicons name="globe-outline" size={18} color="#6E635A" /><span>Language · {(i18n.language || 'en').toUpperCase()}</span></button>
                         </>
                       )}
                     </div>
@@ -454,6 +469,11 @@ export default function HomeScreenSimple({ navigation }) {
         onLocationSelected={(loc) => { setUserLocation(loc); setLocOpen(false); }}
         userId={user?.uid}
       />
+
+      <LanguageModal
+        isVisible={langOpen}
+        onClose={() => setLangOpen(false)}
+      />
     </>
   );
 }
@@ -484,6 +504,9 @@ const CSS = `
 .sbhome .sb-nav{display:none;gap:22px}
 .sbhome .sb-nav a{font-weight:600;font-size:14px;color:var(--muted)}
 .sbhome .sb-top-actions{display:flex;align-items:center;gap:10px}
+.sbhome .sb-lang{display:inline-flex;align-items:center;gap:5px;height:44px;padding:0 13px;border-radius:999px;background:var(--surface);border:1px solid var(--line2);cursor:pointer}
+.sbhome .sb-lang:hover{border-color:var(--red)}
+.sbhome .sb-lang-code{font-weight:800;font-size:13px;color:var(--ink);letter-spacing:.3px}
 .sbhome .sb-acct-wrap{position:relative}
 .sbhome .sb-acct{display:inline-flex;align-items:center;gap:3px;height:44px;padding:0 12px;border-radius:999px;background:var(--surface);border:1px solid var(--line2);cursor:pointer}
 .sbhome .sb-acct:hover{border-color:var(--red)}

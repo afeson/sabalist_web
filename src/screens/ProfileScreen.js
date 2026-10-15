@@ -17,6 +17,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 import { Card } from '../components/ui';
 import SEO from '../components/SEO';
+import LanguageModal from '../components/LanguageModal';
+import { LANGUAGES } from '../lib/i18n';
 import { deleteCurrentAccount } from '../services/deleteAccount';
 
 export default function ProfileScreen({ navigation }) {
@@ -24,6 +26,8 @@ export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
   const [, forceUpdate] = useState(0);
   const [deleting, setDeleting] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
+  const currentLang = LANGUAGES.find((l) => l.code === i18n.language);
 
   // Force re-render when language changes (even if screen is already focused)
   useEffect(() => {
@@ -233,6 +237,14 @@ export default function ProfileScreen({ navigation }) {
               }}
               color={COLORS.secondary}
             />
+            <View style={styles.menuDivider} />
+            <MenuItem
+              icon="globe-outline"
+              title={t('profile.language', 'Language')}
+              subtitle={currentLang ? `${currentLang.nativeName} (${currentLang.name})` : (i18n.language || 'en').toUpperCase()}
+              onPress={() => setLangOpen(true)}
+              color={COLORS.primary}
+            />
           </Card>
         </View>
 
@@ -325,6 +337,11 @@ export default function ProfileScreen({ navigation }) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      <LanguageModal
+        isVisible={langOpen}
+        onClose={() => setLangOpen(false)}
+      />
     </View>
   );
 }

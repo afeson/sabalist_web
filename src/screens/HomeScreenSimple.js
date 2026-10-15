@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
+import LanguageModal from '../components/LanguageModal';
 import { useAuth } from '../contexts/AuthContext';
 import { getNavChips } from '../config/runtimeConfig';
 import { getCategoryByKey, getTranslatedCategoryLabel } from '../config/categories';
@@ -57,7 +59,9 @@ const catOf = (it) => it?.category || it?.categoryId || '';
 
 export default function HomeScreenSimple({ navigation }) {
   const { user } = useAuth();
+  const { i18n } = useTranslation();
   const insets = useSafeAreaInsets();
+  const [langOpen, setLangOpen] = useState(false);
   const [scope, setScope] = useState('marketplace');
   const [q, setQ] = useState('');
   const [items, setItems] = useState([]);
@@ -107,6 +111,7 @@ export default function HomeScreenSimple({ navigation }) {
   const grid = items.slice(0, 24);
 
   return (
+    <>
     <ScrollView style={s.screen} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
       <View style={s.inner}>
       {/* HEADER */}
@@ -119,6 +124,15 @@ export default function HomeScreenSimple({ navigation }) {
           </View>
         </View>
         <View style={s.headerActions}>
+          <TouchableOpacity
+            style={s.lang}
+            onPress={() => setLangOpen(true)}
+            activeOpacity={0.7}
+            accessibilityLabel="Change language"
+          >
+            <Ionicons name="globe-outline" size={IS_SMALL ? 15 : 17} color={C.red} />
+            <Text style={s.langCode}>{(i18n.language || 'en').toUpperCase()}</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={s.acct} onPress={() => navigation?.navigate('Profile')}>
             <Ionicons name="person-outline" size={IS_SMALL ? 17 : 18} color={C.ink} />
           </TouchableOpacity>
@@ -245,6 +259,8 @@ export default function HomeScreenSimple({ navigation }) {
       </View>
       </View>
     </ScrollView>
+    <LanguageModal isVisible={langOpen} onClose={() => setLangOpen(false)} />
+    </>
   );
 }
 
@@ -272,6 +288,8 @@ const s = StyleSheet.create({
   tag: { fontSize: 9, fontWeight: '800', letterSpacing: 1, color: C.muted, marginTop: 2 },
   headerActions: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
   acct: { width: IS_SMALL ? 36 : 40, height: IS_SMALL ? 36 : 40, borderRadius: IS_SMALL ? 18 : 20, borderWidth: 1, borderColor: C.line2, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', marginRight: IS_SMALL ? 6 : 8 },
+  lang: { flexDirection: 'row', alignItems: 'center', gap: 3, height: IS_SMALL ? 36 : 40, paddingHorizontal: IS_SMALL ? 9 : 11, borderRadius: 999, borderWidth: 1, borderColor: C.line2, backgroundColor: C.surface, marginRight: IS_SMALL ? 6 : 8 },
+  langCode: { fontWeight: '800', fontSize: IS_SMALL ? 12 : 13, color: C.ink, letterSpacing: 0.3 },
   postBtn: { backgroundColor: C.gold, borderRadius: 999, paddingHorizontal: IS_SMALL ? 13 : 16, paddingVertical: IS_SMALL ? 8 : 10, shadowColor: C.gold6, shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   postBtnTxt: { fontWeight: '800', color: '#3b2a06', fontSize: IS_SMALL ? 13 : 14 },
 
